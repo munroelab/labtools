@@ -1,0 +1,137 @@
+#!/usr/bin/env python
+"""
+This script controls the AVT camera.
+
+1) configuration
+2) save video sequences
+"""
+
+import MySQLdb
+import cv
+import os
+import time
+
+def get_video_id():
+    db_hostname = "ozmidov.physics.mun.ca"
+
+    # for whatever reasons, I can't connect to the db using the hostname if 
+    # I am coming from the local machine.
+    hostname = os.uname()[1]
+    if hostname == db_hostname:
+        db_hostname = "localhost"
+
+    # Open database connection
+    db = MySQLdb.connect(db_hostname, "lab", "fluids0", "lab")
+
+    cursor = db.cursor()
+
+    camera_id = 1
+    sql = "INSERT INTO video (video_id, camera_id) VALUES (NULL, 1)"
+
+    cursor.execute(sql)
+    cursor.execute('SELECT LAST_INSERT_ID()')
+    row = cursor.fetchone()
+    video_id = row[0]
+    db.commit()
+
+    db.close()
+
+    return video_id
+
+def set_video_metadata(video_id, num_frames, path):
+    db_hostname = "ozmidov.physics.mun.ca"
+
+    # for whatever reasons, I can't connect to the db using the hostname if 
+    # I am coming from the local machine.
+    hostname = os.uname()[1]
+    if hostname == db_hostname:
+        db_hostname = "localhost"
+
+    # Open database connection
+    db = MySQLdb.connect(db_hostname, "lab", "fluids0", "lab")
+
+    cursor = db.cursor()
+
+    sql = """UPDATE video
+             SET num_frames=%d,
+                 path='%s'
+             WHERE video_id = %d""" % (num_frames, path, video_id)
+
+    cursor.execute(sql)
+    db.commit()
+
+    db.close()
+
+
+capture = cv.CaptureFromCAM(0)
+cv.NamedWindow("camera", 1)
+
+not_finished = True
+recording = False
+
+framenum = 0
+t0 = time.clock()
+video_path = ''
+tlog = None
+
+print "Press escape (in camera window) to start quit"
+print "Press space bar (in camera window) to start/stop recording"
+
+while not_finished:
+
+    img = cv.QueryFrame(capture)
+
+    if recording:
+       t = time.clock() - t0
+
+       framename = os.path.join(video_path, "frame%05d.png" % framenum)
+       cv.SaveImage(framename, img)
+       tlog.write("%d %.4f\n" % (framenum, t))
+       print "Frame: %d Time: %.4f s" % (framenum, t)
+
+       framenum += 1
+
+    cv.ShowImage("camera", img)
+
+    c = cv.WaitKey(10)
+    if c == 27: # escape key
+        not_finished = False
+    if c == 32: # space bar
+        if recording:
+            # Stop recording!
+
+            # close time log file
+            tlog.close()
+
+            print "Number of frames captured:", framenum
+            print "see file %s for conversion from frame number to time" % tlogname
+            print "frames are stored in %s/frame%%05d.png" % video_path
+            print
+            print "video_id =", video_id
+
+            set_video_metadata(video_id, 
+                             num_frames=framenum,
+                             path=video_path)
+
+            recording = False
+        else: # Start recording
+
+            video_id = get_video_id()
+
+            video_path = '/Volumes/HD3/video_data/%d' % video_id
+            os.mkdir(video_path)
+
+            print
+            print
+            print "Recording video_id", video_id
+            print "Press escape (in camera window) to stop recording"
+
+            # Capture frame from experiment
+            tlogname = os.path.join(video_path, "time.txt")
+            tlog = open (tlogname, "w")
+
+            framenum = 0
+            t0 = time.clock()
+
+            recording = True
+

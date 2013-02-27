@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+"""
+This script will return the expt_id to use for the next experiment.
+
+This script creates a record in the lab database.
+
+Could be called multiple times to "reserve" experiment id if necessary
+"""
+
+import MySQLdb
+import os
+
+db_hostname = "ozmidov.physics.mun.ca"
+
+# for whatever reasons, I can't connect to the db using the hostname if 
+# I am comming from the local machine.
+hostname = os.uname()[1]
+if hostname == db_hostname:
+    db_hostname = "localhost"
+
+# Open database connection
+db = MySQLdb.connect(db_hostname, "lab", "fluids0", "lab")
+
+cursor = db.cursor()
+
+sql = "INSERT INTO experiments (expt_id) VALUES (NULL)"
+
+try:
+    cursor.execute(sql)
+    cursor.execute('SELECT LAST_INSERT_ID()')
+    row = cursor.fetchone()
+    expt_id = row[0]
+    print "Current expt_id is", expt_id
+    db.commit()
+except:
+    print "Error with lab database."
+    db.rollback()
+
+
+db.close()
