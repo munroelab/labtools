@@ -10,6 +10,7 @@ import MySQLdb
 import cv
 import os
 import time
+import sys
 
 def get_video_id():
     db_hostname = "ozmidov.physics.mun.ca"
@@ -62,8 +63,25 @@ def set_video_metadata(video_id, num_frames, path):
 
     db.close()
 
+#  Try and get camera up and working
 
 capture = cv.CaptureFromCAM(0)
+frame = cv.QueryFrame(capture)
+if frame is None:
+    # hmm.. no camera available.
+    # CLIpConfig trick to list available cameras
+    os.system("CLIpConfig -l")
+    #try again
+    capture = cv.CaptureFromCAM(0)
+    frame = cv.QueryFrame(capture)
+    if frame is None:
+        print "Camera not found!. Is it powered up?"
+        sys.exit(0)
+
+print capture
+print frame
+
+
 cv.NamedWindow("camera", 1)
 
 not_finished = True
@@ -77,6 +95,13 @@ tlog = None
 print "Press escape (in camera window) to start quit"
 print "Press space bar (in camera window) to start/stop recording"
 
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_CONVERT_RGB)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FPS)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FORMAT)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_GAIN)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH)
+
 while not_finished:
 
     img = cv.QueryFrame(capture)
@@ -84,7 +109,7 @@ while not_finished:
     if recording:
        t = time.clock() - t0
 
-       framename = os.path.join(video_path, "frame%05d.png" % framenum)
+       framename = os.path.join(video_path, "frame%05d.pgm" % framenum)
        cv.SaveImage(framename, img)
        tlog.write("%d %.4f\n" % (framenum, t))
        print "Frame: %d Time: %.4f s" % (framenum, t)
@@ -105,7 +130,7 @@ while not_finished:
 
             print "Number of frames captured:", framenum
             print "see file %s for conversion from frame number to time" % tlogname
-            print "frames are stored in %s/frame%%05d.png" % video_path
+            print "frames are stored in %s/frame%%05d.pgm" % video_path
             print
             print "video_id =", video_id
 
