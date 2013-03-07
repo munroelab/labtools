@@ -1,28 +1,167 @@
 #!/usr/bin/env python
 import pylab
 import numpy as np
-import glob
 import datetime
+import glob
+import os
 import dateutil
+import argparse
+from labdb import LabDB
 
-stratifications = sorted(glob.glob('/Volumes/HD3/strat_data/*/stratification_*.csv'))
+def plot_stratification_file(filename):
+    """
+    Load and plot stratification data stored in filename.
 
-# select most recent stratication
-filename = stratifications[-1]
+    Calibration data must be available.
+    """
+    converters = {0 : dateutil.parser.parse}
+    data = np.genfromtxt(filename, converters=converters, 
+            dtype=[np.datetime64, np.uint16, np.float, np.float],
+            skiprows=1, delimiter=',', unpack=True)
 
-converters = {0 : dateutil.parser.parse}
-data = np.genfromtxt(filename, converters=converters, 
-        dtype=[np.datetime64, np.uint16, np.float, np.float],
-        skiprows=1, delimiter=',', unpack=True)
 
-z = []
-V = []
-for row in data:
-    z.append(row[2])
-    V.append(row[3])
+    z = []
+    Vc = []
+    for row in data:
+        z.append(row[2])
+        Vc.append(row[3])
+    z = np.array(z)
+    Vc = np.array(Vc)
 
-pylab.plot(V, z)
-pylab.xlabel('Conductivity (V)')
-pylab.ylabel('z (cm)')
-pylab.title(filename)
-pylab.show()
+    # we need to convert from Voltage measurement to
+    # density measurements (if possible)
+
+    # look up the strat_id for this stratification profile
+    db = LabDB()
+    rows = db.execute("""SELECT strat_id, calib_id FROM stratification WHERE
+                  path = '%s'""" % filename)
+    if len(rows) > 0:
+        strat_id, calib_id= rows[0]
+    else:
+        strat_id, calib_id = None, None
+    if calib_id is None:
+        print "calibration data unavailable"
+
+        print " plotting rho = Vc"
+        rho = 1.0 * Vc
+        return
+
+    else:
+
+        # grab calibration data
+        rows = db.execute("""SELECT density, voltage
+                             FROM stratification_calib
+                             WHERE calib_id = %d""" % calib_id)
+        data = np.array(rows)
+        rho_calib = data[:,0]
+        volt_calib = data[:,1]
+
+        # do a quadratic fit
+        calib = np.polyfit(volt_calib, rho_calib, 2)
+        rho = np.polyval(calib, Vc)
+
+    pylab.plot(rho, z)
+    
+def plot_all():
+    """
+    Make a plot for every stratification file in the database
+    """
+    db = LabDB()
+    rows = db.execute("""SELECT path FROM stratification
+                       WHERE path IS NOT NULL""")
+
+    for row in rows:
+        filename, = row
+        plot_stratification_file(filename)
+
+    pylab.xlabel('Density (g/cm3)')
+    pylab.ylabel('z (cm)')
+    pylab.title(filename)
+
+def plot_stratification(strat_id=None):
+    """ Make a plot of the given strat_id.
+    If strat_id is None, plot the "newest" stratification
+    """
+    db = LabDB()
+
+    if strat_id is None:
+        rows = db.execute("SELECT path FROM stratification")
+        filename,  = rows[-1]
+    else:
+        rows = db.execute("""SELECT path FROM stratification
+                WHERE strat_id = %d""" % strat_id)
+        filename,  = rows[0]
+
+    plot_stratification_file(filename)
+
+    pylab.xlabel('Density (g/cm3)')
+    pylab.ylabel('z (cm)')
+    pylab.title(filename)
+
+def load_calib_data(filename, calib_id):
+    """
+    Load of the calibration data from a calibration file corresponding to a
+    paricular calib_id
+    
+    """
+    db = LabDB()
+
+    print filename
+    f = open(filename, 'r')
+    # skip header line
+    f.readline()
+    for line in f:
+        print line
+        sample, t, rho, V = line.strip().split(',')
+        t = float(t)
+        rho = float(rho)
+        V = float(V)
+
+        sql = """INSERT INTO stratification_calib
+                 (sample, temperature, density, voltage, calib_id)
+                 VALUES
+                 ('%s', %f, %f, %f, %d)
+                 """ % (sample, t, rho, V, calib_id)
+        print sql
+        db.execute(sql)
+        db.commit()
+
+def load_all_calib_data():
+    """
+    Look for all available calibration data and load it into the 
+    database.  calib_id based on directory path
+    """
+
+    return
+
+    #DANGEROUS below here!!!
+    calib_directories = glob.glob('/Volumes/HD3/strat_calib_data/*')
+
+    for d in calib_directories:
+        calib_id = int(d.split('/')[-1])
+        filename = os.path.join(d, 'calib.csv')
+        if os.path.exists(filename):
+            print "Importing %d/calib.csv" % calib_id
+            load_calib_data(filename, calib_id)
+
+def main():
+    
+    parser = argparse.ArgumentParser(description="Plot a stratification profile")
+    parser.add_argument("strat_id", type=int, help = "strat_id to plot",
+            default = None, nargs = '*')
+
+    args = parser.parse_args()
+
+    if len(args.strat_id) == 0:
+        plot_stratification()
+    else:
+        for strat_id in args.strat_id:
+            plot_stratification(strat_id)
+
+    pylab.show()
+
+
+
+
+if __name__ == "__main__":
+    main()

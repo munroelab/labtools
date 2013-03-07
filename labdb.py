@@ -33,6 +33,14 @@ class LabDB:
 
         return result
 
+    def execute_one(self, sql):
+        cursor = self.conn.cursor()
+
+        nrows = cursor.execute(sql)
+        result = cursor.fetchone()
+
+        return result
+
     def commit(self):
         self.conn.commit()
     def rollback(self):
