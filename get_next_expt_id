@@ -7,16 +7,38 @@ This script creates a record in the lab database.
 Could be called multiple times to "reserve" experiment id if necessary
 """
 
+import getpass
 from labdb import LabDB
 
 def get_next_expt_id():
     db = LabDB()
 
     try:
-        sql = "INSERT INTO experiments (expt_id) VALUES (NULL)"
+        # determine experimenter bashed on current user
+        username = getpass.getuser()
+
+        # is this user in the list of experimenters?
+        sql = """SELECT id FROM experimenters
+                 WHERE username = '%s'""" % username
+        rows = db.execute(sql)
+        if len(rows) > 0:
+            experimenter_id, = rows[0]
+        else:
+            # if not, add this person
+            sql = """INSERT INTO experimenters
+                     (id, username)
+                     VALUES (NULL, '%s')""" % username
+            db.execute(sql)
+            rows = db.execute('SELECT LAST_INSERT_ID()')
+            experimenter_id, = rows[0]
+
+        sql = """INSERT INTO experiments 
+                 (expt_id, experimenter_id) 
+                 VALUES (NULL, %d)""" % experimenter_id
         db.execute(sql)
         rows = db.execute('SELECT LAST_INSERT_ID()')
         expt_id, = rows[0]
+
         db.commit()
     except:
         db.rollback()

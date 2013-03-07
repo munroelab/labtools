@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+import pylab
+import numpy as np
+import glob
+import datetime
+import dateutil
+
+stratifications = sorted(glob.glob('/Volumes/HD3/strat_data/*/stratification_*.csv'))
+
+# select most recent stratication
+filename = stratifications[-1]
+
+converters = {0 : dateutil.parser.parse}
+data = np.genfromtxt(filename, converters=converters, 
+        dtype=[np.datetime64, np.uint16, np.float, np.float],
+        skiprows=1, delimiter=',', unpack=True)
+
+z = []
+V = []
+for row in data:
+    z.append(row[2])
+    V.append(row[3])
+
+pylab.plot(V, z)
+pylab.xlabel('Conductivity (V)')
+pylab.ylabel('z (cm)')
+pylab.title(filename)
+pylab.show()
