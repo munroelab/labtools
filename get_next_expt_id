@@ -7,34 +7,31 @@ This script creates a record in the lab database.
 Could be called multiple times to "reserve" experiment id if necessary
 """
 
-import MySQLdb
-import os
+from labdb import LabDB
 
-db_hostname = "ozmidov.physics.mun.ca"
+def get_next_expt_id():
+    db = LabDB()
 
-# for whatever reasons, I can't connect to the db using the hostname if 
-# I am comming from the local machine.
-hostname = os.uname()[1]
-if hostname == db_hostname:
-    db_hostname = "localhost"
+    try:
+        sql = "INSERT INTO experiments (expt_id) VALUES (NULL)"
+        db.execute(sql)
+        rows = db.execute('SELECT LAST_INSERT_ID()')
+        expt_id, = rows[0]
+        db.commit()
+    except:
+        db.rollback()
+        expt_id = None
 
-# Open database connection
-db = MySQLdb.connect(db_hostname, "lab", "fluids0", "lab")
+    db.close()
 
-cursor = db.cursor()
+    return expt_id
 
-sql = "INSERT INTO experiments (expt_id) VALUES (NULL)"
+def main():
+    expt_id = get_next_expt_id()
+    if expt_id is None:
+        print "Error with lab database."
+    else:
+        print "Current expt_id is", expt_id
 
-try:
-    cursor.execute(sql)
-    cursor.execute('SELECT LAST_INSERT_ID()')
-    row = cursor.fetchone()
-    expt_id = row[0]
-    print "Current expt_id is", expt_id
-    db.commit()
-except:
-    print "Error with lab database."
-    db.rollback()
-
-
-db.close()
+if __name__ == "__main__":
+    main()
