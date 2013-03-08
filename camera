@@ -84,7 +84,7 @@ print frame
 
 cv.NamedWindow("camera", 1)
 
-not_finished = True
+finished = False
 recording = False
 
 framenum = 0
@@ -102,7 +102,7 @@ print "Press space bar (in camera window) to start/stop recording"
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT)
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH)
 
-while not_finished:
+while not finished:
 
     img = cv.QueryFrame(capture)
 
@@ -120,8 +120,9 @@ while not_finished:
 
     c = cv.WaitKey(10)
     if c == 27: # escape key
-        not_finished = False
-    if c == 32: # space bar
+        finished = True
+
+    if c == 32 or finished: # space bar
         if recording:
             # Stop recording!
 
@@ -139,7 +140,8 @@ while not_finished:
                              path=video_path)
 
             recording = False
-        else: # Start recording
+
+        elif not finished: # Start recording
 
             video_id = get_video_id()
 
