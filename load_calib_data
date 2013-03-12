@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+import pylab
+import numpy as np
+import datetime
+import glob
+import os
+import dateutil
+import argparse
+from labdb import LabDB
+
+def load_calib_data(filename, calib_id):
+    """
+    Load of the calibration data from a calibration file corresponding to a
+    paricular calib_id
+    
+    """
+    db = LabDB()
+
+    print filename
+    f = open(filename, 'r')
+    # skip header line
+    f.readline()
+    for line in f:
+        print line
+        sample, t, rho, V = line.strip().split(',')
+        t = float(t)
+        rho = float(rho)
+        V = float(V)
+
+        sql = """INSERT INTO stratification_calib
+                 (sample, temperature, density, voltage, calib_id)
+                 VALUES
+                 ('%s', %f, %f, %f, %d)
+                 """ % (sample, t, rho, V, calib_id)
+        print sql
+        db.execute(sql)
+        db.commit()
+
+def main():
+    
+    parser = argparse.ArgumentParser(description="Import stratification calibration data into database")
+    parser.add_argument("calib_id", type=int, help = "calib_id")
+    parser.add_argument("filename", help = "calib.csv file")
+
+    args = parser.parse_args()
+
+    load_calib_data(args.filename, args.calib_id)
+
+if __name__ == "__main__":
+    main()
