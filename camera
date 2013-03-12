@@ -102,6 +102,9 @@ print "Press space bar (in camera window) to start/stop recording"
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT)
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH)
 
+reference = cv.CloneImage(frame)
+diff = cv.CloneImage(frame)
+
 while not finished:
 
     img = cv.QueryFrame(capture)
