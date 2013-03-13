@@ -66,14 +66,31 @@ def get_strat_id():
 
     return strat_id
 
-def set_strat_metadata(strat_id, path):
+def set_strat_metadata(strat_id, path, calib_id):
+    """
+    Updata metadata in stratication table
+    """
     db = LabDB()
 
     sql = """UPDATE stratification
              SET path = '%s'
              WHERE strat_id = %d""" % (path, strat_id)
+    db.execute(sql)
+    
+    if calib_id is None:
+        """look up newest calibration curve"""
+        sql = """SELECT calib_id FROM stratification
+                ORDER BY calib_id DESC"""
+        rows = db.execute(sql)
+        calib_id = rows[0][0]
+
+    sql = """UPDATE stratification
+             SET calib_id = %d
+             WHERE strat_id = %d""" % (calib_id, strat_id)
 
     db.execute(sql)
+
+
     db.commit()
 
     db.close()
@@ -82,7 +99,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="Move the probe and measure the stratification")
 
-    parser.add_argument("dz", type=float, help = "distance to increment probe")
+    parser.add_argument("dz", type=float, help = "distance (cm) to increment probe. Positive dz is UP.")
+    parser.add_argument("--calib_id", dest='calib_id',
+                         help = 'calib_id to use for this stratificaiton profile')
     args = parser.parse_args()
 
     print "Probe will move by", args.dz, "cm"
@@ -208,7 +227,7 @@ def main():
 
     if save_data:
         f.close()
-        set_strat_metadata(strat_id, path=strat_path)
+        set_strat_metadata(strat_id, path=strat_path, calib_id=args.calib_id)
 
         print "traverse data is stored in %s" % strat_path
         print
