@@ -167,7 +167,7 @@ def main():
             print reading
             print "Position read error"
 
-        sample = d.readRegister(AIN0_REGISTER)
+        sample = d.getAIN(0)
         now = datetime.datetime.now()
         print now, x, position, sample
         f.write("%s, %s, %s, %s\n" % (now, x, position, sample))
