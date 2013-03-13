@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 """
+This script drives the vertical travserse and the conducitivity probe
+sampled via the LabJack U3.
+
+Command line usage:
+    profile -50
+will measure a stratification going 50 cm
+
+Only produces stratification_*.csv file if the probe is 
+moving downward!
+
+DOUBLE check limit switches are in place. The program can not
+tell where the base of the tank is located.
+
 code to communication with lab jack and MSCTI
 
 Control for VXM-1
@@ -74,6 +87,16 @@ def main():
 
     print "Probe will move by", args.dz, "cm"
 
+    # only save the profile data if the probe is moving downwards
+    if (args.dz < 0):
+        save_data = True
+    else:
+        save_data = False
+
+    if not save_data:
+        print "Since probe is moving upwards, no record data is being made"
+
+    
     # Set up LabJack
     d = u3.U3()
     #print d.configU3()
@@ -107,6 +130,9 @@ def main():
     ser.write("KCG")
 
     def Increment(z, speed = 2000):
+        """
+        Move the vertical traverse by a distance z. (z < 0 is downwards)
+        """
 
         z = int(z * steps_per_mm * 10)
         print "Incrementing..."
@@ -139,18 +165,20 @@ def main():
 
     time.sleep(1)
 
-    strat_id = get_strat_id()
-    strat_path= '/Volumes/HD3/strat_data/%d' % strat_id
-    os.mkdir(strat_path)
+    if save_data:
+        strat_id = get_strat_id()
+        strat_path= '/Volumes/HD3/strat_data/%d' % strat_id
+        os.mkdir(strat_path)
 
     Increment(args.dz)
 
-    now = datetime.datetime.now()
-    filename = "stratification_%s.csv" % now.strftime("%y%m%d%H%M%S")
-    strat_path = os.path.join(strat_path, filename)
+    if save_data:
+        now = datetime.datetime.now()
+        filename = "stratification_%s.csv" % now.strftime("%y%m%d%H%M%S")
+        strat_path = os.path.join(strat_path, filename)
 
-    f = open(strat_path, 'w')
-    f.write("timestamp (isoformat), X (steps), z (cm), Conductivity(V)\n")
+        f = open(strat_path, 'w')
+        f.write("timestamp (isoformat), X (steps), z (cm), Conductivity(V)\n")
 
     in_motion = True
     while in_motion:
@@ -170,22 +198,23 @@ def main():
         sample = d.getAIN(0)
         now = datetime.datetime.now()
         print now, x, position, sample
-        f.write("%s, %s, %s, %s\n" % (now, x, position, sample))
+        if save_data:
+            f.write("%s, %s, %s, %s\n" % (now, x, position, sample))
 
         time.sleep(0.1)
 
-    f.close()
     print "Motion Completed"
     ser.write("Q")
 
-    set_strat_metadata(strat_id, path=strat_path)
+    if save_data:
+        f.close()
+        set_strat_metadata(strat_id, path=strat_path)
 
-    print "traverse data is stored in %s" % strat_path
-    print
-    print "strat_id =", strat_id
-
-    # import this data into the lab db
-    # open the csv file
+        print "traverse data is stored in %s" % strat_path
+        print
+        print "strat_id =", strat_id
+    else:
+        print "Data not recorded (z < 0)"
 
 
 if __name__ == "__main__":
