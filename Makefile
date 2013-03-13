@@ -4,3 +4,4 @@ install:
 	cp camera /usr/local/bin/camera
 	cp labdb.py /usr/local/bin/labdb.py
 	cp stratification_plot /usr/local/bin/stratification_plot
+	cp load_calib_data /usr/local/bin/load_calib_data
