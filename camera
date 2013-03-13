@@ -7,7 +7,7 @@ This script controls the AVT camera.
 """
 
 import MySQLdb
-import cv
+import cv2
 import os
 import time
 import sys
@@ -65,24 +65,24 @@ def set_video_metadata(video_id, num_frames, path):
 
 #  Try and get camera up and working
 
-capture = cv.CaptureFromCAM(0)
-frame = cv.QueryFrame(capture)
-if frame is None:
+capture = cv2.VideoCapture(0)
+
+if not capture.isOpened():
     # hmm.. no camera available.
     # CLIpConfig trick to list available cameras
     os.system("CLIpConfig -l")
     #try again
-    capture = cv.CaptureFromCAM(0)
-    frame = cv.QueryFrame(capture)
-    if frame is None:
+    capture = cv2.VideoCapture(0)
+    if not capture.isOpened():
         print "Camera not found!. Is it powered up?"
         sys.exit(0)
 
-print capture
-print frame
+retval, frame = capture.read()
 
+# convert to grayscale
+img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-cv.NamedWindow("camera", 1)
+cv2.namedWindow("camera", 1)
 
 finished = False
 recording = False
@@ -94,6 +94,7 @@ tlog = None
 
 print "Press escape (in camera window) to start quit"
 print "Press space bar (in camera window) to start/stop recording"
+print "Press the key 'd' (in Camera Window) to select the reference image to start viewing the difference images"
 
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_CONVERT_RGB)
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FPS)
@@ -102,26 +103,33 @@ print "Press space bar (in camera window) to start/stop recording"
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT)
 #print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH)
 
-reference = cv.CloneImage(frame)
-diff = cv.CloneImage(frame)
+reference = img
+diff = img
+cv2.namedWindow("Difference",1)
 
 while not finished:
 
-    img = cv.QueryFrame(capture)
+    retval, frame = capture.read()
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     if recording:
        t = time.clock() - t0
 
-       framename = os.path.join(video_path, "frame%05d.pgm" % framenum)
-       cv.SaveImage(framename, img)
+       framename = os.path.join(video_path, "frame%05d.png" % framenum)
+       cv2.imwrite(framename, img)
        tlog.write("%d %.4f\n" % (framenum, t))
        print "Frame: %d Time: %.4f s" % (framenum, t)
 
        framenum += 1
 
-    cv.ShowImage("camera", img)
+    cv2.imshow("camera", img)
+    diff = cv2.absdiff(img, reference)
+    cv2.imshow("Difference",diff)
 
-    c = cv.WaitKey(10)
+    
+    c = cv2.waitKey(10)
+    if c ==100: # 'd' key
+        reference = img
     if c == 27: # escape key
         finished = True
 
