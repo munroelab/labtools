@@ -16,7 +16,15 @@ def load_calib_data(filename, calib_id):
     """
     db = LabDB()
 
-    print filename
+    # does this calib_id already exist?
+    rows = db.execute("SELECT calib_id FROM stratification_calib WHERE calib_id = %d"
+            % calib_id)
+    if len(rows) > 1:
+        print "calib_id %d is already used" % calib_id
+        print "no change to database"
+        return
+
+    print "Importing %s" % filename
     f = open(filename, 'r')
     # skip header line
     f.readline()
