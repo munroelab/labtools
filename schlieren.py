@@ -4,7 +4,7 @@ using matrx based operations
 """
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
-
+import argparse
 import Image
 import pylab
 import numpy
