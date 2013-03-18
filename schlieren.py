@@ -2,9 +2,13 @@
 test program for implementing line based synthetic schlieren 
 using matrx based operations
 """
+import matplotlib
+#matplotlib.use('module://mplh5canvas.backend_h5canvas')
+
 import Image
 import pylab
 import numpy
+import time
 
 def getTol(image, mintol = 10):
     """
@@ -26,7 +30,7 @@ def getTol(image, mintol = 10):
     B = numpy.vstack((z, d))
     # only estimate if the sequence is monotonic and differences
     # are at least mintol 
-    C = (A >= mintol) & (B >= mintol) & (A*B>0)
+    C = (abs(A) >= mintol) & (abs(B) >= mintol) & (A*B>0)
     return C
 
 def compute_dz(im1, im2, dz = 1.0):
@@ -82,6 +86,72 @@ def compute_dz(im1, im2, dz = 1.0):
    # #print i, j, zm - z0, zp - z0, deltaZ
    # return deltaZ
 
+from scipy import ndimage
+
+def movie(video_id):
+    # Need two images
+    path = "/Volumes/HD3/video_data/%d/frame%05d.png"
+
+    count = 10
+    n = 2
+    filename1 = path % (video_id, count - n)
+    filename2 = path % (video_id, count)
+
+    image1 = numpy.array(Image.open(filename1))
+    image2 = numpy.array(Image.open(filename2))
+
+    H = 52.0
+    dz = H / image1.shape[0]
+
+    mintol = 15
+    C = getTol(image1, mintol = mintol)
+    delz = compute_dz(image1, image2, dz) 
+    delz = numpy.nan_to_num(delz) * C
+
+    vmax = 0.01
+
+    fig = pylab.figure()
+    ax = fig.add_subplot(111)
+    img = pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax,
+                    animated=False, label='delz', aspect='auto')
+    pylab.colorbar()
+    pylab.show(block=False)
+    from scipy.ndimage import gaussian_filter
+    from numpy import ma
+
+    while True:
+        print "render..."
+        filename1 = path % (video_id, count - n)
+        filename2 = path % (video_id, count)
+
+        image1 = numpy.array(Image.open(filename1))
+        image2 = numpy.array(Image.open(filename2))
+
+        C = getTol(image1, mintol = mintol)
+        delz = compute_dz(image1, image2, dz) 
+        delz = numpy.nan_to_num(delz) * C
+        #delz_m = ma.masked_where(C==False, delz)
+
+        # clip large values
+        bound = 1.0
+        delz[delz > bound] = bound
+        delz[delz < -bound] = -bound
+
+        # fill in missing values
+        filt_delz = ndimage.gaussian_filter(delz, (21,21))
+        i = abs(delz) > 1e-8
+        filt_delz[i] = delz[i]
+
+        # smooth
+        filt_delz = ndimage.gaussian_filter(filt_delz, 7)
+
+        img.set_data(filt_delz)
+        fig.canvas.draw()
+        ax.set_title('n = %d' % count)
+
+        count += 5
+        time.sleep(0.1)
+
 def test():
     # Need two images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
@@ -94,7 +164,6 @@ def test():
 
     # disply both images
     pylab.figure()
-
     ax = pylab.subplot(231)
     pylab.imshow(image1, cmap=pylab.cm.jet,interpolation='nearest')
     pylab.title('Image1')
@@ -129,12 +198,13 @@ def test():
     vmax = 0.05
     pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax)
     pylab.colorbar()
-
-    pylab.clf()
-    pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax)
-    pylab.colorbar()
-
     pylab.show()
 
+
+def UI():
+    # parse args here...
+
+    movie(49)
+
 if __name__ == "__main__":
-    test()
+    UI()
