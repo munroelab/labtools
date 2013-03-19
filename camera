@@ -107,6 +107,14 @@ reference = img
 diff = img
 cv2.namedWindow("Difference",1)
 
+scale = 2
+max_scale = 10
+
+def changeScale(scale):
+    print "scale changed to %d" % scale
+
+cv2.createTrackbar("scale", "Difference", scale, max_scale, changeScale)
+    
 while not finished:
 
     retval, frame = capture.read()
@@ -122,8 +130,12 @@ while not finished:
 
        framenum += 1
 
+
+    scale = cv2.getTrackbarPos("scale", "Difference")
     cv2.imshow("camera", img)
-    diff = cv2.absdiff(img, reference)
+    diff = scale * cv2.absdiff(img, reference)
+    diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
+
     cv2.imshow("Difference",diff)
 
     
