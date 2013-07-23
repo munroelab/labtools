@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import netCDF4
+
 def xzt_fft(dz_id):
     """
     Given the three-dimensional array f(x,z,t) gridded onto x, z, t
@@ -19,23 +20,23 @@ def xzt_fft(dz_id):
 
     # get the path to the nc file
     # Open &  Load the nc file
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
-    dz_filename = dz_path+ "/dz.nc"
-    nc = netCDF4.Dataset(dz_filename)
-    dz_array = nc.variables['dz_array']
-    dz_array = dz_array[100:600,300:800,600:1000] 
-    dz_array = np.float16(dz_array)
+    file_path = "/Volumes/HD3/deltaN2/%d" % deltaN2_id
+    filename = file_path+ "/deltaN2.nc"
+    nc = netCDF4.Dataset(filename)
+    deltaN2_array = nc.variables['deltaN2_array']
+    #deltaN2_array = deltaN2_array[100:600,300:800,600:1000] 
+    deltaN2_array = np.float16(deltaN2_array)
     t = nc.variables['time']
-    t = t[100:300]
+    #t = t[100:300]
     t = np.float16(t)
     x = nc.variables['column']
-    x = x[600:1000]
+    #x = x[600:1000]
     x = np.float16(x)
     z = nc.variables['row']
-    z = z[300:800]
+    #z = z[300:800]
     z = np.float16(z)
 #    plt.imshow(dz_array[1,150:800,:],extent=[x[0],x[-1],z[0],z[-1]])
-    print "DZ array shape: " ,dz_array.shape
+    print "deltaN2 array shape: " ,deltaN2_array.shape
     print "T shape: " ,t.shape
     print "X shape: " ,x.shape
     print "Z shape: " ,z.shape
@@ -52,7 +53,7 @@ def xzt_fft(dz_id):
     dt = t[1] - t[0]
     print "dx,dz,dt :: " ,dx,dz,dt
     # perform FFT alone all three dimensions
-    F = np.fft.fftn(dz_array) 
+    F = np.fft.fftn(deltaN2_array) 
     print "fft of dz _array:: type and size", F.dtype,F.size
     # Normalize and shift so that zero frequency is at the center
     F = np.fft.fftshift(F)/(nt*nt*nx*nx*nz*nz)
@@ -236,12 +237,13 @@ def test():
 def fft_test_code():
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("dz_id",type=int,help="Enter the dz id of the dz.nc file extract the wavenumbers and frequency from.")
+    parser.add_argument("deltaN2_id",type=int,help="Enter the deltaN2 id of the
+            deltaN2.nc file from which to extract the wavenumbers and frequency from.")
     args = parser.parse_args()
-    max_kx,max_kz,max_omega= xzt_fft(args.dz_id) 
-    plot_fft(max_kx,max_kz,max_omega,args.dz_id)
+    max_kx,max_kz,max_omega= xzt_fft(args.deltaN2_id) 
+    plot_fft(max_kx,max_kz,max_omega,args.deltaN2_id)
 
 if __name__ == "__main__":
-    test()
-    #fft_test_code()
+    #test()
+    fft_test_code()
 

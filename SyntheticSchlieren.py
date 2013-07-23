@@ -73,29 +73,19 @@ def compute_dz_image(im1, im2, dz = 1.0):
     ans = -dz * A/E * (B/D + C/F)
     return ans
 
-"""def generate_dz_array(delz,dz_array):
-   
-    #A function to appends delz of an image to an array that will hold the values of
-    #a sequence of delz
-   
-    dz_array.append(delz)
-    return dz_array
-"""
-
 def append2ncfile(dz_filename,dz_arr):
     """
     Open the nc file
     Append the array to the end of the nc file
     Close the nc file 
     """
-    #print"dz shape", dz_arr.shape
     nc=netCDF4.Dataset(dz_filename,'a')
     DZ = nc.variables['dz_array']
     i= len(DZ)
-    #print "len(dz): ", i 
     DZ[i,:,:]=dz_arr
+    print "dz shape: ", DZ.shape,"appending"
+    print "len(dz): ", i 
     nc.close()
-    print "appending"
 
 def set_time_axis(dz_filename,dt):
     # open the file in the end and set the time variable start and stop time
@@ -108,23 +98,178 @@ def set_time_axis(dz_filename,dt):
     Tm[:] = t_array
     nc.close()
 
-
-def compute_dz(video_id,win_l,win_h,skip_frames=10):
+def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
+    
+    """ Need to compute dz for the first time.
+        Need to create the path for the dz file and create the empty nc file
     """
-    > Given video_id, calculate the dz array. Output is cached on disk.
-    > returns the array dz
-    > skip_frames is the number of frames to jump before computing dz
-    """
-    win_l=win_l*1.0
-    win_h=win_h*1.0
-    print "skip_frames is", skip_frames
+    
     db = labdb.LabDB()
+    # Get experiment ID
+    sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+    print " experiment ID : ", expt_id
 
+    # get the window length and window height
+    sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_l = rows[0][0]*1.0
+    
+    sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_h = rows[0][0]*1.0
+    
+    print "lenght" , win_l, "\nheight", win_h
+
+    # Create the directory in which to store the nc file
+    sql = """INSERT INTO dz (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)\
+            VALUES (%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
+            (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)
+    print sql
+    db.execute(sql)
+    sql = """SELECT LAST_INSERT_ID()"""
+    rows = db.execute(sql)
+    dz_id = rows[0][0]
+    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    os.mkdir(dz_path)
+    dz_filename = os.path.join(dz_path, "dz.nc")
+    
+    # Declare the nc file for the first time 
+        
+    nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
+    row_dim = nc.createDimension('row',964)
+    col_dim = nc.createDimension('column',1292)
+    t_dim = nc.createDimension('time',None)
+    
+    #the dimensions are also variables
+    ROW = nc.createVariable('row',numpy.float32,('row'))
+    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
+    COLUMN = nc.createVariable('column',numpy.float32,('column'))
+    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
+    TIME = nc.createVariable('time',numpy.float32,('time'))
+    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
+    
+    # declare the 3D data variable 
+    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
+    print nc.dimensions.keys() , DZ.shape,DZ.dtype
+    
+    # the length and height dimensions are variables containing the length and
+    # height of each pixel in cm
+    R =numpy.arange(0,win_h,win_h/964,dtype=float)
+    C =numpy.arange(0,win_l,win_l/1292,dtype=float)
+    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    t=numpy.loadtxt(path2time)
+    dt = numpy.mean(numpy.diff(t[:,1]))
+    print "dt = " ,dt
+    dt = dt*skip_frames
+    print "timestep: " ,dt
+
+    ROW[:] = R
+    COLUMN[:] = C
+
+    #get the number of frames
+    sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id
+    rows = db.execute(sql)
+    num_frames = rows[0][0]
+    
+    print "R",ROW.shape
+    print "C",COLUMN.shape
+
+    db.commit()
+    nc.close()
+    return dz_filename,dz_id,dt,num_frames,win_h
+
+
+def create_nc_file(video_id,skip_frames):
+    """ Need to compute dz for the first time.
+        Need to create the path for the dz file and create the empty nc file
+    """
+    
+    db = labdb.LabDB()
+    # Get experiment ID
+    sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+    print " experiment ID : ", expt_id
+
+    # get the window length and window height
+    sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_l = rows[0][0]*1.0
+    
+    sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_h = rows[0][0]*1.0
+    
+    print "lenght" , win_l, "\nheight", win_h
+
+    # Create the directory in which to store the nc file
+    sql = """INSERT INTO dz (video_id, skip_frames,expt_id)\
+            VALUES (%d,%d,%d)""" % (video_id,skip_frames,expt_id)
+    print sql
+    db.execute(sql)
+    sql = """SELECT LAST_INSERT_ID()"""
+    rows = db.execute(sql)
+    dz_id = rows[0][0]
+    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    os.mkdir(dz_path)
+    dz_filename = os.path.join(dz_path, "dz.nc")
+    
+    # Declare the nc file for the first time 
+        
+    nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
+    row_dim = nc.createDimension('row',964)
+    col_dim = nc.createDimension('column',1292)
+    t_dim = nc.createDimension('time',None)
+    
+    #the dimensions are also variables
+    ROW = nc.createVariable('row',numpy.float32,('row'))
+    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
+    COLUMN = nc.createVariable('column',numpy.float32,('column'))
+    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
+    TIME = nc.createVariable('time',numpy.float32,('time'))
+    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
+    
+    # declare the 3D data variable 
+    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
+    print nc.dimensions.keys() , DZ.shape,DZ.dtype
+    
+    # the length and height dimensions are variables containing the length and
+    # height of each pixel in cm
+    R =numpy.arange(0,win_h,win_h/964,dtype=float)
+    C =numpy.arange(0,win_l,win_l/1292,dtype=float)
+    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    t=numpy.loadtxt(path2time)
+    dt = numpy.mean(numpy.diff(t[:,1]))
+    print "dt = " ,dt
+    dt = dt*skip_frames
+    print "timestep: " ,dt
+
+    ROW[:] = R
+    COLUMN[:] = C
+
+    #get the number of frames
+    sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id
+    rows = db.execute(sql)
+    num_frames = rows[0][0]
+    
+    print "R",ROW.shape
+    print "C",COLUMN.shape
+
+    db.commit()
+    nc.close()
+    return dz_filename,dz_id,dt,num_frames,win_h
+
+
+def checkifdzexists_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
+    db = labdb.LabDB()
     # check if this dz array has already been computed?
-    sql = """SELECT dz_id 
-             FROM dz 
-             WHERE video_id = %d AND skip_frames = %d""" % (video_id,
-                     skip_frames)
+    sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d AND\
+            mintol=%d AND sigma=%f AND filter_size=%d AND startF=%d AND\
+            stopF=%d AND diff_frames=%d""" %\
+            (video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames)
+
     rows = db.execute(sql)
     if len(rows) > 0:
         # dz array already computed
@@ -144,92 +289,90 @@ def compute_dz(video_id,win_l,win_h,skip_frames=10):
         # loading the data 
         dz_arr = nc.variables['dz_array']
         print "shape of nc file -> ", dz_arr.shape
-        return
-        #return dz_array
+        return dz_id 
+    else:
+        return 0
 
-    # Need to compute dz for the first time
-    
-    # Create the directory in which to store the nc file
-    sql = """INSERT INTO dz (video_id, skip_frames)
-             VALUES (%d, %d)""" % (video_id, skip_frames)
-    print sql
-    db.execute(sql)
-    sql = """SELECT LAST_INSERT_ID()"""
+def checkifdzexists(video_id,skip_frames):
+    db = labdb.LabDB()
+    # check if this dz array has already been computed?
+    sql = """SELECT dz_id FROM dz WHERE video_id = %d\
+            AND skip_frames = %d""" % (video_id,skip_frames)
     rows = db.execute(sql)
-    dz_id = rows[0][0]
+    if len(rows) > 0:
+        # dz array already computed
+        dz_id = rows[0][0]
+        print "Loading cached dz %d..." % dz_id
+        # load the array from the disk
+        dz_path = "/Volumes/HD3/dz/%d" % dz_id
+        dz_filename = dz_path+'/'+'dz.nc'
+        
+        #dz_array = numpy.load(dz_filename)
+        #loading the nc file
+        print dz_filename
+        nc=netCDF4.Dataset(dz_filename,'a')
+        # some information about the nc file
+        print "dimensions of nc file -> ", nc.dimensions.keys()
+        print "variables of nc file -> ", nc.variables.keys()
+        # loading the data 
+        dz_arr = nc.variables['dz_array']
+        print "shape of nc file -> ", dz_arr.shape
+        return dz_id 
+    else:
+        return 0
 
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
-    os.mkdir(dz_path)
-
-    dz_filename = os.path.join(dz_path, "dz.nc")
-
-    """ Declare the nc file for the first time """
+def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0,diff_frames=1):
+    """
+    > Given video_id, calculate the dz array. Output is cached on disk.
+    > returns the array dz
+    > skip_frames is the number of frames to jump before computing dz
+    """
+    db = labdb.LabDB()
     
-    nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
-    row_dim = nc.createDimension('row',964)
-    col_dim = nc.createDimension('column',1292)
-    t_dim = nc.createDimension('time',None)
+    #check if the dz file already exists. function checkifdzexists() returns
+    #dz_id if the dz file exists else returns 0
+    #dz_flag = checkifdzexists(video_id,skip_frames)
 
-    #the dimensions are also variables
-    ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
-    COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
-    TIME = nc.createVariable('time',numpy.float32,('time'))
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
-    # declare the 3D data variable 
-    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
-    print nc.dimensions.keys() , DZ.shape,DZ.dtype
-    # the length and height dimensions are variables containing the length and
-    # height of each pixel in cm
-    R =numpy.arange(0,win_h,win_h/964,dtype=float)
-    C =numpy.arange(0,win_l,win_l/1292,dtype=float)
-    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-    t=numpy.loadtxt(path2time)
-    dt = numpy.mean(numpy.diff(t[:,1]))
-    print "dt = " ,dt
-    dt = dt*skip_frames
-    print "timestep: " ,dt
+    # get the number of frames if stopF is unspecified
+    if (stopF == 0):
+        sql = """ SELECT num_frames FROM video where video_id = %d""" % video_id
+        rows = db.execute(sql)
+        stopF = rows[0][0]
 
-    ROW[:] = R
-    COLUMN[:] = C
-    #get the number of frames
-    sql = """SELECT num_frames FROM video
-             WHERE video_id = %d""" % video_id
-    rows = db.execute(sql)
-    num_frames = rows[0][0]
-    n = 3
-    count = n + 1
-    print "R",ROW.shape
-    print "C",COLUMN.shape
+    dz_flag =checkifdzexists_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
+    if (dz_flag !=0):
+        return dz_flag
+    
+    # Call the function that will create the nc file to append data to
+    #dz_filename,dz_id,dt,num_frames,win_h = create_nc_file(video_id,skip_frames)
+    dz_filename,dz_id,dt,num_frames,win_h=create_nc_file_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
 
-    db.commit()
-    nc.close()
+    
+    # n: number of frames between 2 images we subtract 
+    n=diff_frames
+    # count: start from the second frame. count is the variable that tracks the
+    # current frame
+    count=startF+n
 
     # Set path to the two images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
-    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    # path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     
-    #declare the array to hold the value of dz for every image
-    #dz_array = []
-    filename1 = path % (video_id, count - n)
-    filename2 = path % (video_id, count)
-
-    image1 = numpy.array(Image.open(filename1))
-    image2 = numpy.array(Image.open(filename2))
-
-    H = 52.0
-    dz = H / image1.shape[0]
-
-    mintol = 15
-    C = getTol(image1, mintol = mintol)
+    dz = win_h / 964
+    
+    #mintol =10
+   
+    """ C = getTol(image1, mintol = mintol)
     delz = compute_dz_image(image1, image2, dz) 
     delz = numpy.nan_to_num(delz) * C
+    #from scipy.ndimage import gaussian_filter, correlate
+    #delz_filtered = gaussian_filter(delz,[10,10])
+    #delz = C* delz + (1-C) * delz_filtered
     #dz_array = generate_dz_array(delz,dz_array)
     append2ncfile(dz_filename,delz)
     vmax = 0.01
-
-    """ old ploting code
+    
+    old ploting code
     fig = pylab.figure()
     ax = fig.add_subplot(111)
     img = pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax,
@@ -239,10 +382,14 @@ def compute_dz(video_id,win_l,win_h,skip_frames=10):
 
     from scipy.ndimage import gaussian_filter
     from numpy import ma
-    index = 0
-    while True:
+    
+    #check if path exists
+    filename2 = path % (video_id, count)
+
+    # while True
+    while os.path.exists(filename2) & (count <=stopF):
+        
         print "render frame %d of %d" % (count, num_frames)
-        index += 1
 
         filename1 = path % (video_id, count - n)
         filename2 = path % (video_id, count)
@@ -253,44 +400,54 @@ def compute_dz(video_id,win_l,win_h,skip_frames=10):
         image1 = numpy.array(Image.open(filename1))
         image2 = numpy.array(Image.open(filename2))
 
-        C = getTol(image1, mintol = mintol)
+        C = getTol(image1, mintol = min_tol)
         delz = compute_dz_image(image1, image2, dz) 
         delz = numpy.nan_to_num(delz) * C
         #delz_m = ma.masked_where(C==False, delz)
         #dz_array = generate_dz_array(delz,dz_array)
-        append2ncfile(dz_filename,delz)
         # clip large values
         bound = 1.0
         delz[delz > bound] = bound
         delz[delz < -bound] = -bound
 
         # fill in missing values
-        filt_delz = ndimage.gaussian_filter(delz, (21,21))
-        i = abs(delz) > 1e-8
-        filt_delz[i] = delz[i]
+        #filt_delz = ndimage.gaussian_filter(delz, (7.5,7.5))
+        filt_delz = ndimage.gaussian_filter(delz, (sigma,sigma))
+        #i = abs(delz) > 1e-8
+        filt_delz = C*delz+ (1-C)*filt_delz
 
         # smooth
-        filt_delz = ndimage.gaussian_filter(filt_delz, 7)
+        #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
+        
+        # new smoothing
+        smooth_filt_delz =ndimage.uniform_filter(filt_delz,size=(filter_size,filter_size))
 
         # Old ploting
         """ img.set_data(filt_delz)
         fig.canvas.draw()
         ax.set_title('n = %d' % count)"""
+        print "max: ",numpy.max(smooth_filt_delz)
+        print "min: ",numpy.min(smooth_filt_delz)
 
+        append2ncfile(dz_filename,smooth_filt_delz)
         count += skip_frames
-        time.sleep(0.1)
+        filename2 = path % (video_id, count)
+
 
     
     # define time axis for the nc time variable
     nc = netCDF4.Dataset(dz_filename,'a')
+    array = nc.variables['dz_array']
+    tl = array.shape[0]
+    print "no of timesteps:", tl
     Tm=nc.variables['time']
-    print Tm.shape
-    tl = len(Tm)
+    print "time.shape(before):" ,Tm.shape
     t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    print t_array
+    print "time:",t_array
     Tm[:] = t_array
     nc.close()
 
+    return dz_id
     #set_time_axis(dz_filename,dt)
     #dz_array = numpy.array(dz_array)
     #print "final dz_array.shape" ,dz_array.shape
@@ -370,13 +527,21 @@ def UI():
     parser = argparse.ArgumentParser()
     parser.add_argument("video_id",type = int, 
                         help = "Enter the video id of the frames on which to do Synthetic Schlieren")
-    parser.add_argument("window_length",type = int,help = "enter the length of the camera window")
-    parser.add_argument("window_height",type = int,help = "enter the height of the camera window")
-    parser.add_argument("--skip_frames",type = int, default = 10,help = "number of frames to jump while computing dz")
+    
+    parser.add_argument("mintol",type = int, help="Helps estimate the monoticity of the data")
+    parser.add_argument("sigma", type = float, help= "standard deviation for the Gaussian kernal")
+    parser.add_argument("filter_size", type = int, help = "filter size")
+    parser.add_argument("--skip_frames",type = int, default = 1,help = "number of frames to jump while computing dz")
+    parser.add_argument("--startF",type= int, default = 0, help="The frame from where to start computing dz")
+    parser.add_argument("--stopF",type= int, default = 0,help= "The frame where\
+            to stop computing dz. Default = number of frames in the videodata")
+    parser.add_argument("--diff_frames" , type= int, default=1,\
+            help="The time difference (in terms of frame numbers) between the 2 images considered")
     ## add optional arguement to override cache
 
     args = parser.parse_args()
-    compute_dz(args.video_id,args.window_length,args.window_height,args.skip_frames)
+    dz_id=compute_dz(args.video_id,args.mintol,args.sigma,args.filter_size,\
+            args.skip_frames,args.startF,args.stopF,args.diff_frames)
 
 def fft_test_code():
     """

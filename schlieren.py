@@ -2,6 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrx based operations
 """
+import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -9,10 +10,12 @@ import Image
 import pylab
 import numpy
 import time
+import os
+import labdb
 
 def getTol(image, mintol = 10):
     """
-    estimate monoticity of data
+    estimate monotonicity of data
     """
 
     nrows, ncols = image.shape
@@ -33,9 +36,9 @@ def getTol(image, mintol = 10):
     C = (abs(A) >= mintol) & (abs(B) >= mintol) & (A*B>0)
     return C
 
-def compute_dz(im1, im2, dz = 1.0):
+def compute_dz_image(im1, im2, dz = 1.0):
     """
-    Estimate dz given im1 and im2 (where im1 is the reference image)
+    Estimate dz given two images im1 and im2 (where im1 is the reference image)
     """
 
     # make things all float
@@ -66,34 +69,75 @@ def compute_dz(im1, im2, dz = 1.0):
     F = im1[1:,:] - im1[:-1,:]
     F = numpy.vstack((F, zerorow))
     
-    #ans1 = - dz * (A*B)/(D*E)
-    #ans2 = - dz * (A*C)/(F*E)
-    #ans = ans1 + ans2
+    """ans1 = - dz * (A*B)/(D*E)  ans2 = - dz * (A*C)/(F*E) ans = ans1 + ans2"""
 
     ans = -dz * A/E * (B/D + C/F)
 
     return ans
 
-   # if j == 0:  # linear interpolation at bottom boundary 
-   #     deltaZ = (zp-z0)*(img[i,0]-img0[i0,0])/(img0[i0,1]-img0[i0,0])
-   # elif j == img0.nz-1: # linear interpolation at top boundary 
-   #     deltaZ = (zm-z0)*(img[i,-1]-img0[i0,-1])/(img[i0,-2]-img[i0,-1])
-   # else: # quadratic interpolation 
-   #     deltaZ = (zm-z0)*(img[i,j]-img0[i0, j])*(img[i, j]-img0[i0, j+1]) \
-   #         /((img0[i0, j-1]-img0[i0, j])*(img0[i0, j-1]-img0[i0, j+1])) \
-   #         + (zp-z0)*(img[i,j]-img0[i0, j])*(img[i ,j]-img0[i0, j-1]) \
-   #         /((img0[i0, j+1]-img0[i0, j])*(img0[i0, j+1]-img0[i0, j-1]))
-   # #print i, j, zm - z0, zp - z0, deltaZ
-   # return deltaZ
+"""old code  ...  if j == 0:  # linear interpolation at bottom boundary 
+    deltaZ = (zp-z0)*(img[i,0]-img0[i0,0])/(img0[i0,1]-img0[i0,0])
+    elif j == img0.nz-1: # linear interpolation at top boundary 
+        deltaZ = (zm-z0)*(img[i,-1]-img0[i0,-1])/(img[i0,-2]-img[i0,-1])
+    else: # quadratic interpolation 
+        deltaZ = (zm-z0)*(img[i,j]-img0[i0, j])*(img[i, j]-img0[i0, j+1]) \
+            /((img0[i0, j-1]-img0[i0, j])*(img0[i0, j-1]-img0[i0, j+1])) \
+            + (zp-z0)*(img[i,j]-img0[i0, j])*(img[i ,j]-img0[i0, j-1]) \
+            /((img0[i0, j+1]-img0[i0, j])*(img0[i0, j+1]-img0[i0, j-1]))
+   print i, j, zm - z0, zp - z0, deltaZ
+    return deltaZ"""
+
+
+def generate_dz_array(delz,dz_array):
+    
+    """
+    A function to appends delz of an image to an array that will hold the values of
+    a sequence of delz
+    """
+    dz_array.append(delz)
+    return dz_array
+
 
 from scipy import ndimage
 
-def movie(video_id):
-    # Need two images
-    path = "/Volumes/HD3/video_data/%d/frame%05d.png"
+def compute_dz(video_id, skip_frames=10):
+    """
+    Given video_id, calculate the dz array. Output is cached on disk.
 
-    count = 10
-    n = 2
+    returns the array dz
+
+    skip_frames is the number of frames to jump before computing dz
+    """
+
+    print "skip_frames is", skip_frames
+    db = labdb.LabDB()
+
+    # check if this dz array has already been computed?
+    sql = """SELECT dz_id 
+             FROM dz 
+             WHERE video_id = %d AND skip_frames = %d""" % (video_id,
+                     skip_frames)
+    rows = db.execute(sql)
+    if len(rows) > 0:
+        # dz array already computed
+        dz_id = rows[0][0]
+        print "Loading cached dz %d..." % dz_id
+        # load the array from the disk
+        dz_path = "/Volumes/HD3/dz/%d" % dz_id
+        dz_filename = os.path.join(dz_path, "dz.npy")
+        dz_array = numpy.load(dz_filename)
+        return dz_array
+
+    # Need to compute dz for the first time
+
+    # Set path to the two images
+    path = "/Volumes/HD3/video_data/%d/frame%05d.png"
+    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    
+    #declare the array to hold the value of dz for every image
+    dz_array = []
+    n = 5
+    count = n + 1
     filename1 = path % (video_id, count - n)
     filename2 = path % (video_id, count)
 
@@ -105,32 +149,47 @@ def movie(video_id):
 
     mintol = 15
     C = getTol(image1, mintol = mintol)
-    delz = compute_dz(image1, image2, dz) 
+    delz = compute_dz_image(image1, image2, dz) 
     delz = numpy.nan_to_num(delz) * C
+    dz_array = generate_dz_array(delz,dz_array)
 
     vmax = 0.01
 
+    """ old ploting code
     fig = pylab.figure()
     ax = fig.add_subplot(111)
     img = pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax,
                     animated=False, label='delz', aspect='auto')
     pylab.colorbar()
-    pylab.show(block=False)
+    pylab.show(block=False) """
+
     from scipy.ndimage import gaussian_filter
     from numpy import ma
 
+    sql = """SELECT num_frames FROM video
+             WHERE video_id = %d""" % video_id
+    rows = db.execute(sql)
+    num_frames = rows[0][0]
+
+    index = 0
     while True:
-        print "render..."
+        print "render frame %d of %d" % (count, num_frames)
+        index += 1
+
         filename1 = path % (video_id, count - n)
         filename2 = path % (video_id, count)
+
+        if not os.path.exists(filename2):
+            break
 
         image1 = numpy.array(Image.open(filename1))
         image2 = numpy.array(Image.open(filename2))
 
         C = getTol(image1, mintol = mintol)
-        delz = compute_dz(image1, image2, dz) 
+        delz = compute_dz_image(image1, image2, dz) 
         delz = numpy.nan_to_num(delz) * C
         #delz_m = ma.masked_where(C==False, delz)
+        dz_array = generate_dz_array(delz,dz_array)
 
         # clip large values
         bound = 1.0
@@ -145,12 +204,35 @@ def movie(video_id):
         # smooth
         filt_delz = ndimage.gaussian_filter(filt_delz, 7)
 
-        img.set_data(filt_delz)
+        # Old ploting
+        """ img.set_data(filt_delz)
         fig.canvas.draw()
-        ax.set_title('n = %d' % count)
+        ax.set_title('n = %d' % count)"""
 
-        count += 5
+        count += skip_frames
         time.sleep(0.1)
+
+    dz_array = numpy.array(dz_array)
+    print "final dz_array.shape" ,dz_array.shape
+    print dz_array
+
+    # cache dz_array to disk
+    sql = """INSERT INTO dz (video_id, skip_frames)
+             VALUES (%d, %d)""" % (video_id, skip_frames)
+    print sql
+    db.execute(sql)
+    sql = """SELECT LAST_INSERT_ID()"""
+    rows = db.execute(sql)
+    dz_id = rows[0][0]
+
+    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    os.mkdir(dz_path)
+
+    dz_filename = os.path.join(dz_path, "dz.npy")
+    numpy.save(dz_filename, dz_array)
+    db.commit()
+
+    return dz_array
 
 def test():
     # Need two images
@@ -188,7 +270,7 @@ def test():
     pylab.subplot(235, sharex=ax, sharey=ax)
     H = 52.0
     dz = H / image1.shape[0]
-    delz = compute_dz(image1, image2, dz)
+    delz = compute_dz_image(image1, image2, dz)
     vmax = 0.05
     pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax)
     pylab.colorbar()
@@ -200,11 +282,33 @@ def test():
     pylab.colorbar()
     pylab.show()
 
+def UI(): 
+    """
+    take arguments from the user :video id and skip frame number and call
+    compute dz function 
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("video_id",type = int, 
+                        help = "Enter the video id of the frames on which to do Synthetic Schlieren")
+    parser.add_argument("--skip_frames",type = int, 
+                        default = 10,
+                        help = "number of frames to jump while computing dz")
+    ## add optional arguement to override cache
 
-def UI():
-    # parse args here...
+    args = parser.parse_args()
+    compute_dz(args.video_id, args.skip_frames)
 
-    movie(49)
+def fft_test_code():
+    """
+     separate test program to check if fft works
+    """
+    dz_array = compute_dz(49, 15)
+
+    win_L = 67
+    win_H = 47
+    x,z,t = spectrum_test.get_arrays_XZT(dz_array,win_L,win_H,path2time)
+    kx,kz,omega = spectrum_test.estimate_dominant_frequency(dz_array,x,z,t)
+    spectrum_test.plot_fft(kx,kz,omega,x,z,t)
 
 if __name__ == "__main__":
     UI()

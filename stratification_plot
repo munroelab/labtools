@@ -41,12 +41,16 @@ def plot_stratification_file(filename):
 
     # look up the strat_id for this stratification profile
     db = LabDB()
-    rows = db.execute("""SELECT strat_id, calib_id FROM stratification WHERE
+    rows = db.execute("""SELECT strat_id, calib_id, zoffset FROM stratification WHERE
                   path = '%s'""" % filename)
     if len(rows) > 0:
-        strat_id, calib_id= rows[0]
+        strat_id, calib_id, zoffset= rows[0]
     else:
         strat_id, calib_id = None, None
+
+    # apply z_offset
+    z = z - zoffset
+
     if calib_id is None:
         print "calibration data unavailable"
 
