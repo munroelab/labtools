@@ -17,17 +17,31 @@ def plot_stratification_file(filename):
 
     Calibration data must be available.
     """
-    converters = {0 : dateutil.parser.parse}
-    data = np.genfromtxt(filename, converters=converters, 
-            dtype=[np.datetime64, np.uint16, np.float, np.float],
-            skiprows=1, delimiter=',', unpack=True)
-
+    # broken -- issue with datetime64 in numpy 1.7???
+    #converters = {0 : dateutil.parser.parse}
+    #data = np.genfromtxt(filename, 
+    #        dtype=[np.datetime64, np.uint16, np.float, np.float],
+    #        skiprows=1, delimiter=',', unpack=True)
 
     z = []
     Vc = []
-    for row in data:
-        z.append(row[2])
-        Vc.append(row[3])
+    f = open(filename)
+    ll = f.readlines()
+    for line in ll[1:]:
+        d_, z_, Vc_, Vt_ = line.split(',')
+        d_ = np.datetime64(d_)
+        z_ = np.uint16(z_)
+        Vc_ = np.float(Vc_)
+        Vt_ = np.float(Vt_)
+
+        z.append(z_)
+        Vc.append(Vc_)
+    f.close()
+
+    #for row in data:
+    #    z.append(row[2])
+    #    Vc.append(row[3])
+
     z = np.array(z)
     Vc = np.array(Vc)
 
