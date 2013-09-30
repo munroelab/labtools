@@ -17,17 +17,31 @@ def plot_stratification_file(filename):
 
     Calibration data must be available.
     """
-    converters = {0 : dateutil.parser.parse}
-    data = np.genfromtxt(filename, converters=converters, 
-            dtype=[np.datetime64, np.uint16, np.float, np.float],
-            skiprows=1, delimiter=',', unpack=True)
-
+    # broken -- issue with datetime64 in numpy 1.7???
+    #converters = {0 : dateutil.parser.parse}
+    #data = np.genfromtxt(filename, 
+    #        dtype=[np.datetime64, np.uint16, np.float, np.float],
+    #        skiprows=1, delimiter=',', unpack=True)
 
     z = []
     Vc = []
-    for row in data:
-        z.append(row[2])
-        Vc.append(row[3])
+    f = open(filename)
+    ll = f.readlines()
+    for line in ll[1:]:
+        d_, steps_, z_, Vc_ = line.split(',')
+        d_ = np.datetime64(d_)
+        steps_ = np.uint16(steps_)
+        z_ = np.float(z_)
+        Vc_ = np.float(Vc_)
+
+        z.append(z_)
+        Vc.append(Vc_)
+    f.close()
+
+    #for row in data:
+    #    z.append(row[2])
+    #    Vc.append(row[3])
+
     z = np.array(z)
     Vc = np.array(Vc)
 
@@ -41,16 +55,12 @@ def plot_stratification_file(filename):
 
     # look up the strat_id for this stratification profile
     db = LabDB()
-    rows = db.execute("""SELECT strat_id, calib_id, zoffset FROM stratification WHERE
+    rows = db.execute("""SELECT strat_id, calib_id FROM stratification WHERE
                   path = '%s'""" % filename)
     if len(rows) > 0:
-        strat_id, calib_id, zoffset= rows[0]
+        strat_id, calib_id= rows[0]
     else:
         strat_id, calib_id = None, None
-
-    # apply z_offset
-    z = z - zoffset
-
     if calib_id is None:
         print "calibration data unavailable"
 
