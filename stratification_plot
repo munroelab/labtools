@@ -85,7 +85,14 @@ def plot_stratification_file(filename):
     pylab.plot(rho, z)
 
     # fit a straight line and estimate N
-    m = (z < (z[-1]-3)) & (z > (z[0]+3))
+    # z is an array going from zmin to zmax (e.g. -50 to 3)
+    zmin = z[0]
+    zmax = z[-1]
+    if zmax > 0:
+        zmax = 0.0
+    
+    # only selected data at least 3cm below the surface
+    m = (z < (zmax-3)) & (z > (zmin))
     fit = np.polyfit(z[m], rho[m], 1)
     fit_line = np.polyval(fit, z[m])
     pylab.plot(fit_line, z[m], "k--")
