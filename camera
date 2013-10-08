@@ -88,7 +88,7 @@ finished = False
 recording = False
 
 framenum = 0
-t0 = time.clock()
+t0 = time.time()
 video_path = ''
 tlog = None
 
@@ -121,7 +121,7 @@ while not finished:
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     if recording:
-       t = time.clock() - t0
+       t = time.time() - t0
 
        framename = os.path.join(video_path, "frame%05d.png" % framenum)
        cv2.imwrite(framename, img)
@@ -181,7 +181,7 @@ while not finished:
             tlog = open (tlogname, "w")
 
             framenum = 0
-            t0 = time.clock()
+            t0 = time.time()
 
             recording = True
 
