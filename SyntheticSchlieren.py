@@ -99,7 +99,7 @@ def set_time_axis(dz_filename,dt):
     nc.close()
 
 def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
-    
+
     """ Need to compute dz for the first time.
         Need to create the path for the dz file and create the empty nc file
     """
@@ -121,7 +121,8 @@ def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,sto
     win_h = rows[0][0]*1.0
     
     print "lenght" , win_l, "\nheight", win_h
-
+    print  "video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
+    print  video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
     # Create the directory in which to store the nc file
     sql = """INSERT INTO dz (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)\
             VALUES (%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
@@ -131,7 +132,7 @@ def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,sto
     sql = """SELECT LAST_INSERT_ID()"""
     rows = db.execute(sql)
     dz_id = rows[0][0]
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    dz_path = "/Volumes/HD4/dz/%d" % dz_id
     os.mkdir(dz_path)
     dz_filename = os.path.join(dz_path, "dz.nc")
     
@@ -168,17 +169,9 @@ def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,sto
     ROW[:] = R
     COLUMN[:] = C
 
-    #get the number of frames
-    sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id
-    rows = db.execute(sql)
-    num_frames = rows[0][0]
-    
-    print "R",ROW.shape
-    print "C",COLUMN.shape
-
     db.commit()
     nc.close()
-    return dz_filename,dz_id,dt,num_frames,win_h
+    return dz_filename,dz_id,dt,win_h
 
 
 def create_nc_file(video_id,skip_frames):
@@ -212,7 +205,7 @@ def create_nc_file(video_id,skip_frames):
     sql = """SELECT LAST_INSERT_ID()"""
     rows = db.execute(sql)
     dz_id = rows[0][0]
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    dz_path = "/Volumes/HD4/dz/%d" % dz_id
     os.mkdir(dz_path)
     dz_filename = os.path.join(dz_path, "dz.nc")
     
@@ -265,8 +258,7 @@ def create_nc_file(video_id,skip_frames):
 def checkifdzexists_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
     db = labdb.LabDB()
     # check if this dz array has already been computed?
-    sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d AND\
-            mintol=%d AND sigma=%f AND filter_size=%d AND startF=%d AND\
+    sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d AND mintol=%d AND sigma=%.1f AND filter_size=%d AND startF=%d AND\
             stopF=%d AND diff_frames=%d""" %\
             (video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames)
 
@@ -276,7 +268,7 @@ def checkifdzexists_test(video_id,skip_frames,mintol,sigma,filter_size,startF,st
         dz_id = rows[0][0]
         print "Loading cached dz %d..." % dz_id
         # load the array from the disk
-        dz_path = "/Volumes/HD3/dz/%d" % dz_id
+        dz_path = "/Volumes/HD4/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
         
         #dz_array = numpy.load(dz_filename)
@@ -304,7 +296,7 @@ def checkifdzexists(video_id,skip_frames):
         dz_id = rows[0][0]
         print "Loading cached dz %d..." % dz_id
         # load the array from the disk
-        dz_path = "/Volumes/HD3/dz/%d" % dz_id
+        dz_path = "/Volumes/HD4/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
         
         #dz_array = numpy.load(dz_filename)
@@ -335,9 +327,12 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
 
     # get the number of frames if stopF is unspecified
     if (stopF == 0):
-        sql = """ SELECT num_frames FROM video where video_id = %d""" % video_id
+        sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
         rows = db.execute(sql)
         stopF = rows[0][0]
+        print "stop_frames = ", stopF 
+    num_frames=stopF-startF
+    print "num_frames:" ,num_frames
 
     dz_flag =checkifdzexists_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
     if (dz_flag !=0):
@@ -345,7 +340,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     
     # Call the function that will create the nc file to append data to
     #dz_filename,dz_id,dt,num_frames,win_h = create_nc_file(video_id,skip_frames)
-    dz_filename,dz_id,dt,num_frames,win_h=create_nc_file_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
+    dz_filename,dz_id,dt,win_h=create_nc_file_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
 
     
     # n: number of frames between 2 images we subtract 
@@ -411,7 +406,6 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
         delz[delz < -bound] = -bound
 
         # fill in missing values
-        #filt_delz = ndimage.gaussian_filter(delz, (7.5,7.5))
         filt_delz = ndimage.gaussian_filter(delz, (sigma,sigma))
         #i = abs(delz) > 1e-8
         filt_delz = C*delz+ (1-C)*filt_delz
@@ -419,7 +413,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
         # smooth
         #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
         
-        # new smoothing
+        # spatial smoothing along x and z axis
         smooth_filt_delz =ndimage.uniform_filter(filt_delz,size=(filter_size,filter_size))
 
         # Old ploting
@@ -428,7 +422,6 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
         ax.set_title('n = %d' % count)"""
         print "max: ",numpy.max(smooth_filt_delz)
         print "min: ",numpy.min(smooth_filt_delz)
-
         append2ncfile(dz_filename,smooth_filt_delz)
         count += skip_frames
         filename2 = path % (video_id, count)
@@ -437,14 +430,36 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     
     # define time axis for the nc time variable
     nc = netCDF4.Dataset(dz_filename,'a')
-    array = nc.variables['dz_array']
-    tl = array.shape[0]
+    DZarray = nc.variables['dz_array']
+    
+    tl = DZarray.shape[0]
     print "no of timesteps:", tl
     Tm=nc.variables['time']
+    ZZ = nc.variables['row'][:]
+    CC = nc.variables['column'][:]
+    count=0
+    # TRIAL :: apply uniform filter in the time axis with the filter size of 6 (about
+    # 1second). This should smoothen the dz along time.
+    col_count=0
+    start=0
+    stop=20
+    print "row shape: ",ZZ.shape
+    for row_count in range(stop):
+        print "looping %d out of %d" %(row_count,stop)
+        temp1 = nc.variables['dz_array'][:,start:(start+47),:]
+        temp1 = ndimage.uniform_filter(temp1,size = (6,1,1))
+        print " temp1.shape:",temp1.shape
+        DZarray[:,row_count,:]=temp1
+        start = start+47
+    
+    print "DZarray::" ,DZarray.shape
     print "time.shape(before):" ,Tm.shape
     t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
     print "time:",t_array
     Tm[:] = t_array
+    
+
+    
     nc.close()
 
     return dz_id
@@ -518,6 +533,20 @@ def test():
     pylab.colorbar()
     pylab.show()
 
+
+def fft_test_code():
+    """
+     separate test program to check if fft works
+    """
+    dz_array = compute_dz(49, 15)
+
+    win_L = 67
+    win_H = 47
+    x,z,t = spectrum_test.get_arrays_XZT(dz_array,win_L,win_H,path2time)
+    kx,kz,omega = spectrum_test.estimate_dominant_frequency(dz_array,x,z,t)
+    spectrum_test.plot_fft(kx,kz,omega,x,z,t)
+
+
 def UI(): 
     
     """
@@ -528,7 +557,7 @@ def UI():
     parser.add_argument("video_id",type = int, 
                         help = "Enter the video id of the frames on which to do Synthetic Schlieren")
     
-    parser.add_argument("mintol",type = int, help="Helps estimate the monoticity of the data")
+    parser.add_argument("mintol",type = int, help=" Helps estimate the monoticity of the data")
     parser.add_argument("sigma", type = float, help= "standard deviation for the Gaussian kernal")
     parser.add_argument("filter_size", type = int, help = "filter size")
     parser.add_argument("--skip_frames",type = int, default = 1,help = "number of frames to jump while computing dz")
@@ -542,18 +571,6 @@ def UI():
     args = parser.parse_args()
     dz_id=compute_dz(args.video_id,args.mintol,args.sigma,args.filter_size,\
             args.skip_frames,args.startF,args.stopF,args.diff_frames)
-
-def fft_test_code():
-    """
-     separate test program to check if fft works
-    """
-    dz_array = compute_dz(49, 15)
-
-    win_L = 67
-    win_H = 47
-    x,z,t = spectrum_test.get_arrays_XZT(dz_array,win_L,win_H,path2time)
-    kx,kz,omega = spectrum_test.estimate_dominant_frequency(dz_array,x,z,t)
-    spectrum_test.plot_fft(kx,kz,omega,x,z,t)
 
 if __name__ == "__main__":
     UI()

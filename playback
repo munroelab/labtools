@@ -13,7 +13,7 @@ import labdb
 def main():
     """
     """
-
+    frame_num =0
     parser = argparse.ArgumentParser(description="Play an existing video_id as a movie")
 
     parser.add_argument("video_id", type=int, help = "video_id")
@@ -51,21 +51,25 @@ def main():
     retval, frame = capture.read()
     reference = frame
     while retval:
+
+        print "frame num: ", frame_num
         scale = cv2.getTrackbarPos("scale", "diff")
 
         diff = scale * cv2.absdiff(frame, reference)
 
         cv2.imshow("video", frame)
         diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
-
-        cv2.imshow("diff", diff)
-
+        cv2.putText(diff, "frame number : %d" % frame_num,(100,100),\
+                cv2.FONT_HERSHEY_PLAIN,3.0,(255,150,0),thickness=3\
+                ,lineType=cv2.CV_AA)
+        cv2.imshow("diff" , diff)
         c = cv2.waitKey(10)
 
         if c == 27:  #ESC
             break
 
         retval, frame = capture.read()
+        frame_num +=1
 
 if __name__ == "__main__":
     main()

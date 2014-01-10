@@ -35,7 +35,7 @@ def append2ncfile(deltaN2_filename,deltaN2_arr):
     nc.close()
 
 
-def create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames):
+def create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames,startF,stopF,diff_frames):
     # get EXPT ID
     sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
     rows = db.execute(sql)
@@ -43,8 +43,10 @@ def create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames):
     print " experiment ID : ", expt_id
 
     # Create the directory in which to store the nc file
-    sql = """INSERT INTO deltaN2 (video_id,skip_frames,expt_id,mintol,sigma,filter_size) VALUES \
-            (%d,%d,%d,%d,%f,%d)""" % (video_id,skip_frames,expt_id,min_tol,sigma,filter_size)
+    sql = """INSERT INTO deltaN2 \
+            (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames) VALUES \
+            (%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
+            (video_id,skip_frames,expt_id,min_tol,sigma,filter_size,startF,stopF,diff_frames)
     print sql
     db.execute(sql)
     sql = """SELECT LAST_INSERT_ID()"""
@@ -93,17 +95,9 @@ def create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames):
     ROW[:] = R
     COLUMN[:] = C
 
-    #get the number of frames
-    sql = """SELECT num_frames FROM video
-             WHERE video_id = %d""" % video_id
-    rows = db.execute(sql)
-    num_frames = rows[0][0]
-    print "R",ROW.shape
-    print "C",COLUMN.shape
-
     db.commit()
     nc.close()
-    return deltaN2_filename,dt,num_frames,win_l,win_h,id
+    return deltaN2_filename,dt,win_l,win_h,id
 
 
 def create_nc_file(video_id,skip_frames):
@@ -177,10 +171,12 @@ def create_nc_file(video_id,skip_frames):
     return deltaN2_filename,dt,num_frames,win_l,win_h,id
 
 
-def checkifdeltaN2exists_test(video_id,min_tol,sigma,filter_size,skip_frames):
+def checkifdeltaN2exists_test(video_id,min_tol,sigma,filter_size,skip_frames,startF,stopF,diff_frames):
     # check if deltaN2 is already computed
-    sql = """SELECT id FROM deltaN2 WHERE video_id = %d AND skip_frames = %d AND
-    mintol = %d AND sigma = %f AND filter_size=%d"""  %(video_id,skip_frames,min_tol,sigma,filter_size)
+    sql = """SELECT id FROM deltaN2 WHERE video_id=%d AND skip_frames=%d \
+            AND mintol=%d AND sigma=%f AND filter_size=%d AND startF=%d \
+            AND stopF=%d AND diff_frames=%d"""\
+            % (video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
     rows = db.execute(sql)
     if len(rows) > 0:
         # deltaN2 array already computed
@@ -234,7 +230,7 @@ def checkifdeltaN2exists(video_id,skip_frames):
         # deltaN2 is not yet computed
         return 0
 
-def compute_deltaN2(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0):
+def compute_deltaN2(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0,diff_frames=1):
     """ Computes deltaN2 
     """
     db = labdb.LabDB()
@@ -243,8 +239,14 @@ def compute_deltaN2(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,st
     # if deltaN2_flag =0 means deltaN2 is not computed else it holds the value
     # of the deltaN2 id.
     
-    
-    deltaN2_flag = checkifdeltaN2exists_test(video_id,min_tol,sigma,filter_size,skip_frames)     
+    # get the number of frames if stopF is unspecified
+    if (stopF == 0):
+        sql = """ SELECT num_frames FROM video where video_id = %d""" % video_id
+        rows = db.execute(sql)
+        stopF = rows[0][0]
+    num_frames = stopF-startF
+    deltaN2_flag = checkifdeltaN2exists_test(video_id,min_tol,sigma,\
+            filter_size,skip_frames,startF,stopF,diff_frames)     
 
     if (deltaN2_flag != 0) :
         return deltaN2_flag # deltaN2_flag is returning the deltaN2 id of the video_id
@@ -252,11 +254,11 @@ def compute_deltaN2(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,st
 
     # COMPUTE DELTAN2 FOR THE FIRST TIME
     #deltaN2_filename,dt,num_frames,win_l,win_h,deltaN2_id = create_nc_file(video_id,skip_frames)
-    deltaN2_filename,dt,num_frames,win_l,win_h,deltaN2_id =\
-            create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames)
+    deltaN2_filename,dt,win_l,win_h,deltaN2_id =\
+            create_nc_file_test(video_id,min_tol,sigma,filter_size,skip_frames,startF,stopF,diff_frames)
     
     # check if the dz file already exists 
-    dz_id = SyntheticSchlieren.compute_dz(video_id,min_tol,sigma,filter_size,skip_frames)
+    dz_id = SyntheticSchlieren.compute_dz(video_id,min_tol,sigma,filter_size,skip_frames,startF,stopF,diff_frames)
     print "dz_id::" ,dz_id
 
     # Define the constants used in the computation of deltaN2
@@ -392,15 +394,18 @@ def UI():
     parser.add_argument("sigma", type = float, help= "standard deviation for the Gaussian kernal")
     parser.add_argument("filter_size", type = int, help = "filter size")
     
-    parser.add_argument("--skip_frames",type = int, default = 10,help = "number of frames to jump while computing deltaN2")
+    parser.add_argument("--skip_frames",type = int, default = 1,help = "number of frames to jump while computing deltaN2")
     parser.add_argument("--startF",type = int, default = 0,help = "Frame number to start with while computing deltaN2")
     parser.add_argument("--stopF",type = int, default = 0,help = "Frame number where to stop while computing deltaN2")
+    parser.add_argument("--diff_frames",type = int, default = 1,help = "The \
+            time difference (in terms of frame numbers) between the 2 images\
+            considered used in the respective dz field")
     
     ## add optional arguement to override cache
 
     args = parser.parse_args()
-    deltaN2_id =
-    compute_deltaN2(args.video_id,args.mintol,args.sigma,args.filter_size,args.skip_frames,args.startF,args.stopF)
+    deltaN2_id =  compute_deltaN2(args.video_id,args.mintol,args.sigma,\
+            args.filter_size,args.skip_frames,args.startF,args.stopF,args.diff_frames)
 #    ncfile_movie(deltaN2_filename)
 
 def fft_test_code():

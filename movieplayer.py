@@ -16,42 +16,63 @@ def checkvar(var,id):
     db = labdb.LabDB()
 
     if var == 'deltaN2':
-        path = "/Volumes/HD3/deltaN2/%d/deltaN2.nc" % (id)
+        path = "/Volumes/HD4/deltaN2/%d/deltaN2.nc" % (id)
         array_name ='deltaN2_array'
         sql = """ SELECT video_id  FROM deltaN2 WHERE id =  %d """ % id
         rows = db.execute(sql)
         video_id = rows[0][0]
     elif var == 'dz':
-        path = "/Volumes/HD3/dz/%d/dz.nc" % (id)
+        path = "/Volumes/HD4/dz/%d/dz.nc" % (id)
         array_name ='dz_array'
         sql = """ SELECT video_id  FROM dz WHERE dz_id =  %d """ % id
         rows = db.execute(sql)
         video_id = rows[0][0]
     elif var == 'dn2t':
-        path = "/Volumes/HD3/dn2t/%d/dn2t.nc" % (id)
+        path = "/Volumes/HD4/dn2t/%d/dn2t.nc" % (id)
         array_name ='dn2t_array'
-        sql = """ SELECT video_id FROM deltaN2 where id = (SELECT deltaN2_id \
+        sql = """ SELECT video_id FROM dz where dz_id = (SELECT dz_id \
                 FROM dn2t WHERE id =%d) """ % id
         rows = db.execute(sql)
         video_id = rows[0][0]
-    elif var == 'a_xi_array':
-        print ",,,"
-        path = "/Volumes/HD3/vertical_displacement_amplitude/%d/a_xi.nc" %(id)
+    elif var == 'axi':
+        path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" %(id)
         print path
         array_name ='a_xi_array'
         print array_name
-        sql = """ SELECT video_id FROM deltaN2 where id = (SELECT deltaN2_id \
-                FROM vertical_displacement_amplitude WHERE a_xi_id =%d) """ % id
+        if (id <= 119):
+            sql = """ SELECT video_id FROM dz WHERE dz_id = (SELECT dz_id from \
+                 dn2t WHERE id = (SELECT dn2t_id from \
+                 vertical_displacement_amplitude WHERE a_xi_id = %d))"""% id
+        else:
+            sql = """ SELECT video_id FROM dz WHERE dz_id = (SELECT dz_id from \
+                 vertical_displacement_amplitude WHERE a_xi_id = %d)"""% id
         rows = db.execute(sql)
         video_id = rows[0][0]
+    elif var == 'video':
+        path = "/Volumes/HD4/videoncfiles/%d/video.nc" %(id)
+        print path
+        array_name = 'img_array'
+        video_id = id
+
     print path,array_name,video_id
     return path,array_name,video_id
 
 
-def movie(var,id,max_min,start_frame,stop_frame,saveFig=0):
+def movie(var,id,max_min,start_frame=0,stop_frame=0,saveFig=0):
     #get the full path to the nc file that you want to play as a movie
     path,array_name,video_id = checkvar(var,id)
-   
+    if stop_frame == 0:
+        db = labdb.LabDB()
+        sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
+        print sql
+
+        rows = db.execute(sql)
+        print rows
+
+        num_frames = rows[0][0]
+        
+        print "num_frames " , num_frames
+        stop_frame = num_frames-1
     # debug
     print "var: ",var, "id:" , id, "max_min:" ,max_min,\
             "start_frame:",start_frame, "stop_frame:" , stop_frame
@@ -73,9 +94,10 @@ def movie(var,id,max_min,start_frame,stop_frame,saveFig=0):
     
     
     def animate(i):
+        print "frame num", i+n
         plt.title(' Frame number :: %d , Time ::  %.2f s , Field: %s , Video ID:%d'\
                     % (i+n, t[i+n],array_name,video_id))
-        im.set_array(a(i+n))
+        im.set_array(a(i))
         return im 
     # Need window length and height 
     win_l = x[-1]
@@ -85,7 +107,7 @@ def movie(var,id,max_min,start_frame,stop_frame,saveFig=0):
     print "%s shape" % arr[-1],array.shape
   
     # First set up the figure, the axis, and the plot element we want to animate
-    fig = plt.figure()
+    fig = plt.figure(figsize = (10,8))
     ax = plt.axes(xlim=(0,win_l), ylim =(win_h,0))
     plt.xlabel('window length (cm)')
     plt.ylabel('window height (cm)')
@@ -95,9 +117,9 @@ def movie(var,id,max_min,start_frame,stop_frame,saveFig=0):
     frame_num = stop_frame - start_frame
 
     anim =animation.FuncAnimation(fig,animate,frames=frame_num,repeat=False,blit=False)
-    plt.show()
+    #plt.show()
     if saveFig==1:
-        anim.save('%s_VID%d_animation.mp4' % (array_name,video_id),fps=7,extra_args=['-vcodec','libx264'])
+        anim.save('%s_VID%d_animation.mp4' % (array_name,video_id),dpi=100,fps=7,extra_args=['-vcodec','libx264'])
 
     return
 
@@ -108,9 +130,11 @@ def UI():
     parser.add_argument("var", help = "Enter the variable to play. Example: 'dz' ")
     parser.add_argument("id",type = int, help = "Enter the id number of the var in the database")
     parser.add_argument("max_min" ,type = float, help = "Enter a value that will be used as vmax and vmin")
-    parser.add_argument("start_frame", type = int ,\
-            help = "Enter the frame number from which to start the animation")
-    parser.add_argument("stop_frame", type = int, help = "Enter the frame number where to stop the animation")
+    parser.add_argument("--start_frame",default=0, type = int,
+                    help = "Enter the frame number from which to start the\
+                            animation(default=0)")
+    parser.add_argument("--stop_frame",default=0, type = int, help = "Enter\
+            the frame number where to stop the animation.DEFAULT=last frame")    
     parser.add_argument("--saveFig",type = int, default = 0,help ="To save an animation, saveFig = 1 ")
     # add optional arguement to override cache
     args = parser.parse_args()

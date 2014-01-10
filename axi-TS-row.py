@@ -11,8 +11,15 @@ db  = labdb.LabDB()
 
 def compute_energy_flux(a_xi_id,row_no,max_min): 
     # Check if the database already exists
-    sql = """ SELECT expt_id FROM deltaN2 WHERE id =(SELECT deltaN2_id FROM\
-            vertical_displacement_amplitude WHERE a_xi_id= %d) """ % a_xi_id
+    #sql = """ SELECT expt_id FROM dz WHERE id =(SELECT dz_id FROM dn2t
+    #where id = (SELECT dn2t_id FROM\
+    #        vertical_displacement_amplitude WHERE a_xi_id= %d)) """ % a_xi_id
+    
+    sql = """SELECT expt_id from video_experiments where video_id =\
+            (SELECT video_id FROM dz WHERE dz_id =(SELECT dz_id FROM\
+            dn2t where id = (SELECT dn2t_id FROM \
+            vertical_displacement_amplitude WHERE\
+            a_xi_id= %d))) """ % a_xi_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
     print "expt ID: ", expt_id
@@ -25,7 +32,7 @@ def compute_energy_flux(a_xi_id,row_no,max_min):
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     # Open the nc file and load the variables.
-    path = "/Volumes/HD3/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
     print " variables: " ,nc.variables.keys()
     a_xi_arr = nc.variables['a_xi_array']

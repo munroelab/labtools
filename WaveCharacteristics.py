@@ -1,6 +1,6 @@
 # This program calculates the dn2t of the deltaN2.nc file given and then
 # if not already done, computes the vertical displacement amplitude and creates an entry for it in
-# the database "/Volumes/HD3/vertical_displacement_amplitude/%d/a_xi.nc 
+# the database "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc 
 # The deltaN2 database and the vertical_displacement_amplitude database are
 # related by the deltaN2_id fields.
 #
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import Energy_flux
 
 
-def createncfile(dn2t_id,t,x,z):
+def createncfile(dz_id,t,x,z):
     """ 
     create the nc file in which we will store a_xi array.
     create a row in the database for the nc file stored
@@ -27,13 +27,13 @@ def createncfile(dn2t_id,t,x,z):
     print "inside createncfile function"
     db = labdb.LabDB()
     #create the directory in which to store the nc file
-    sql = """INSERT into vertical_displacement_amplitude (dn2t_id) VALUES (%d)""" %(dn2t_id)  
+    sql = """INSERT into vertical_displacement_amplitude (dz_id) VALUES (%d)"""%(dz_id)  
     print sql
     db.execute(sql)
     sql = """SELECT LAST_INSERT_ID()""" 
     rows = db.execute(sql)
     a_xi_id = rows[0][0]
-    a_xi_path = "/Volumes/HD3/vertical_displacement_amplitude/%d" % a_xi_id 
+    a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id 
     os.mkdir(a_xi_path)
 
     a_xi_filename = os.path.join(a_xi_path,"a_xi.nc")
@@ -44,7 +44,7 @@ def createncfile(dn2t_id,t,x,z):
     nc = netCDF4.Dataset(a_xi_filename,'w',format = 'NETCDF4')
     row_dim = nc.createDimension('row',964)
     col_dim = nc.createDimension('column',1292)
-    lenT=t.shape[0]  #lenT is the length of the dn2t file.Its 1 element shorter in time axis than deltaN2
+    lenT=t.shape[0]  #lenT is the length of the dz file
     print "time axis  length",lenT     # debug info
     t_dim = nc.createDimension('time',lenT)
 
@@ -67,7 +67,7 @@ def createncfile(dn2t_id,t,x,z):
 
     nc.close()
     db.commit()
-    return a_xi_filename
+    return a_xi_id,a_xi_filename
 
 
 def append2ncfile(a_xi,var,num):
@@ -78,13 +78,13 @@ def append2ncfile(a_xi,var,num):
     a_xi[num] = var
 
     
-def compute_a_xi(dn2t_id):
+def compute_a_xi(dz_id):
     # access database
     db = labdb.LabDB()
 
     #check if the dataset already exists
     sql = """SELECT a_xi_id FROM vertical_displacement_amplitude WHERE\
-             dn2t_id = %d""" % (dn2t_id)
+             dz_id = %d""" % (dz_id)
     rows = db.execute(sql)
 
     if len(rows) > 0:
@@ -94,30 +94,30 @@ def compute_a_xi(dn2t_id):
         print "loading a_xi %d dataset  .." % id
 
         #load the array from disk
-        a_xi_path = "/Volumes/HD3/vertical_displacement_amplitude/%d/" % id
+        a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/" % id
         a_xi_filename = a_xi_path + 'a_xi.nc'
-
+        return id
     else:
 
-        #  open the dataset dn2t.nc for calculating a_xi
-        filepath = "/Volumes/HD3/dn2t/%d/dn2t.nc"  % dn2t_id
+        #  open the dataset dz.nc for calculating a_xi
+        filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
         nc = netCDF4.Dataset(filepath,'a')
         
-        # loading the deltaN2 data from the nc file
-        dn2t = nc.variables['dn2t_array']
+        # loading the dz data from the nc file
+        dz = nc.variables['dz_array']
         t = nc.variables['time']
         z = nc.variables['row']
         x = nc.variables['column']
-        # print information about deltaN2 dataset
+        # print information about dz dataset
         print "variables  of the nc file :", nc.variables.keys()
-        print "dn2t shape : " , dn2t.shape
+        print "dz shape : " , dz.shape
         print "t  shape : " , t.shape
         print "z shape : " , z.shape
         print "x shape : " , x.shape
         
         # call get_info function from Energy_flux program :: to get info!
         
-        sql = """ SELECT expt_id  FROM dz WHERE dz_id = (SELECT dz_id FROM dn2t WHERE id = %d) """ % dn2t_id
+        sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
         rows = db.execute(sql)
         expt_id = rows[0][0]
 
@@ -126,29 +126,44 @@ def compute_a_xi(dn2t_id):
         print "V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta
         # calculate dt
         dt = numpy.mean(numpy.diff(t))
-        print "dt of dn2t:",dt
+        print "dt of dz:",dt
         
-        #call the function to create the nc file in which we are going to store the dn2t array
-        a_xi_filename = createncfile(dn2t_id,t,x,z)
+        #call the function to create the nc file in which we are going to store the dz array
+        a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z)
         
         # open the a_xi nc file for appending data
         nc=netCDF4.Dataset(a_xi_filename,'a')
         a_xi = nc.variables['a_xi_array']
-         
+        
         # Calculate kx 
         rho0 = 0.998
         kx = (omega * kz)/(N*N - omega*omega)**0.5
         const1 = -1.0 * omega* N * N * kz
+        print "constant1 :" ,const1
         
-        for num in range(dn2t.shape[0]):
-            var1 = 1.0*dn2t[num]/const1
+        # calculate constants needed for getting dn2t from dz
+        
+        sql = """SELECT length FROM video WHERE video_id = %d  """ % vid_id
+        rows = db.execute(sql)
+        win_l = rows[0][0]
+        win_l=win_l*1.0
+        print "length" , win_l
+        n_water = 1.3330
+        L_tank = 453.0
+        gamma = 0.0001878
+        const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
+        print "constant2:",const2
+
+
+        for num in range(dz.shape[0]):
+            var1 = (1.0*const2*dz[num,:,:])/(dt*const1)
             print "appending frame %d" % num
             append2ncfile(a_xi,var1,num)
         print "done...!"
-    return a_xi_filename
+    return a_xi_id
 
 def test():
-    nc = netCDF4.Dataset('/Volumes/HD3/dn2t/3/dn2t.nc','r')
+    nc = netCDF4.Dataset('/Volumes/HD4/dn2t/3/dn2t.nc','r')
     dn2t = nc.variables['dn2t_array']
     Eflux1 = dn2t[:,200,:]*4.125
     t = nc.variables['time']
@@ -209,10 +224,10 @@ def UI():
     the energy flux
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("dn2t_id", type=int, help="enter the dN2t_id")
+    parser.add_argument("dz_id", type=int, help="Enter the dz_id")
     args = parser.parse_args()
-    a_xi_filename = compute_a_xi(args.dn2t_id)
-    print a_xi_filename
+    a_xi_id = compute_a_xi(args.dz_id)
+    print a_xi_id
 
 if __name__ == "__main__":
     #test()

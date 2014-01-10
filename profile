@@ -147,8 +147,8 @@ def main():
 
     # reset VXM-1
     ser.write("KCG")
-
-    def Increment(z, speed = 2000):
+# changing speed from 2000 to 200 -- 06/12/2013
+    def Increment(z, speed = 400):
         """
         Move the vertical traverse by a distance z. (z < 0 is downwards)
         """

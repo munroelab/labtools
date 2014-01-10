@@ -66,18 +66,18 @@ def compute_energy_flux(deltaN2_id,column,max_min):
     plt.ylabel('Depth (cm)')
     plt.title('Video ID: %d \n deltaN2 of a column of pixels %.2f cm away\
             from the wave generator' % (video_id, x[column]+110.0) )
-    im1=deltaN2_arr[50,:,:]-deltaN2_arr[10,:,:]
+    im1=deltaN2_arr[203,:,:]
     im2=deltaN2_arr[200,:,:]-deltaN2_arr[160,:,:]
     im3=deltaN2_arr[300,:,:]-deltaN2_arr[260,:,:]
     im4=deltaN2_arr[450,:,:]-deltaN2_arr[410,:,:]
     plt.figure(2)
-    plt.imshow(im1,vmax=0.0003,vmin=-0.0003)
-    plt.figure(3)
-    plt.imshow(im2,vmax=0.0003,vmin=-0.0003)
-    plt.figure(4)
-    plt.imshow(im3,vmax=0.0003,vmin=-0.0003)
-    plt.figure(5)
-    plt.imshow(im4,vmax=0.0003,vmin=-0.0003)
+    plt.imshow(im1,vmax=0.0001,vmin=-0.0001)
+    #plt.figure(3)
+    #plt.imshow(im2,vmax=0.0003,vmin=-0.0003)
+    #plt.figure(4)
+    #plt.imshow(im3,vmax=0.0003,vmin=-0.0003)
+    #plt.figure(5)
+    #plt.imshow(im4,vmax=0.0003,vmin=-0.0003)
 
     plt.colorbar()
 

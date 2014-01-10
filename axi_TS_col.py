@@ -24,8 +24,9 @@ def get_MSF(id):
 
 def compute_energy_flux(a_xi_id,column,max_min): 
     # Check if the database already exists
-    sql = """ SELECT expt_id FROM deltaN2 WHERE id =(SELECT deltaN2_id FROM\
-            vertical_displacement_amplitude WHERE a_xi_id= %d) """ % a_xi_id
+    sql = """SELECT expt_id FROM dz WHERE dz_id = (SELECT dz_id \
+            from dn2t WHERE id = (SELECT dn2t_id from \
+            vertical_displacement_amplitude WHERE a_xi_id = %d))""" % a_xi_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
     print "expt ID: ", expt_id
@@ -38,13 +39,13 @@ def compute_energy_flux(a_xi_id,column,max_min):
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     # Open the nc file and load the variables.
-    path = "/Volumes/HD3/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
     print " variables: " ,nc.variables.keys()
     a_xi_arr = nc.variables['a_xi_array']
     print " a_xi array.shape ", a_xi_arr.shape
-    t0=10
-    t = nc.variables['time'][:]- t0
+    #t0=10
+    t = nc.variables['time'][:]
     z = nc.variables['row']
     x = nc.variables['column']
 
@@ -63,7 +64,7 @@ def compute_energy_flux(a_xi_id,column,max_min):
     plt.xlabel('Time (seconds)')
     plt.ylabel('Depth (cm)')
     plt.title('Vertical Displacement Amplitude of Video ID %d \n %d-th  column of pixels %.2f cm away from the wave generator'\
-                    % (video_id,column ,x[column]+110.0) )
+                    % (video_id,column ,x[column]+50.0) )
     plt.colorbar()
 
 

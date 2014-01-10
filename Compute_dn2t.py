@@ -1,6 +1,6 @@
 # This program calculates the dn2t of the deltaN2.nc file given and then
 # if not already done, computes the vertical displacement amplitude and creates an entry for it in
-# the database "/Volumes/HD3/vertical_displacement_amplitude/%d/a_xi.nc 
+# the database "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc 
 # The deltaN2 database and the vertical_displacement_amplitude database are
 # related by the deltaN2_id fields.
 #
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import Energy_flux
 
 
-def createncfile(dz_id,diff_frames,t,x,z):
+def createncfile(dz_id,t,x,z):
     """ 
     create the nc file in which we will store a_xi array.
     create a row in the database for the nc file stored
@@ -26,12 +26,12 @@ def createncfile(dz_id,diff_frames,t,x,z):
     """
     db = labdb.LabDB()
     #create the directory in which to store the nc file
-    sql = """INSERT into dn2t (dz_id,diff_frames) VALUES (%d,%d)""" % (dz_id,diff_frames)  
+    sql = """INSERT into dn2t (dz_id) VALUES (%d)""" % (dz_id)  
     db.execute(sql)
     sql = """SELECT LAST_INSERT_ID()""" 
     rows = db.execute(sql)
     dn2t_id = rows[0][0]
-    dn2t_path = "/Volumes/HD3/dn2t/%d" % dn2t_id 
+    dn2t_path = "/Volumes/HD4/dn2t/%d" % dn2t_id 
     os.mkdir(dn2t_path)
 
     dn2t_filename = os.path.join(dn2t_path,"dn2t.nc")
@@ -65,7 +65,7 @@ def createncfile(dz_id,diff_frames,t,x,z):
 
     nc.close()
     db.commit()
-    return dn2t_filename
+    return dn2t_id,dn2t_filename
 
 
 def append2ncfile(dn2t,var,num):
@@ -86,22 +86,18 @@ def compute_a_xi(dz_ID):
 
     if len(rows) > 0:
     
-        # A xi array already computed
+        # dn2t array already computed
         id = rows[0][0]
         print "loading dn2t %d dataset  .." % id
 
         #load the array from disk
-        dn2t_path = "/Volumes/HD3/dn2t/%d/" % id
+        dn2t_path = "/Volumes/HD4/dn2t/%d/" % id
         dn2t_filename = dn2t_path + 'dn2t.nc'
-
+        return id
     else:
 
-        #  open the dataset dz.nc for calculating the time derivative for
-        #  the first time
-        sql = """SELECT diff_frames FROM dz WHERE dz_id = %d  """ % dz_ID 
-        rows = db.execute(sql)
-        diff_frames = rows[0][0]
-        filepath = "/Volumes/HD3/dz/%d/dz.nc"  % dz_ID
+        #  open the dataset dz.nc for calculating dn2t
+        filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_ID
         nc = netCDF4.Dataset(filepath,'a')
         
         # loading the dz data from the nc file
@@ -116,8 +112,7 @@ def compute_a_xi(dz_ID):
         print "z shape : " , z.shape
         print "x shape : " , x.shape
         
-        # call get_info function from Energy_flux program :: to get info!
-        
+        # get video id
         sql = """ SELECT video_id  FROM dz WHERE dz_id = %d""" % dz_ID
         rows = db.execute(sql)
         video_id = rows[0][0]
@@ -127,7 +122,7 @@ def compute_a_xi(dz_ID):
         print "dt :",dt
         
     
-        # get the window length and window height
+        # get the window length 
         sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
         rows = db.execute(sql)
         win_l = rows[0][0]
@@ -145,7 +140,7 @@ def compute_a_xi(dz_ID):
         print "a:",a
         
         #call the function to create the nc file in which we are going to store the dn2t array
-        dn2t_filename = createncfile(dz_ID,diff_frames,t,x,z)
+        dn2t_id,dn2t_filename = createncfile(dz_ID,t,x,z)
         
         # open the dn2t nc file for appending data
         nc=netCDF4.Dataset(dn2t_filename,'a')
@@ -156,7 +151,7 @@ def compute_a_xi(dz_ID):
             print "appending frame %d" % num
             append2ncfile(dn2t,var1,num)
         print "done...!"
-    return dn2t_filename 
+    return dn2t_id 
 
 def UI():
     """

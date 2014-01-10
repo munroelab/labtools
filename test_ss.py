@@ -1,38 +1,57 @@
-import deltaN2
+
 import SyntheticSchlieren
+import Spectrum_LR
+import WaveCharacteristics
 import os
 import netCDF4 as nc
 from matplotlib import pyplot as plt
 from  matplotlib import animation
 
+
+dz_id = SyntheticSchlieren.compute_dz(745,7,7,30,1,0,1400,2)
+print "****** dz_id ******",dz_id
+a_xi_id = WaveCharacteristics.compute_a_xi(dz_id)
+print  "****** a_xi_id ******",a_xi_id
+Spectrum_LR.task_hilbert_func(a_xi_id,0.02,300)
+
+
+#cmd = "python Spectrum_LR.py 132 0.02 400"
+#os.system(cmd)
+
+#cmd = "python Spectrum_LR.py 133 0.02 400"
+#os.system(cmd)
+
+#cmd = "python Spectrum_LR.py 134 0.02 400"
+#os.system(cmd)
+
+#cmd = "python Spectrum_LR.py 134 0.02 400"
+#os.system(cmd)
+
+#cmd = "python Spectrum_LR.py 134 0.02 400"
+#os.system(cmd)
+
+
+
+"""
+
 # generate the dz and deltaN2 fields 
 
-dz_id = SyntheticSchlieren.compute_dz(166,15,9.6,9.6,1,0,0,4)
-print dz_id
-dz_id = SyntheticSchlieren.compute_dz(166,15,9.6,9.6,1,0,0,8)
-print dz_id
-dz_id = SyntheticSchlieren.compute_dz(166,60,9.6,9.6,1,0,0,12)
-print dz_id
 
-"""
-deltaN2_id = deltaN2.compute_deltaN2(166,30,15,25,1)
-print deltaN2_id
-deltaN2_id = deltaN2.compute_deltaN2(166,30,20,25,1)
-print deltaN2_id
-deltaN2_id = deltaN2.compute_deltaN2(166,30,25,25,1)
-print deltaN2_id
-deltaN2_id = deltaN2.compute_deltaN2(166,30,30,25,1)
-print deltaN2_id
-deltaN2_id = deltaN2.compute_deltaN2(166,30,35,25,1)
-print deltaN2_id
+dz_id = SyntheticSchlieren.compute_dz(153,15,9.6,9,1,0,0,4)
+print "****** dz_id ******",dz_id
+dn2t_id = Compute_dn2t.compute_a_xi(dz_id)
+print "****** dn2t_id ******",dn2t_id
+a_xi_id = WaveCharacteristics.compute_a_xi(dn2t_id)
+print  "****** a_xi_id ******",a_xi_id
 
-import WaveCharacteristics
-ID = 51
-for i in range(0,5):
-    a_xi_filename = WaveCharacteristics.compute_a_xi(ID)
-    ID=ID+1
-    print a_xi_filename
-"""
+dz_id = SyntheticSchlieren.compute_dz(153,15,9.6,9,1,0,0,6)
+print "****** dz_id ******",dz_id
+dn2t_id = Compute_dn2t.compute_a_xi(dz_id)
+print "****** dn2t_id ******",dn2t_id
+a_xi_id = WaveCharacteristics.compute_a_xi(dn2t_id)
+print  "****** a_xi_id ******",a_xi_id
+
+
 import Compute_dn2t
 import WaveCharacteristics
 deltaN2_id = deltaN2.compute_deltaN2(166,15,7,7,1)
@@ -41,16 +60,43 @@ a_xi_filename = WaveCharacteristics.compute_a_xi(deltaN2_id)
 print a_xi_filename
 
 
-"""
-
 # generate plots
 import deltaN2_TS_col
 import axi_TS_col
 import Energy_flux
 import pylab
+import dz_ts_col
 
-dn2_id = 37
-axi_id= 32
+dz_max_min =pylab.array([0.005,0.005,0.005,0.005,0.005,0.005,0.001,0.001,0.001,0.001,0.001,0.001,0.005,0.005,0.005,0.005,0.005,0.005])
+dz_id = 75
+a_xi_id = 59
+
+
+for j in range (0,18):
+    print "dz_id:",dz_id
+    mintol,sigma,filter_size,diff_frames,video_id = dz_ts_col.get_MSFD(dz_id)
+    path =\
+            "/Volumes/Macintosh HD/Users/prajvala/Desktop/figures/M%d_S%.1f_F%d_DF%d_videoID%d/"\
+                    % (mintol,sigma,filter_size,diff_frames,video_id)
+    os.mkdir(path)
+    row=100
+    for i in range (1,4):
+        fname = os.path.join(path,"M%d_S%.1f_F%d_DF%d_pix%d.pdf"\
+                %(mintol,sigma,filter_size,diff_frames,row))
+        dz_ts_col.compute_dz_timeseries(dz_id,row,dz_max_min[j])
+        plt.savefig(fname,facecolor = 'w',edgecolor= 'b',format='pdf',transparent=False)
+        plt.clf()
+        row=row+500
+    fname = os.path.join(path,"M%d_S%.1f_F%d_DF%d_EF.pdf"\
+            %(mintol,sigma,filter_size,diff_frames))
+    
+    Energy_flux.compute_energy_flux(a_xi_id)
+    plt.savefig(fname,facecolor = 'w',edgecolor='b',format='pdf',transparent=False)
+    plt.clf()
+    dz_id=dz_id+1
+    a_xi_id=a_xi_id+1
+
+plt.show()
 dn2_maxmin=pylab.array([0.00005,0.00005,0.00005,0.00005,0.00005,\
         0.00005,0.00001,0.00001,0.00005,0.00005,0.00005,0.00005,0.00005])
 axi_maxmin=pylab.array([0.01,0.01,0.01,0.01,0.01,0.005,0.001,0.005,\
@@ -95,8 +141,9 @@ for j in range (0,13):
 
 plt.show()
 
-
 print dz_id
+
+
 i=0
 # Import the netCDF file
 
@@ -139,14 +186,7 @@ plt.colorbar()
 def animate(i):
     plt.title(' Frame number :: %d \n Time ::  %.2f s\n Field: dz  Video ID: 166 ' % (n+i, t[n+i]))
     im.set_array(a(i))
-    return im 
 
-anim =animation.FuncAnimation(fig,animate,frames=1000,repeat=False,blit=False)
-#anim.save('dz_VID166_animation.mp4',fps=7,extra_args=['-vcodec','libx264'])
-plt.show()
 """
-
-
-
 
 
