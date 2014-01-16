@@ -139,7 +139,6 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     fig2.patch.set_facecolor('white')
     plotting_functions.sharexy_plot_3plts(abs(F1),abs(F3),abs(F2),freq,title1,title2,title3,'freq','abs(fft(EF))')
     plt.savefig(plotname + "_fft.pdf")
-    plt.show()
 
 def growing_average(arr):
     sum_arr=[]
@@ -161,16 +160,27 @@ def growing_average(arr):
     return total
 
 
-def moving_average(arr,window):
+def moving_average(arr, N):
+    """
+        Computes the moving average of arr over a window length 'window'
+        along the first dimension of arr
+    """
+
+    return numpy.convolve(arr, numpy.ones((N,))/N)[N-1:]
+
+    print "input arr shape",arr.shape
+
     sum_arr=[]
-    print "input shape",arr.shape
     sum_arr.append(arr)
     i=1
     while (i < window):
+
         sum_arr.append(numpy.pad(arr[:-i], (i,0),'constant',constant_values=(0,)))
         i+=1
+        print i, sum_arr
 
     sum_arr = numpy.array(sum_arr)
+
     print "shape",sum_arr.shape
     avg= numpy.sum(sum_arr,0)/window
     print "average shape: ", avg.shape
