@@ -11,7 +11,7 @@ import plotting_functions
 db  = labdb.LabDB()
 
 
-def compute_energy_flux(a_xi_id,row_s,row_e,col1):
+def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     db = labdb.LabDB()
     
     #check if the file already exists
@@ -129,6 +129,8 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1):
     fig1 = plt.figure(1,figsize=(15,12))
     fig1.patch.set_facecolor('white')
     plotting_functions.sharexy_plot_6plts(EF1,EF3,EF2,avg1,avg3,avg2,ft,title1,title2,title3,'time','E')
+    plt.savefig(plotname + "_ef.pdf")
+
     
     title1 = "FFT of energy flux at %d cm of the raw data" % (56+fx[col1])
     title3 = "FFT(energy flux) of the leftward propagating wave" 
@@ -136,7 +138,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1):
     fig2=plt.figure(2,figsize=(15,12))
     fig2.patch.set_facecolor('white')
     plotting_functions.sharexy_plot_3plts(abs(F1),abs(F3),abs(F2),freq,title1,title2,title3,'freq','abs(fft(EF))')
-
+    plt.savefig(plotname + "_fft.pdf")
     plt.show()
 
 def growing_average(arr):

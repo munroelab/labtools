@@ -67,8 +67,6 @@ def compute_dz_image(im1, im2, dz = 1.0):
 
     F = im1[1:,:] - im1[:-1,:]
     F = numpy.vstack((F, zerorow))
-    
-    """ans1 = - dz * (A*B)/(D*E)  ans2 = - dz * (A*C)/(F*E) ans = ans1 + ans2"""
 
     ans = -dz * A/E * (B/D + C/F)
     return ans
@@ -463,27 +461,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     nc.close()
 
     return dz_id
-    #set_time_axis(dz_filename,dt)
-    #dz_array = numpy.array(dz_array)
-    #print "final dz_array.shape" ,dz_array.shape
-    #print dz_array
 
-
-    #cache dz_array to disk**********
-    #sql = """INSERT INTO dz (video_id, skip_frames)
-    #         VALUES (%d, %d)""" % (video_id, skip_frames)
-    #print sql
-    #db.execute(sql)
-    #sql = """SELECT LAST_INSERT_ID()"""
-    #rows = db.execute(sql)
-    #dz_id = rows[0][0]
-    #dz_path = "/Volumes/HD3/dz/%d" % dz_id
-    #os.mkdir(dz_path)
-    #dz_filename = os.path.join(dz_path, "dz.npy")
-    #numpy.save(dz_filename, dz_array)
-    #db.commit()
-    #**********************
-    #return dz_array
 
 def test():
     # Need two images
