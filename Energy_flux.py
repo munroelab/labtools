@@ -64,8 +64,8 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     print "raw_squared shape: ",raw_squared.shape
     print "left_squared shape: ",left_squared.shape
     print "right_squared shape:  ", right_squared.shape
-    print raw[300:310,30]
-    print raw_squared[300:310,30]
+    #print raw[300:310,30]
+    #print raw_squared[300:310,30]
 
     print "depth from :: ", fz[0], " to ", fz[-1]
     print "time from :: ", ft[0], " to ", ft[-1]
