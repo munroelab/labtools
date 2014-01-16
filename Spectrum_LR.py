@@ -102,8 +102,8 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
         print "It has already been computed"
         fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
         print fw_path
-        just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
-        plt.show()
+        #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
+        #plt.show()
         return
     # create the nc file for the first time for storing the filtered data
     fw_filename,fw_id = create_nc_file(a_xi_id)
