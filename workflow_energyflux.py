@@ -22,7 +22,7 @@ def forEachExperiment(infiles, outfiles):
     #db = labdb.LabDB()
 
     #rows = db.execute('SELECT expt_id FROM experiments WHERE expt_id IN [821]')
-    expt_id_list = [821,]
+    expt_id_list = [821,822,823,824]
 
     for expt_id in expt_id_list:
         f = open(workingdir + '%d.expt_id' % expt_id, 'wb')
@@ -66,8 +66,8 @@ def computeDz(infiles, outfile):
             10, # minTol
             p['sigma'],
             p['filterSize'],
-           startF = 500,        # startFrame
-           stopF = 500+50,         # stopFrame
+           startF = 100,        # startFrame
+           stopF = 100+1000,         # stopFrame
                     # skipFrame
                     # diffFrame
             )
@@ -90,7 +90,7 @@ def filterAxiLR(infile, outfile):
             Axi_id,
             0.1, #maxMin
             100, # plotColumn
-            cache=False,
+            cache=True,
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
@@ -118,22 +118,21 @@ def plotFilteredLR(infile, outfile):
 
     pickle.dump('outfile', open(outfile, 'w'))
 
-finalTask = plotFilteredLR
+finalTask = [plotFilteredLR, plotEnergyFlux]
 pipeline_printout_graph( open('workflow.pdf', 'w'), 
     'pdf', 
-    [finalTask],
-    forcedtorun_tasks = [filterAxiLR],
+    finalTask,
+    forcedtorun_tasks = [forEachExperiment],
     no_key_legend=True)
 
 pipeline_printout(sys.stdout,
-        [finalTask], 
-       # [forEachExperiment]
-       [filterAxiLR], 
+        finalTask, 
+        [forEachExperiment],
         )
 
-pipeline_run([finalTask], 
-       [filterAxiLR], 
+pipeline_run(finalTask, 
+       [forEachExperiment], 
         verbose=2, 
-        #multiprocess=4, 
+    #    multiprocess=4, 
         one_second_per_job=False)
 
