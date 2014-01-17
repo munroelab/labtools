@@ -198,7 +198,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     print "omega shape: ", omega.shape
     
     # create a 2D mesh grid so that omega,kx and fft have the same dimensions
-    K,O=np.meshgrid(kx,omega[::])
+    K,O=np.meshgrid(kx[kx>=0],omega)
     print "KX.shape" ,K.shape
     print "OMEGA.shape",O.shape
     
@@ -243,7 +243,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
 
         st = time.time()
         #F = np.fft.fftshift(np.fft.fft2(a_xi_arr,axes=(0,1)))
-        F = np.fft.fft2(a_xi_arr,axes=(0,1))
+        F = np.fft.rfft2(a_xi_arr,axes=(0,1))
         ed = time.time()
         fft_total += (st-ed)
 
@@ -277,8 +277,8 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
         #a_xi_L = np.fft.ifft2(np.fft.ifftshift(Fleft),axes=(1,0))
 
         st = time.time()
-        a_xi_R = np.fft.ifft2(Fright,axes=(1,0))
-        a_xi_L = np.fft.ifft2(Fleft,axes=(1,0))
+        a_xi_R = np.fft.irfft2(Fright,axes=(0,1))
+        a_xi_L = np.fft.irfft2(Fleft,axes=(0,1))
     #    print "a_xi .shape", a_xi_L.shape
         ed = time.time()
         ifft_total += (st-ed)
@@ -287,10 +287,10 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
         st = time.time()
         #raw[count,:,:]= np.reshape(a_xi_arr,
         #         (1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
-        right[count,:,:] = np.reshape(np.real(a_xi_R),
+        right[count,:,:] = np.reshape(a_xi_R,
                 (1,a_xi_arr.shape[0], a_xi_arr.shape[1]))
 
-        left[count,:,:] = np.reshape(np.real(a_xi_L),
+        left[count,:,:] = np.reshape(a_xi_L,
                 (1,a_xi_arr.shape[0], a_xi_arr.shape[1]))
         ed = time.time()
         write_total += (st-ed)
