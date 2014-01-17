@@ -19,7 +19,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     rows=db.execute(sql)
     
     if len(rows) == 0:
-        print "It has not been computed"
+        print "fw_id has not been computed"
         return
 
     fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
@@ -45,6 +45,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     left = nc.variables['left_array']
     right = nc.variables['right_array']
     ft = nc.variables['time'][:]
+    print 'row shape', nc.variables['row'].shape
     fz = nc.variables['row'][row_s:row_e]
     fx = nc.variables['column']
     # print information about dz dataset

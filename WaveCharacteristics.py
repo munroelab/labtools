@@ -45,23 +45,29 @@ def createncfile(dz_id,t,x,z):
     row_dim = nc.createDimension('row',964)
     col_dim = nc.createDimension('column',1292)
     lenT=t.shape[0]  #lenT is the length of the dz file
-    print "time axis  length",lenT     # debug info
-    t_dim = nc.createDimension('time',lenT)
+    
+    # changing time to underfined as the variable is set to being contiguous
+    # despite setting contiguous=False which is also the default setting
+    #print "time axis  length",lenT     # debug info
+    #t_dim = nc.createDimension('time',lenT)
+    t_dim = nc.createDimension('time', None)
 
     # Dimensions are also variable
-    ROW = nc.createVariable('row',numpy.float32,('row'))
+    ROW = nc.createVariable('row',numpy.float32,('row'),contiguous=False)
     print  nc.dimensions.keys(), ROW.shape,ROW.dtype
-    COLUMN = nc.createVariable('column',numpy.float32,('column'))
+    COLUMN = nc.createVariable('column',numpy.float32,('column'),contiguous=False)
     print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
-    TIME = nc.createVariable('time',numpy.float32,('time'))
+    TIME = nc.createVariable('time',numpy.float32,('time'),contiguous=False)
     print nc.dimensions.keys() ,TIME.shape, TIME.dtype
 
     # declare the 3D data variable 
-    a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'))
+    a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'),
+            contiguous=False)
     print nc.dimensions.keys() ,a_xi.shape,a_xi.dtype
 
     # assign the values
-    TIME[:] = t[:]
+    
+    #TIME[:] = t[:]
     ROW[:] = z
     COLUMN[:] = x
 
@@ -131,10 +137,17 @@ def compute_a_xi(dz_id):
         #call the function to create the nc file in which we are going to store the dz array
         a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z)
         
-        # open the a_xi nc file for appending data
-        nc=netCDF4.Dataset(a_xi_filename,'a')
-        a_xi = nc.variables['a_xi_array']
+        #get info about the nc file to see if the var is contiguous
+        print " info axi nc file :  chk if the var is contiguous"
+        os.system('ncdump -h -s %s' % a_xi_filename)
         
+        # open the a_xi nc file for appending data
+        axi_nc=netCDF4.Dataset(a_xi_filename,'a')
+        a_xi = axi_nc.variables['a_xi_array']
+        # setting the time axis
+        axi_time = axi_nc.variables['time']
+        axi_time[:] = t[:]
+
         # Calculate kx 
         rho0 = 0.998
         kx = (omega * kz)/(N*N - omega*omega)**0.5
@@ -160,6 +173,9 @@ def compute_a_xi(dz_id):
             print "appending frame %d" % num
             append2ncfile(a_xi,var1,num)
         print "done...!"
+    
+    axi_nc.close()
+    nc.close()
     return a_xi_id
 
 def test():
