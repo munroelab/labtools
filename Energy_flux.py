@@ -19,7 +19,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     rows=db.execute(sql)
     
     if len(rows) == 0:
-        print "It has not been computed"
+        print "fw_id has not been computed"
         return
 
     fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
@@ -45,6 +45,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     left = nc.variables['left_array']
     right = nc.variables['right_array']
     ft = nc.variables['time'][:]
+    print 'row shape', nc.variables['row'].shape
     fz = nc.variables['row'][row_s:row_e]
     fx = nc.variables['column']
     # print information about dz dataset
@@ -127,6 +128,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     title2 = "Energy Flux - Rightward waves " 
     title3 = "Energy Flux - Leftward waves " 
     fig1 = plt.figure(1,figsize=(15,12))
+    fig1.clf()
     fig1.patch.set_facecolor('white')
     plotting_functions.sharexy_plot_6plts(EF1,EF3,EF2,avg1,avg3,avg2,ft,title1,title2,title3,'time','E')
     plt.savefig(plotname + "_ef.pdf")
@@ -136,6 +138,7 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     title3 = "FFT(energy flux) of the leftward propagating wave" 
     title2 = "FFT(energy flux) of the rightward propagating wave" 
     fig2=plt.figure(2,figsize=(15,12))
+    fig2.clf()
     fig2.patch.set_facecolor('white')
     plotting_functions.sharexy_plot_3plts(abs(F1),abs(F3),abs(F2),freq,title1,title2,title3,'freq','abs(fft(EF))')
     plt.savefig(plotname + "_fft.pdf")

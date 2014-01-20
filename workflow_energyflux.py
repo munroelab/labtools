@@ -22,7 +22,7 @@ def forEachExperiment(infiles, outfiles):
     #db = labdb.LabDB()
 
     #rows = db.execute('SELECT expt_id FROM experiments WHERE expt_id IN [821]')
-    expt_id_list = [821,822, 823, 824]
+    expt_id_list = [821,822,823,824]
 
     for expt_id in expt_id_list:
         f = open(workingdir + '%d.expt_id' % expt_id, 'wb')
@@ -66,8 +66,8 @@ def computeDz(infiles, outfile):
             10, # minTol
             p['sigma'],
             p['filterSize'],
-           startF = 70,        # startFrame
-           stopF = 500,         # stopFrame
+           startF = 100,        # startFrame
+           stopF = 100+1000,         # stopFrame
                     # skipFrame
                     # diffFrame
             )
@@ -86,13 +86,14 @@ def computeAxi(infile, outfile):
 def filterAxiLR(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
-    Spectrum_LR.task_hilbert_func(
+    fw_id = Spectrum_LR.task_hilbert_func(
             Axi_id,
             0.1, #maxMin
             100, # plotColumn
+            cache=True,
             )
 
-    pickle.dump('done', open(outfile, 'w'))
+    pickle.dump(fw_id, open(outfile, 'w'))
 
 
 @transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
@@ -109,21 +110,29 @@ def plotEnergyFlux(infile, outfile):
 
     pickle.dump('outfile', open(outfile, 'w'))
 
-finalTask = plotEnergyFlux
+@transform([filterAxiLR], suffix('.fw_id'), '.plotFilteredLR')
+def plotFilteredLR(infile, outfile):
+    fw_id = pickle.load(open(infile))
+    
+    Spectrum_LR.plotFilteredLR(fw_id)
+
+    pickle.dump('outfile', open(outfile, 'w'))
+
+finalTask = [plotFilteredLR, plotEnergyFlux]
 pipeline_printout_graph( open('workflow.pdf', 'w'), 
     'pdf', 
-    [finalTask],
-  #  forcedtorun_tasks = [forEachExperiment],
+    finalTask,
+    forcedtorun_tasks = [forEachExperiment],
     no_key_legend=True)
 
 pipeline_printout(sys.stdout,
-        [finalTask], 
-       # [forEachExperiment]
+        finalTask, 
+        [forEachExperiment],
         )
 
-pipeline_run([finalTask], 
-     #  [forEachExperiment], 
+pipeline_run(finalTask, 
+       [forEachExperiment], 
         verbose=2, 
-        #multiprocess=4, 
+    #    multiprocess=4, 
         one_second_per_job=False)
 

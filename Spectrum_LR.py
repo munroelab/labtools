@@ -16,11 +16,19 @@ import netCDF4
 import pylab
 import copy
 import labdb
+import time
 
 
-def create_nc_file(a_xi_id):
+def create_nc_file(a_xi_id, fw_id=None):
+    """ 
+        Given an Axi_id, create the waves.nc file that will store the
+        Hilbert transform result.
 
-    """ Need to compute HT for the first time.
+        The fw_id will be chosen as the next available id the supplied
+        fw_id is None.
+    
+    
+    Need to compute HT for the first time.
         Need to create the path for the right and left wave fields and create the empty nc file
     """
     
@@ -47,22 +55,32 @@ def create_nc_file(a_xi_id):
     win_h = rows[0][0]*1.0
 
     # Create the directory in which to store the nc file
-    sql = """INSERT INTO filtered_waves (a_xi_id,video_id)\
-            VALUES (%d,%d)""" % (a_xi_id,video_id)
-    print sql
-    db.execute(sql)
-    sql = """SELECT LAST_INSERT_ID()"""
-    rows = db.execute(sql)
-    fw_id = rows[0][0]
+    if fw_id is None:
+        sql = """INSERT INTO filtered_waves (a_xi_id,video_id)\
+                VALUES (%d,%d)""" % (a_xi_id,video_id)
+        print sql
+        db.execute(sql)
+        sql = """SELECT LAST_INSERT_ID()"""
+        rows = db.execute(sql)
+        fw_id = rows[0][0]
+    else:
+        sql = "SELECT a_xi_id FROM filtered_waves WHERE fw_id = %s" % fw_id
+        previous_a_xi_id, = db.execute_one(sql)
+        if previous_a_xi_id != a_xi_id:
+            print "fw_id, a_xi_id, mismatch!"
+            return None
+        
+
     fw_path = "/Volumes/HD4/filtered_waves/%d" % fw_id
-    os.mkdir(fw_path)
+    if not os.path.exists(fw_path):
+        os.mkdir(fw_path)
     fw_filename = os.path.join(fw_path, "waves.nc")
     
     # Declare the nc file for the first time 
         
     nc = netCDF4.Dataset(fw_filename,'w',format = 'NETCDF4')
     row_dim = nc.createDimension('row',None)
-    col_dim = nc.createDimension('column',1292/2)
+    col_dim = nc.createDimension('column',1292)
     t_dim = nc.createDimension('time',None)
     
     #the dimensions are also variables
@@ -77,13 +95,14 @@ def create_nc_file(a_xi_id):
     raw = nc.createVariable('raw_array',np.float32,('row','time','column'))
     left_w = nc.createVariable('left_array',np.float32,('row','time','column'))
     right_w = nc.createVariable('right_array',np.float32,('row','time','column'))
+
     print nc.dimensions.keys() 
     print "L", left_w.shape,left_w.dtype
     print "R", right_w.shape,right_w.dtype
     
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
-    C =np.arange(0,win_l,win_l*2/1292,dtype=float)
+    C =np.arange(0,win_l,win_l/1292,dtype=float)
     COLUMN[:] = C
 
     db.commit()
@@ -92,21 +111,38 @@ def create_nc_file(a_xi_id):
 
 
 #def task_hilbert_func(a_xi_id,t_start,t_end,r_start,r_end,c_start,c_end,t_step,r_step,c_step,maxmin):
-def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
+def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
+    """
+
+    """
+
     db = labdb.LabDB()
     
     #check if the file already exists
     sql = """ SELECT fw_id FROM filtered_waves WHERE a_xi_id = %d""" %a_xi_id
     rows=db.execute(sql)
     if len(rows)>0:
+
+        fw_id = rows[0][0]
+
         print "It has already been computed"
-        fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
-        print fw_path
+        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
-        return
-    # create the nc file for the first time for storing the filtered data
-    fw_filename,fw_id = create_nc_file(a_xi_id)
+        
+        if cache:
+            return fw_id
+        else:
+            # delete waves.nc file if exists
+            if os.path.exists(fw_filename):
+                os.unlink(fw_filename)
+
+            # create a new wave.nc file with the same fw_id
+            fw_filename,fw_id = create_nc_file(a_xi_id, fw_id=fw_id)
+    else:
+        # create the nc file for the first time for storing the filtered data
+        fw_filename,fw_id = create_nc_file(a_xi_id)
 
     #set the path to the data
     path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
@@ -119,18 +155,17 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
 
 
     axi_nc = netCDF4.Dataset(filename, 'r')
-    
+
     #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
      
     # variables
-    t = axi_nc.variables['time'][::2]
+    t = axi_nc.variables['time'][:]
     z = axi_nc.variables['row'][:]
-    x = axi_nc.variables['column'][::2]
+    x = axi_nc.variables['column'][:]
 
     # DEBUG MESSAGES
     print "x shape",x.shape
     print "z shape",z.shape
-    print "t shape",t.shape
     
     # determine lengths of x, z, t
     nz = len(z)
@@ -144,18 +179,32 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
     dz = np.mean(np.diff(z))
     print "dx,dz,dt :: " ,dx,dz,dt
 
+
+    # USE nccopy to rechunk Axi
+    axi_nc.close() 
+
+    chunked_filename = 'chunked_axi.nc'
+    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename) )
+    axi_nc = netCDF4.Dataset(chunked_filename, 'r')
+    # get information about the copied nc file to see if its chunked 
+    print "ncdump %s" % chunked_filename
+    os.system('ncdump -h -s %s' %  chunked_filename )
+
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
-    kx = np.fft.fftshift(kx)
+   # kx = np.fft.fftshift(kx)
     
     omega = np.fft.fftfreq(nt, dt)
-    omega = np.fft.fftshift(omega)
+   # omega = np.fft.fftshift(omega)
     
+    print np.fft.fftshift(kx) 
+    print np.fft.fftshift(omega) 
+
     print "kx shape: ", kx.shape
     print "omega shape: ", omega.shape
     
     # create a 2D mesh grid so that omega,kx and fft have the same dimensions
-    K,O=np.meshgrid(kx,omega[::-1])
+    K,O=np.meshgrid(kx[kx>=0],omega)
     print "KX.shape" ,K.shape
     print "OMEGA.shape",O.shape
     
@@ -179,27 +228,78 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
     print "z  shape : " , fz.shape
 
 
+    start_time = time.time()
+    read_total = 0.
+    fft_total = 0.
+    filter_total  = 0.
+    ifft_total = 0.
+    write_total = 0.
+
     for count in range(nz):
         print "calculating 2DFFT and performing HT for row %d out of %d..." %(count,nz)
-        a_xi_arr = axi_nc.variables['a_xi_array'][::2,count,::2]
-        print a_xi_arr.shape
+
+    
+        st = time.time()
+        a_xi_arr = axi_nc.variables['a_xi_array'][:,count,:]
+        ed = time.time()
+        read_total += (st-ed)
+
+    #    print a_xi_arr.shape
         # FFT the data and Normalize and shift so that zero frequency is at the center
-        F = np.fft.fftshift(np.fft.fft2(a_xi_arr,axes=(0,1)))
-        print "## Completed: FFT"
-        Fright,Fleft = np.copy(F),np.copy(F)
-        Fright[operator.or_(operator.and_(O > 0.0,K < 0.0),operator.and_(O<0.0,K>0.0))] = 0.0
-        Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),operator.and_(O<0.0,K<0.0))] = 0.0
-        print "## Completed HT"
-        
+
+        st = time.time()
+        #F = np.fft.fftshift(np.fft.fft2(a_xi_arr,axes=(0,1)))
+        F = np.fft.rfft2(a_xi_arr,axes=(0,1))
+        ed = time.time()
+        fft_total += (st-ed)
+
+     #   print "## Completed: FFT"
+
+#        Fright, Fleft = np.copy(F), np.copy(F)
+
+#        Fright[operator.or_(operator.and_(O > 0.0,K < 0.0),operator.and_(O<0.0,K>0.0))] = 0.0
+#        Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),operator.and_(O<0.0,K<0.0))] = 0.0
+
+        st = time.time()
+       # Fright, Fleft = np.copy(F), np.copy(F)
+        Fright = np.copy(F)
+        Fleft = F
+
+      #  Fright[operator.or_(operator.and_(O > 0.0,K < 0.0),
+      #         operator.and_(O<0.0,K>0.0))] = 0.0
+      #  Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),
+      #        operator.and_(O<0.0,K<0.0))] = 0.0
+        Fright[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
+        Fleft[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
+
+        ed = time.time()
+        filter_total += (st-ed)
+
+    #    print "## Completed HT"
+
         # inverse shift and ifft the fft-ed data to get back the rightward
         # travelling and leftward travelling axi
-        a_xi_R = np.fft.ifft2(np.fft.ifftshift(Fright),axes=(1,0))
-        a_xi_L = np.fft.ifft2(np.fft.ifftshift(Fleft),axes=(1,0))
-        print "a_xi .shape", a_xi_L.shape
+        #a_xi_R = np.fft.ifft2(np.fft.ifftshift(Fright),axes=(1,0))
+        #a_xi_L = np.fft.ifft2(np.fft.ifftshift(Fleft),axes=(1,0))
+
+        st = time.time()
+        a_xi_R = np.fft.irfft2(Fright,axes=(0,1))
+        a_xi_L = np.fft.irfft2(Fleft,axes=(0,1))
+    #    print "a_xi .shape", a_xi_L.shape
+        ed = time.time()
+        ifft_total += (st-ed)
         
-        raw[count,:,:]= np.reshape(a_xi_arr,(1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
-        right[count,:,:] = np.reshape(np.real(a_xi_R),(1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
-        left[count,:,:] = np.reshape(np.real(a_xi_L),(1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
+
+        st = time.time()
+        #raw[count,:,:]= np.reshape(a_xi_arr,
+        #         (1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
+        right[count,:,:] = np.reshape(a_xi_R,
+                (1,a_xi_arr.shape[0], a_xi_arr.shape[1]))
+
+        left[count,:,:] = np.reshape(a_xi_L,
+                (1,a_xi_arr.shape[0], a_xi_arr.shape[1]))
+        ed = time.time()
+        write_total += (st-ed)
         
  
     fz[:]= np.mgrid[z[0]:z[-1]:nz*1.0j]
@@ -213,34 +313,65 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
     print "@@@ stored the data into nc file @@@"
     nc.close()
     axi_nc.close()
-    return
-    
+
+    end_time = time.time()
+    print "Filter took", (end_time-start_time), "seconds"
+    print "read:", read_total
+    print "fft:", fft_total
+    print "filter:", filter_total
+    print "ifft:", ifft_total
+    print "write:", write_total
+
+    return fw_id
+
+def plotFilteredLR(fw_id):
     """
+    """
+
+    db = labdb.LabDB()
+    
+    #check if the file already exists
+    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        
+    if not os.path.exists(fw_filename):
+        print "waves.nc not found"
+        return
+
+    # Open the nc file for writing data
+    nc = netCDF4.Dataset(fw_filename,'r')
+    left = nc.variables['left_array']
+    right = nc.variables['right_array']
+  
     #generate a unique path for storing plots
-    import datetime as dt
-    now = dt.datetime.now()
-    print now
-    path = "/Users/prajvala/Desktop/figures/axi_LR/axi%d_%d-%d-%d_%d-%d-%d/" %\
-            (a_xi_id,now.day,now.month,now.year,now.hour,now.minute,now.second)
-    os.mkdir(path)
-    fname1 =os.path.join(path,"plot1.pdf")
-    fname2=os.path.join(path,"plot2.pdf")
-    names= [fname1,fname2]
+    path = "figures/axi_LR/fw_id%d" % fw_id
+    if not os.path.exists(path):
+        os.mkdir(path)
+    fname =os.path.join(path,"plot.pdf")
 
-    print names
+    vmax = 0.01
+    plotcolumn = 1000
+    plt.subplot(2,1,1)
+    plt.imshow(left[:,:,plotcolumn], aspect='auto', vmin=-vmax, vmax=vmax)
+    plt.ylabel('z')
+    plt.title('Left')
+    plt.colorbar()
+    plt.subplot(2,1,2)
+    plt.imshow(right[:,:,plotcolumn], aspect='auto', vmin=-vmax,
+            vmax=vmax)
+    plt.title('Right')
+    plt.colorbar()
+    plt.ylabel('z')
+    plt.xlabel('t')
 
-    #call the plotting function
-    #column = 500
-    plot_axes=np.array([ft,fz,fx])
-    print plot_axes.shape
 
-    print raw.shape
-    print plot_axes.shape
-    plot_plots(raw[:,:,plotcolumn],right[:,:,plotcolumn],left[:,:,plotcolumn],plotcolumn,plot_axes,maxmin,names)
+    plt.xlabel('t')
+
+    
 
     nc.close()
-    plt.show()
-    """
+
+    plt.savefig(fname)
+
 
 def just_plot(fw_path,a_xi_id,maxmin,plotcolumn):
     
