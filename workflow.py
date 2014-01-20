@@ -1,10 +1,13 @@
 """
-This workflow produces plots of EnergyFlux vs Time for each experiment`
+This workflow processes all experiments
+
+- produces plots of EnergyFlux vs Time for each experiment
 
 """
 
 from ruffus import *
 import sys
+import os
 import labdb
 import pickle
 
@@ -12,19 +15,36 @@ import SyntheticSchlieren
 import WaveCharacteristics
 import Spectrum_LR
 import Energy_flux
+import movieplayer
 
-workingdir = "test_workflow/"
+workingdir = "workflow/"
+moviedir = "movies/"
+plotdir = "plots/"
 
 @follows(mkdir(workingdir))
+@follows(mkdir(moviedir))
+@follows(mkdir(plotdir))
 @split(None, workingdir + '*.expt_id')
 def forEachExperiment(infiles, outfiles):
+    
+    #   clean up files from previous runs
+    for f in outfiles:
+        os.unlink(f)
+
     # select experiments
-    #db = labdb.LabDB()
+    db = labdb.LabDB()
 
-    #rows = db.execute('SELECT expt_id FROM experiments WHERE expt_id IN [821]')
-    expt_id_list = [821,822,823,824]
+    # only experiments where length and height in the videos table have been
+    # defined should be processed
+    sql = """SELECT ve.expt_id 
+             FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
+             WHERE height IS NOT NULL and length IS NOT NULL
+               AND ve.expt_id >= 748
+             LIMIT 2
+             """
+    rows = db.execute(sql)
 
-    for expt_id in expt_id_list:
+    for expt_id, in rows:
         f = open(workingdir + '%d.expt_id' % expt_id, 'wb')
         pickle.dump(expt_id, f)
 
@@ -35,7 +55,10 @@ def determineVideoId(infile, outfile):
 
     # select video_id given expt_id
     db = labdb.LabDB()
-    video_id, = db.execute_one('SELECT video_id FROM video WHERE expt_id = %s' % expt_id)
+    sql = """SELECT v.video_id 
+             FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
+             WHERE ve.expt_id = %s""" % expt_id
+    video_id, = db.execute_one(sql)
 
     pickle.dump(video_id, open(outfile, 'w'))
     
@@ -67,7 +90,7 @@ def computeDz(infiles, outfile):
             p['sigma'],
             p['filterSize'],
            startF = 100,        # startFrame
-           stopF = 100+1000,         # stopFrame
+           stopF = 100+10,         # stopFrame
                     # skipFrame
                     # diffFrame
             )
@@ -78,9 +101,28 @@ def computeDz(infiles, outfile):
 def computeAxi(infile, outfile):
     dz_id = pickle.load(open(infile))
     
-    Axi_id = WaveCharacteristics.compute_a_xi(dz_id)
+    Axi_id = WaveCharacteristics.compute_a_xi(
+            dz_id,
+            cache=False,
+            )
 
     pickle.dump(Axi_id, open(outfile, 'w'))
+
+@transform(computeDz, suffix('.dz_id'), '.movieDz')
+def movieDz(infile, outfile):
+    dz_id = pickle.load(open(infile))
+
+    movieName = os.path.basename(outfile) # e.g 123.movieDz
+    movieName = os.path.join(moviedir, movieName + '.mp4')
+
+    # make the movie
+    movieplayer.movie('dz',  # var
+                      dz_id, # id of nc file
+                      0.001,  # min_max value
+                      saveFig=True,
+                      movieName= movieName
+                     )
+    pickle.dump(movieName, open(outfile, 'w'))
 
 @transform(computeAxi, suffix('.Axi_id'), '.fw_id')
 def filterAxiLR(infile, outfile):
@@ -90,7 +132,7 @@ def filterAxiLR(infile, outfile):
             Axi_id,
             0.1, #maxMin
             100, # plotColumn
-            cache=True,
+            cache=False,
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
@@ -100,12 +142,15 @@ def filterAxiLR(infile, outfile):
 def plotEnergyFlux(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+
     Energy_flux.compute_energy_flux(
             Axi_id,
             300,  # rowStart
             400,  # rowEnd
             500,      # column
-            plotname = outfile,
+            plotname = plotName,
             )
 
     pickle.dump('outfile', open(outfile, 'w'))
@@ -114,23 +159,33 @@ def plotEnergyFlux(infile, outfile):
 def plotFilteredLR(infile, outfile):
     fw_id = pickle.load(open(infile))
     
-    Spectrum_LR.plotFilteredLR(fw_id)
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+
+    Spectrum_LR.plotFilteredLR(fw_id,
+            plotName = plotName,
+            )
 
     pickle.dump('outfile', open(outfile, 'w'))
 
-finalTask = [plotFilteredLR, plotEnergyFlux]
+finalTasks = [
+        movieDz, 
+        plotEnergyFlux, 
+        plotFilteredLR,
+        ]
+
 pipeline_printout_graph( open('workflow.pdf', 'w'), 
     'pdf', 
-    finalTask,
+    finalTasks,
     forcedtorun_tasks = [forEachExperiment],
     no_key_legend=True)
 
 pipeline_printout(sys.stdout,
-        finalTask, 
+        finalTasks, 
         [forEachExperiment],
         )
 
-pipeline_run(finalTask, 
+pipeline_run(finalTasks, 
        [forEachExperiment], 
         verbose=2, 
     #    multiprocess=4, 
