@@ -111,7 +111,14 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn):
     #set the path to the data
     path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path+ "/a_xi.nc"
-    axi_nc = netCDF4.Dataset(filename)
+    
+    # check for existance of axi_nc
+    if not os.path.exists(filename):
+        print "Error: axi_nc", filename, "not found"
+        raise
+
+
+    axi_nc = netCDF4.Dataset(filename, 'r')
     
     #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
      

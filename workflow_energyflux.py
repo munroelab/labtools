@@ -67,7 +67,7 @@ def computeDz(infiles, outfile):
             p['sigma'],
             p['filterSize'],
            startF = 70,        # startFrame
-           stopF = 70+10,         # stopFrame
+           stopF = 500,         # stopFrame
                     # skipFrame
                     # diffFrame
             )

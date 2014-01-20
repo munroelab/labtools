@@ -75,7 +75,7 @@ def append2ncfile(a_xi,var,num):
     Append the array to the end of the nc file
     """
     print "appending.."
-    a_xi[num] = var
+    a_xi[num, : ,:] = var
 
     
 def compute_a_xi(dz_id):
