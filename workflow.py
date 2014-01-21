@@ -20,10 +20,12 @@ import movieplayer
 workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
+tabledir = "tables/"
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
 @follows(mkdir(plotdir))
+@follows(mkdir(tabledir))
 @split(None, workingdir + '*.expt_id')
 def forEachExperiment(infiles, outfiles):
     
@@ -138,6 +140,39 @@ def filterAxiLR(infile, outfile):
 
     pickle.dump(fw_id, open(outfile, 'w'))
 
+@transform(forEachExperiment, suffix('.expt_id'), '.exptParameters')
+def getParameters(infile, outfile):
+    expt_id = pickle.load(open(infile))
+
+    params = {}
+
+    # look up parameters for the given expt_id
+    video_id, N, omega, kz, theta = Energy_flux.get_info(expt_id)
+
+    params = { 'expt_id' : expt_id, 
+               'N' : N,
+               'omega' : omega,
+               'kz' : kz,
+               'theta' : theta }
+    
+    pickle.dump(params, open(outfile, 'w'))
+
+@merge(getParameters, tabledir + 'tableExperimentParameters.txt')
+def tableExperimentParameters(infiles, outfile):
+
+    if os.path.exists(outfile):
+        os.unlink(outfile)
+
+    f = open(outfile, 'w')
+
+    for infile in infiles:
+        params = pickle.load(open(infile))
+        
+        for key, value in params.iteritems():
+            f.write(key + ":\t" + str(value) + "\n")
+        f.write("\n")
+
+
 
 @transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
 def plotEnergyFlux(infile, outfile):
@@ -173,6 +208,7 @@ finalTasks = [
         movieDz, 
         plotEnergyFlux, 
         plotFilteredLR,
+        tableExperimentParameters,
         ]
 
 forcedTasks = [
