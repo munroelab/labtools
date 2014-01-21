@@ -316,6 +316,8 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     > Given video_id, calculate the dz array. Output is cached on disk.
     > returns the array dz
     > skip_frames is the number of frames to jump before computing dz
+
+    Returns dz_id
     """
     db = labdb.LabDB()
     
@@ -333,7 +335,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     print "num_frames:" ,num_frames
 
     dz_flag =checkifdzexists_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
-    if (dz_flag !=0):
+    if (dz_flag != 0):
         return dz_flag
     
     # Call the function that will create the nc file to append data to

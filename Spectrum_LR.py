@@ -113,7 +113,10 @@ def create_nc_file(a_xi_id, fw_id=None):
 #def task_hilbert_func(a_xi_id,t_start,t_end,r_start,r_end,c_start,c_end,t_step,r_step,c_step,maxmin):
 def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     """
+        Given an Axi_id, computes Hilbert transform to filter out
+        Leftward and Rightward propagating waves.
 
+        Results stored as  'left_array' and 'right_array' in a waves.nc file
     """
 
     db = labdb.LabDB()
@@ -130,8 +133,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
         print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
-        
-        if cache:
+        if os.path.exists(fw_filename) and cache:
             return fw_id
         else:
             # delete waves.nc file if exists
@@ -162,6 +164,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     t = axi_nc.variables['time'][:]
     z = axi_nc.variables['row'][:]
     x = axi_nc.variables['column'][:]
+    print "Axi, time", t
 
     # DEBUG MESSAGES
     print "x shape",x.shape
@@ -218,6 +221,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     fz = nc.variables['row']
     # data stored into the nc file
     ft[:] = np.mgrid[t[0]:t[-1]:nt *1.0j]
+    print ft
     
     # print information about dz dataset
     print "variables  of the nc file :", nc.variables.keys()
@@ -236,7 +240,8 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     write_total = 0.
 
     for count in range(nz):
-        print "calculating 2DFFT and performing HT for row %d out of %d..." %(count,nz)
+        #print "calculating 2DFFT and performing HT for row %d out of %d..." %(count,nz)
+        print ".",
 
     
         st = time.time()
@@ -324,7 +329,9 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
 
     return fw_id
 
-def plotFilteredLR(fw_id):
+def plotFilteredLR(fw_id,
+        plotName = None
+        ):
     """
     """
 
@@ -342,11 +349,14 @@ def plotFilteredLR(fw_id):
     left = nc.variables['left_array']
     right = nc.variables['right_array']
   
-    #generate a unique path for storing plots
-    path = "figures/axi_LR/fw_id%d" % fw_id
-    if not os.path.exists(path):
-        os.mkdir(path)
-    fname =os.path.join(path,"plot.pdf")
+    if plotName is None:
+        #generate a unique path for storing plots
+        path = "figures/axi_LR/fw_id%d" % fw_id
+        if not os.path.exists(path):
+            os.mkdir(path)
+        fname =os.path.join(path,"plot.pdf")
+    else:
+        fname = plotName
 
     vmax = 0.01
     plotcolumn = 1000

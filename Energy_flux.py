@@ -1,3 +1,6 @@
+"""
+"""
+
 import numpy
 import pylab 
 import matplotlib.pyplot as plt
@@ -10,8 +13,18 @@ import plotting_functions
 # Open database for access
 db  = labdb.LabDB()
 
+def compute_energy_flux(
+        a_xi_id,
+        row_s,
+        row_e,
+        col1,
+        plotname="energyflux"):
+    """
+        Given an Axi_id, calculate the vertically averaged energy flux
 
-def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
+        plot the result.
+
+    """
     db = labdb.LabDB()
     
     #check if the file already exists
@@ -23,7 +36,9 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
         return
 
     fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
-    print fw_path
+    if not os.path.exists(fw_path):
+        print fw_path, 'not found'
+        return
     
     # Get experiment ID
     
@@ -114,8 +129,10 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,plotname="energyflux"):
     
     # get the moving average
     window = 2*numpy.pi/(omega*dt)
+    print "window:", window
     window = numpy.int16(window)
-    print window
+    print "window:", window
+
     avg1 = moving_average(EF1,window)
     avg2 = moving_average(EF2,window)
     avg3 = moving_average(EF3,window)

@@ -18,23 +18,36 @@ import matplotlib.pyplot as plt
 import Energy_flux
 
 
-def createncfile(dz_id,t,x,z):
+def createncfile(dz_id,t,x,z,
+        a_xi_id = None
+        ):
     """ 
     create the nc file in which we will store a_xi array.
     create a row in the database for the nc file stored
     update the database
+
+    Axi_id will be chosen as the next available id if a_xi_id is None.
     """
     print "inside createncfile function"
     db = labdb.LabDB()
     #create the directory in which to store the nc file
-    sql = """INSERT into vertical_displacement_amplitude (dz_id) VALUES (%d)"""%(dz_id)  
-    print sql
-    db.execute(sql)
-    sql = """SELECT LAST_INSERT_ID()""" 
-    rows = db.execute(sql)
-    a_xi_id = rows[0][0]
+    if a_xi_id is None:
+        sql = """INSERT into vertical_displacement_amplitude (dz_id) VALUES (%d)"""%(dz_id)  
+        print sql
+        db.execute(sql)
+        sql = """SELECT LAST_INSERT_ID()""" 
+        rows = db.execute(sql)
+        a_xi_id = rows[0][0]
+    else:
+        sql = "SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id = %s" % a_xi_id
+        previous_dz_id, = db.execute_one(sql)
+        if previous_dz_id != dz_id:
+            print "dz_id, a_xi_id mismatch!"
+            return None
+
     a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id 
-    os.mkdir(a_xi_path)
+    if not os.path.exists(a_xi_path):
+        os.mkdir(a_xi_path)
 
     a_xi_filename = os.path.join(a_xi_path,"a_xi.nc")
     print "A xi : ",a_xi_filename
@@ -84,7 +97,10 @@ def append2ncfile(a_xi,var,num):
     a_xi[num, : ,:] = var
 
     
-def compute_a_xi(dz_id):
+def compute_a_xi(dz_id, cache=True):
+    """
+        Given an dz_id, compute the vertical displacement Axi
+    """
     # access database
     db = labdb.LabDB()
 
@@ -93,87 +109,95 @@ def compute_a_xi(dz_id):
              dz_id = %d""" % (dz_id)
     rows = db.execute(sql)
 
+    a_xi_id = None
     if len(rows) > 0:
     
         # A xi array already computed
-        id = rows[0][0]
-        print "loading a_xi %d dataset  .." % id
+        a_xi_id = rows[0][0]
 
-        #load the array from disk
-        a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/" % id
+        a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/" % a_xi_id
         a_xi_filename = a_xi_path + 'a_xi.nc'
-        return id
-    else:
 
-        #  open the dataset dz.nc for calculating a_xi
-        filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
-        nc = netCDF4.Dataset(filepath,'a')
-        
-        # loading the dz data from the nc file
-        dz = nc.variables['dz_array']
-        t = nc.variables['time']
-        z = nc.variables['row']
-        x = nc.variables['column']
-        # print information about dz dataset
-        print "variables  of the nc file :", nc.variables.keys()
-        print "dz shape : " , dz.shape
-        print "t  shape : " , t.shape
-        print "z shape : " , z.shape
-        print "x shape : " , x.shape
-        
-        # call get_info function from Energy_flux program :: to get info!
-        
-        sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
-        rows = db.execute(sql)
-        expt_id = rows[0][0]
+        if os.path.exists(a_xi_filename) and cache:
+            return ax_id
+        else:
+            # delete ax_xi.nc if it exists and recreate
+            if os.path.exists(a_xi_filename):
+                os.unlink(a_xi_filename)
 
-        vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
-
-        print "V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta
-        # calculate dt
-        dt = numpy.mean(numpy.diff(t))
-        print "dt of dz:",dt
-        
-        #call the function to create the nc file in which we are going to store the dz array
-        a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z)
-        
-        #get info about the nc file to see if the var is contiguous
-        print " info axi nc file :  chk if the var is contiguous"
-        os.system('ncdump -h -s %s' % a_xi_filename)
-        
-        # open the a_xi nc file for appending data
-        axi_nc=netCDF4.Dataset(a_xi_filename,'a')
-        a_xi = axi_nc.variables['a_xi_array']
-        # setting the time axis
-        axi_time = axi_nc.variables['time']
-        axi_time[:] = t[:]
-
-        # Calculate kx 
-        rho0 = 0.998
-        kx = (omega * kz)/(N*N - omega*omega)**0.5
-        const1 = -1.0 * omega* N * N * kz
-        print "constant1 :" ,const1
-        
-        # calculate constants needed for getting dn2t from dz
-        
-        sql = """SELECT length FROM video WHERE video_id = %d  """ % vid_id
-        rows = db.execute(sql)
-        win_l = rows[0][0]
-        win_l=win_l*1.0
-        print "length" , win_l
-        n_water = 1.3330
-        L_tank = 453.0
-        gamma = 0.0001878
-        const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
-        print "constant2:",const2
-
-
-        for num in range(dz.shape[0]):
-            var1 = (1.0*const2*dz[num,:,:])/(dt*const1)
-            print "appending frame %d" % num
-            append2ncfile(a_xi,var1,num)
-        print "done...!"
+    #  open the dataset dz.nc for calculating a_xi
+    filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
+    if not os.path.exists(filepath):
+        print filepath, "not found"
+        return
+    nc = netCDF4.Dataset(filepath,'a')
     
+    # loading the dz data from the nc file
+    dz = nc.variables['dz_array']
+    t = nc.variables['time']
+    print "t from dz_array", t[:]
+    z = nc.variables['row']
+    x = nc.variables['column']
+    # print information about dz dataset
+    print "variables  of the nc file :", nc.variables.keys()
+    print "dz shape : " , dz.shape
+    print "t  shape : " , t.shape
+    print "z shape : " , z.shape
+    print "x shape : " , x.shape
+    
+    # call get_info function from Energy_flux program :: to get info!
+    
+    sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+
+    vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
+
+    print "V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta
+    # calculate dt
+    dt = numpy.mean(numpy.diff(t))
+    print "dt of dz:",dt
+    
+    #call the function to create the nc file in which we are going to store the dz array
+    a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z,a_xi_id=a_xi_id)
+    
+    #get info about the nc file to see if the var is contiguous
+    print " info axi nc file :  chk if the var is contiguous"
+    os.system('ncdump -h -s %s' % a_xi_filename)
+    
+    # open the a_xi nc file for appending data
+    axi_nc=netCDF4.Dataset(a_xi_filename,'a')
+    a_xi = axi_nc.variables['a_xi_array']
+    # setting the time axis
+    axi_time = axi_nc.variables['time']
+    axi_time[:] = t[:]
+
+    # Calculate kx 
+    rho0 = 0.998
+    kx = (omega * kz)/(N*N - omega*omega)**0.5
+    const1 = -1.0 * omega* N * N * kz
+    print "constant1 :" ,const1
+    
+    # calculate constants needed for getting dn2t from dz
+    
+    sql = """SELECT length FROM video WHERE video_id = %d  """ % vid_id
+    rows = db.execute(sql)
+    win_l = rows[0][0]
+    win_l=win_l*1.0
+    print "length" , win_l
+    n_water = 1.3330
+    L_tank = 453.0
+    gamma = 0.0001878
+    const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
+    print "constant2:",const2
+
+
+    for num in range(dz.shape[0]):
+        var1 = (1.0*const2*dz[num,:,:])/(dt*const1)
+        print "appending frame %d" % num
+        append2ncfile(a_xi,var1,num)
+    print "done...!"
+
     axi_nc.close()
     nc.close()
     return a_xi_id

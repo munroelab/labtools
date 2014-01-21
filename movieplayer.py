@@ -11,6 +11,11 @@ from  matplotlib import animation
 import labdb
 import argparse
 def checkvar(var,id):
+    """
+    Given a variable name with a given id,
+    return pathToNCFile, array_name, video_id
+    """
+
     # get EXPT ID
     print var,type(var),id
     db = labdb.LabDB()
@@ -58,26 +63,25 @@ def checkvar(var,id):
     return path,array_name,video_id
 
 
-def movie(var,id,max_min,start_frame=0,stop_frame=0,saveFig=0):
+def movie(var, id, max_min,
+        start_frame=0, stop_frame=None,
+        saveFig=False,
+        movieName = None):
     #get the full path to the nc file that you want to play as a movie
-    path,array_name,video_id = checkvar(var,id)
-    if stop_frame == 0:
-        db = labdb.LabDB()
-        sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
-        print sql
 
-        rows = db.execute(sql)
-        print rows
+    path, array_name, video_id = checkvar(var,id)
 
-        num_frames = rows[0][0]
-        
-        print "num_frames " , num_frames
-        stop_frame = num_frames-1
+    # Load the nc file
+    data = nc.Dataset(path, 'r')
+
+    if stop_frame is None:
+        # look at number of times in dataset
+        stop_frame = data.variables['time'].size 
+
     # debug
     print "var: ",var, "id:" , id, "max_min:" ,max_min,\
             "start_frame:",start_frame, "stop_frame:" , stop_frame
-    # Load the nc file
-    data = nc.Dataset(path, 'r')
+
     print "variables: ",data.variables.keys()
     # Load the variables
     arr = data.variables.keys()
@@ -114,14 +118,16 @@ def movie(var,id,max_min,start_frame=0,stop_frame=0,saveFig=0):
     im=plt.imshow(a(i),extent=[x[0],x[-1],z[0],z[-1]],\
             vmax=+max_min,vmin=-max_min,interpolation="nearest",aspect=win_h/win_l,origin='lower')
     plt.colorbar()
-    frame_num = stop_frame - start_frame
+    frame_num = stop_frame - start_frame 
+    print "frames to render: ", frame_num
 
     anim =animation.FuncAnimation(fig,animate,frames=frame_num,repeat=False,blit=False)
     #plt.show()
-    if saveFig==1:
-        anim.save('%s_VID%d_animation.mp4' % (array_name,video_id),dpi=100,fps=7,extra_args=['-vcodec','libx264'])
 
-    return
+    if saveFig:
+        if movieName is None:
+            movieName = '%s_VID%d_animation.mp4' % (array_name,video_id)
+        anim.save(movieName, dpi=100,fps=7,extra_args=['-vcodec','libx264'])
 
 
 
