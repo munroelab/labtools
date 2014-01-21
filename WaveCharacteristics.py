@@ -127,10 +127,11 @@ def compute_a_xi(dz_id, cache=True):
 
     #  open the dataset dz.nc for calculating a_xi
     filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
+    print "dz filepath: WC.py" , filepath 
     if not os.path.exists(filepath):
         print filepath, "not found"
         return
-    nc = netCDF4.Dataset(filepath,'a')
+    nc = netCDF4.Dataset(filepath,'r')
     
     # loading the dz data from the nc file
     dz = nc.variables['dz_array']
