@@ -119,9 +119,9 @@ def compute_a_xi(dz_id, cache=True):
         a_xi_filename = a_xi_path + 'a_xi.nc'
 
         if os.path.exists(a_xi_filename) and cache:
-            return ax_id
+            return a_xi_id
         else:
-            # delete ax_xi.nc if it exists and recreate
+            # delete a_xi.nc if it exists and recreate
             if os.path.exists(a_xi_filename):
                 os.unlink(a_xi_filename)
 

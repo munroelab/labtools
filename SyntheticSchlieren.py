@@ -85,18 +85,9 @@ def append2ncfile(dz_filename,dz_arr):
     print "len(dz): ", i 
     nc.close()
 
-def set_time_axis(dz_filename,dt):
-    # open the file in the end and set the time variable start and stop time
-    # along with timestep
-    nc = netCDF4.Dataset(dz_filename,'w')
-    Tm=nc.variables['time']
-    print Tm.shape
-    tl = len(Tm)
-    t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    Tm[:] = t_array
-    nc.close()
 
-def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
+def create_nc_file(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames
+           dz_id=None ):
 
     """ Need to compute dz for the first time.
         Need to create the path for the dz file and create the empty nc file
@@ -121,17 +112,28 @@ def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,sto
     print "lenght" , win_l, "\nheight", win_h
     print  "video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
     print  video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
-    # Create the directory in which to store the nc file
-    sql = """INSERT INTO dz (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)\
-            VALUES (%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
-            (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)
-    print sql
-    db.execute(sql)
-    sql = """SELECT LAST_INSERT_ID()"""
-    rows = db.execute(sql)
-    dz_id = rows[0][0]
+    if dz_id is None:
+        # Create the directory in which to store the nc file
+        sql = """INSERT INTO dz (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)\
+                VALUES (%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
+                (video_id,skip_frames,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)
+        print sql
+        db.execute(sql)
+        sql = """SELECT LAST_INSERT_ID()"""
+        rows = db.execute(sql)
+        dz_id = rows[0][0]
+    else:
+        sql = """ SELECT video_id,startF,stopF FROM dz WHERE dz_id = %s""" \
+                %dz_id
+        previous_rows = db.execute(sql)
+        if previous_rows[0][0] != video_id or previous_rows[1][0] !=startF or\
+                previous.rows[2][0]!=stopF:
+                    print "video id/startF/stopF mismatch!"
+                    return None
+
     dz_path = "/Volumes/HD4/dz/%d" % dz_id
-    os.mkdir(dz_path)
+    if not os.path.exists(dz_path):
+        os.mkdir(dz_path)
     dz_filename = os.path.join(dz_path, "dz.nc")
     
     # Declare the nc file for the first time 
@@ -172,88 +174,8 @@ def create_nc_file_test(video_id,skip_frames,mintol,sigma,filter_size,startF,sto
     return dz_filename,dz_id,dt,win_h
 
 
-def create_nc_file(video_id,skip_frames):
-    """ Need to compute dz for the first time.
-        Need to create the path for the dz file and create the empty nc file
-    """
-    
-    db = labdb.LabDB()
-    # Get experiment ID
-    sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
-    rows = db.execute(sql)
-    expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
 
-    # get the window length and window height
-    sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
-    rows = db.execute(sql)
-    win_l = rows[0][0]*1.0
-    
-    sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
-    rows = db.execute(sql)
-    win_h = rows[0][0]*1.0
-    
-    print "lenght" , win_l, "\nheight", win_h
-
-    # Create the directory in which to store the nc file
-    sql = """INSERT INTO dz (video_id, skip_frames,expt_id)\
-            VALUES (%d,%d,%d)""" % (video_id,skip_frames,expt_id)
-    print sql
-    db.execute(sql)
-    sql = """SELECT LAST_INSERT_ID()"""
-    rows = db.execute(sql)
-    dz_id = rows[0][0]
-    dz_path = "/Volumes/HD4/dz/%d" % dz_id
-    os.mkdir(dz_path)
-    dz_filename = os.path.join(dz_path, "dz.nc")
-    
-    # Declare the nc file for the first time 
-        
-    nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
-    row_dim = nc.createDimension('row',964)
-    col_dim = nc.createDimension('column',1292)
-    t_dim = nc.createDimension('time',None)
-    
-    #the dimensions are also variables
-    ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
-    COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
-    TIME = nc.createVariable('time',numpy.float32,('time'))
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
-    
-    # declare the 3D data variable 
-    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
-    print nc.dimensions.keys() , DZ.shape,DZ.dtype
-    
-    # the length and height dimensions are variables containing the length and
-    # height of each pixel in cm
-    R =numpy.arange(0,win_h,win_h/964,dtype=float)
-    C =numpy.arange(0,win_l,win_l/1292,dtype=float)
-    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-    t=numpy.loadtxt(path2time)
-    dt = numpy.mean(numpy.diff(t[:,1]))
-    print "dt = " ,dt
-    dt = dt*skip_frames
-    print "timestep: " ,dt
-
-    ROW[:] = R
-    COLUMN[:] = C
-
-    #get the number of frames
-    sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id
-    rows = db.execute(sql)
-    num_frames = rows[0][0]
-    
-    print "R",ROW.shape
-    print "C",COLUMN.shape
-
-    db.commit()
-    nc.close()
-    return dz_filename,dz_id,dt,num_frames,win_h
-
-
-def checkifdzexists_test(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
+def checkifdzexists(video_id,skip_frames,mintol,sigma,filter_size,startF,stopF,diff_frames):
     db = labdb.LabDB()
     # check if this dz array has already been computed?
     sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d AND mintol=%d AND sigma=%.1f AND filter_size=%d AND startF=%d AND\
@@ -283,35 +205,9 @@ def checkifdzexists_test(video_id,skip_frames,mintol,sigma,filter_size,startF,st
     else:
         return 0
 
-def checkifdzexists(video_id,skip_frames):
-    db = labdb.LabDB()
-    # check if this dz array has already been computed?
-    sql = """SELECT dz_id FROM dz WHERE video_id = %d\
-            AND skip_frames = %d""" % (video_id,skip_frames)
-    rows = db.execute(sql)
-    if len(rows) > 0:
-        # dz array already computed
-        dz_id = rows[0][0]
-        print "Loading cached dz %d..." % dz_id
-        # load the array from the disk
-        dz_path = "/Volumes/HD4/dz/%d" % dz_id
-        dz_filename = dz_path+'/'+'dz.nc'
-        
-        #dz_array = numpy.load(dz_filename)
-        #loading the nc file
-        print dz_filename
-        nc=netCDF4.Dataset(dz_filename,'a')
-        # some information about the nc file
-        print "dimensions of nc file -> ", nc.dimensions.keys()
-        print "variables of nc file -> ", nc.variables.keys()
-        # loading the data 
-        dz_arr = nc.variables['dz_array']
-        print "shape of nc file -> ", dz_arr.shape
-        return dz_id 
-    else:
-        return 0
 
-def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0,diff_frames=1):
+def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0,diff_frames=1,
+            cache=True):
     """
     > Given video_id, calculate the dz array. Output is cached on disk.
     > returns the array dz
@@ -334,13 +230,14 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     num_frames=stopF-startF
     print "num_frames:" ,num_frames
 
-    dz_flag =checkifdzexists_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
-    if (dz_flag != 0):
+    dz_flag =checkifdzexists(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
+    if (dz_flag != 0) and cache:
         return dz_flag
-    
+    else:
+        dz_id = dz_flag
     # Call the function that will create the nc file to append data to
-    #dz_filename,dz_id,dt,num_frames,win_h = create_nc_file(video_id,skip_frames)
-    dz_filename,dz_id,dt,win_h=create_nc_file_test(video_id,skip_frames,min_tol,sigma,filter_size,startF,stopF,diff_frames)
+    dz_filename,dz_id,dt,win_h=create_nc_file(video_id,skip_frames,min_tol,sigma,filter_size,startF,\
+            stopF,diff_frames,dz_id = dz_id)
 
     
     # n: number of frames between 2 images we subtract 
