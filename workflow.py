@@ -17,6 +17,7 @@ import Spectrum_LR
 import Energy_flux
 import movieplayer
 import axi_TS_row
+import axi_TS_col
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -208,6 +209,22 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
 
     pickle.dump(plotName, open(outfile, 'w'))
 
+@transform(computeAxi, suffix('.Axi_id'), '.plotAxiVerticalTimeSeries')
+def plotAxiVerticalTimeSeries(infile, outfile):
+    Axi_id = pickle.load(open(infile))
+    
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+
+    axi_TS_col.compute_energy_flux(
+            Axi_id,
+            300,  # column number 
+            0.005,      # maxmin
+            plotname = plotName,
+            )
+
+    pickle.dump(plotName, open(outfile, 'w'))
+
 
 @transform([filterAxiLR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
@@ -228,6 +245,7 @@ finalTasks = [
         plotFilteredLR,
         tableExperimentParameters,
         plotAxiHorizontalTimeSeries,
+        plotAxiVerticalTimeSeries,
         ]
 
 forcedTasks = [

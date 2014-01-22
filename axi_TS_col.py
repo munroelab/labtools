@@ -22,11 +22,10 @@ def get_MSF(id):
     print " mintol:" ,mintol, "sigma:" ,sigma, "filter_size:",filter_size
     return mintol,sigma,filter_size
 
-def compute_energy_flux(a_xi_id,column,max_min): 
+def compute_energy_flux(a_xi_id,column,max_min,plotname = "axiVerticalTimeSeries"): 
     # Check if the database already exists
-    sql = """SELECT expt_id FROM dz WHERE dz_id = (SELECT dz_id \
-            from dn2t WHERE id = (SELECT dn2t_id from \
-            vertical_displacement_amplitude WHERE a_xi_id = %d))""" % a_xi_id
+    sql = """SELECT expt_id FROM dz WHERE dz_id = (SELECT dz_id from \
+            vertical_displacement_amplitude WHERE a_xi_id = %d)""" % a_xi_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
     print "expt ID: ", expt_id
@@ -63,10 +62,9 @@ def compute_energy_flux(a_xi_id,column,max_min):
     plt.imshow(data[:,:],extent=[t[0],t[-1],z[-1],z[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
     plt.xlabel('Time (seconds)')
     plt.ylabel('Depth (cm)')
-    plt.title('Vertical Displacement Amplitude of Video ID %d \n %d-th  column of pixels %.2f cm away from the wave generator'\
-                    % (video_id,column ,x[column]+50.0) )
+    plt.title('Vertical Displacement Amplitude of Video ID %d' % (video_id) )
     plt.colorbar()
-
+    plt.savefig(plotname + "_%dcol.pdf"% column )
 
 def get_info(expt_id):
     
