@@ -16,6 +16,7 @@ import WaveCharacteristics
 import Spectrum_LR
 import Energy_flux
 import movieplayer
+import axi_TS_row
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -189,7 +190,24 @@ def plotEnergyFlux(infile, outfile):
             plotname = plotName,
             )
 
-    pickle.dump('outfile', open(outfile, 'w'))
+    pickle.dump(plotName, open(outfile, 'w'))
+
+@transform(computeAxi, suffix('.Axi_id'), '.plotAxiHorizontalTimeSeries')
+def plotAxiHorizontalTimeSeries(infile, outfile):
+    Axi_id = pickle.load(open(infile))
+    
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+
+    axi_TS_row.compute_energy_flux(
+            Axi_id,
+            300,  # row number 
+            0.005,      # maxmin
+            plotname = plotName,
+            )
+
+    pickle.dump(plotName, open(outfile, 'w'))
+
 
 @transform([filterAxiLR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
@@ -209,10 +227,12 @@ finalTasks = [
         plotEnergyFlux, 
         plotFilteredLR,
         tableExperimentParameters,
+        plotAxiHorizontalTimeSeries,
         ]
 
 forcedTasks = [
      #   computeDz
+        #computeAxi
         ]
 
 pipeline_printout_graph( open('workflow.pdf', 'w'), 
