@@ -39,7 +39,7 @@ def checkvar(var,id):
                 FROM dn2t WHERE id =%d) """ % id
         rows = db.execute(sql)
         video_id = rows[0][0]
-    elif var == 'axi':
+    elif var == 'Axi':
         path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" %(id)
         print path
         array_name ='a_xi_array'
@@ -58,6 +58,9 @@ def checkvar(var,id):
         print path
         array_name = 'img_array'
         video_id = id
+    else:
+        print "unknown var:", var
+        return None
 
     print path,array_name,video_id
     return path,array_name,video_id

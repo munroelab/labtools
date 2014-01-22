@@ -129,6 +129,7 @@ def movieDz(infile, outfile):
                      )
     pickle.dump(movieName, open(outfile, 'w'))
 
+
 @transform(computeAxi, suffix('.Axi_id'), '.fw_id')
 def filterAxiLR(infile, outfile):
     Axi_id = pickle.load(open(infile))
@@ -141,6 +142,23 @@ def filterAxiLR(infile, outfile):
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
+
+@transform(computeAxi, suffix('.Axi_id'), '.movieAxi')
+def movieAxi(infile, outfile):
+    Axi_id = pickle.load(open(infile))
+
+    movieName = os.path.basename(outfile) # e.g 123.movieAxi
+    movieName = os.path.join(moviedir, movieName + '.mp4')
+
+    # make the movie
+    movieplayer.movie('Axi',  # var
+                      Axi_id, # id of nc file
+                      0.01,  # min_max value
+                      saveFig=True,
+                      movieName= movieName
+                     )
+    pickle.dump(movieName, open(outfile, 'w'))
+
 
 @transform(forEachExperiment, suffix('.expt_id'), '.exptParameters')
 def getParameters(infile, outfile):
@@ -241,6 +259,7 @@ def plotFilteredLR(infile, outfile):
 
 finalTasks = [
         movieDz, 
+        movieAxi,
         plotEnergyFlux, 
         plotFilteredLR,
         tableExperimentParameters,
