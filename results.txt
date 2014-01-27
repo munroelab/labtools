@@ -1,0 +1,49 @@
+What types of "data products" do we want to compute automatically?
+
+We want to be able to give a "snapshot" of all the results of a particular
+expriment.  Comparisons between experiments are a higher level.
+
+Every "data product" should have a revision number.
+
+calibration data
+    -- always imported into database
+    -- plot of calibrations curves, includes equation
+
+For stratification measurement, we should have a plot of stratification
+     -- needs zmin / zmax to make this work
+     -- needs calibration data (calib_id and equation...)
+     -- need to estimate N2 or deltaRho, or ?? can I classify these in some way?
+     -- plots should flag if data is not been QC'd
+
+video clips
+    -- needs world coordinate grid and a time measurement
+    -- file format
+    -- thumbnail summary
+    -- raw video clip 
+    -- video with frame number/time codes/video_id/date
+
+    -- is there an interface to track?
+    -- is there objects to track position and orientation?
+    -- is there synthetic schlieren to process
+        -- lines? dots?
+        -- compute dz, dn2, dn2t
+        -- spectrums -- fft? kx, kz, omega,
+        -- plot of spectrums
+    -- compute energy and energy flux
+
+experiment -- web pages/PHP - report?
+    experiment_id, experimenter, date/time
+    stratification plot and "strat parameters"
+    representative image of raw data
+    representative image of processed data
+    indication of "primary measurements"
+    sketch of experiment setup
+    measurements
+    world grid
+    forcing conditions (wave generator?)
+    experiments give context to the data
+
+projects
+    collection of experiments
+    comparisons between experiments
+    representative experiments

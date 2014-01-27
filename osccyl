@@ -1,0 +1,181 @@
+#!/usr/bin/env python
+import serial
+import pylab
+from pylab import pi
+
+def main():
+    print "Amplitude (mm)? A=",
+    A = float(raw_input())
+    print "Period (s)? T=",
+    T = float(raw_input())
+
+    max_lines = 150
+    #dt = 0.1 # s
+    dt = T / (max_lines - 15)
+    #print "Using dt = %.2f s" % dt
+
+    #T = 10.0 #"s"
+    f = 1/T
+    #A = 10.0 #"mm"
+
+    steps_per_mm = 200
+
+    pylab.figure()
+
+    t = pylab.arange(0, T/4, dt)
+    y = steps_per_mm*A/2*pylab.cos(2*pi*f *t+pi)
+    dy = pylab.diff(y)
+    speed = dy / dt
+
+    pylab.plot(t, y, 'o-')
+    pylab.plot(t[:-1], dy, 'o-')
+    pylab.plot(t[:-1], speed, 'o-')
+    pylab.xlabel('t')
+    pylab.ylabel('y')
+
+
+    # connect with VXM
+    ser = serial.Serial("/dev/tty.usbserial-A40142TL")
+
+    script_template = """
+    F,
+    PM-1,
+    %s
+
+    PM-2,
+    %s
+
+    PM-0,
+    A1M10,
+    U77,
+    LM0,
+    JM1,
+    JM2,
+    LM-3,
+    J0,
+    U91,
+    """
+
+    uppart = ""
+    for dy_value, speed_value in zip(dy, speed):
+        dy_value = int(dy_value)
+        if dy_value == 0:
+            dy_value = 1
+        speed_value = int(speed_value)
+        if speed_value == 0:
+            speed_value = 1
+        line = "S1M%d,\nI1M%d,\n" % (speed_value, dy_value)
+        uppart = uppart + line
+
+    downpart = ""
+    for dy_value, speed_value in zip(dy[::-1], speed[::-1]):
+        dy_value = int(dy_value)
+        if dy_value == 0:
+            dy_value = 1
+        speed_value = int(speed_value)
+        if speed_value == 0:
+            speed_value = 1
+        line = "S1M%d,\nI1M%d,\n" % (speed_value, dy_value)
+        downpart = downpart + line
+
+    script = script_template % (uppart, downpart)
+    #print script
+
+    script_original = """
+    F,
+    PM-1,
+    S1M48,I1M5,
+    S1M153,I1M16,
+    S1M257,I1M27,
+    S1M363,I1M38,
+    S1M467,I1M49,
+    S1M563,I1M59,
+    S1M670,I1M70,
+    S1M766,I1M80,
+    S1M860,I1M90,
+    S1M955,I1M100,
+    S1M1040,I1M109,
+    S1M1133,I1M119,
+    S1M1215,I1M127,
+    S1M1300,I1M136,
+    S1M1375,I1M144,
+    S1M1452,I1M152,
+    S1M1520,I1M159,
+    S1M1588,I1M166,
+    S1M1648,I1M173,
+    S1M1708,I1M179,
+    S1M1757,I1M184,
+    S1M1806,I1M189,
+    S1M1848,I1M193,
+    S1M1885,I1M197,
+    S1M1919,I1M201,
+    S1M1945,I1M204,
+    S1M1967,I1M206,
+    S1M1983,I1M208,
+    S1M1994,I1M209,
+    S1M1999,I1M209,
+
+    PM-2,
+    S1M1999,I1M209,
+    S1M1994,I1M209,
+    S1M1983,I1M208,
+    S1M1967,I1M206,
+    S1M1945,I1M204,
+    S1M1919,I1M201,
+    S1M1885,I1M197,
+    S1M1848,I1M193,
+    S1M1806,I1M189,
+    S1M1757,I1M184,
+    S1M1708,I1M179,
+    S1M1648,I1M173,
+    S1M1588,I1M166,
+    S1M1520,I1M159,
+    S1M1452,I1M152,
+    S1M1375,I1M144,
+    S1M1300,I1M136,
+    S1M1215,I1M127,
+    S1M1133,I1M119,
+    S1M1040,I1M109,
+    S1M955,I1M100,
+    S1M860,I1M90,
+    S1M766,I1M80,
+    S1M670,I1M70,
+    S1M563,I1M59,
+    S1M467,I1M49,
+    S1M363,I1M38,
+    S1M257,I1M27,
+    S1M153,I1M16,
+    S1M48,I1M5,
+
+    PM-0,
+    A1M10,
+    U77,
+    LM0,
+    JM1,
+    JM2,
+    LM-3,
+    J0,
+    U91,
+    """
+
+    #print script.count('\n')
+    ser.write(script)
+
+    #tmp = ser.read(1)
+    #print tmp
+
+    ser.write("R")
+
+    #pylab.show()
+
+    print "Hit RETURN to stop the motion:"
+    key = raw_input()
+
+    ser.write("K")
+    ser.write("Q")
+
+    ser.close()
+
+while True:
+    main()
+
