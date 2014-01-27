@@ -1,4 +1,4 @@
-*.pyc # ignore compiled python modules
+*.pyc
 *.swp
 .DS_Store
 movies
