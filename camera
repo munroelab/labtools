@@ -11,6 +11,7 @@ import cv2
 import os
 import time
 import sys
+import numpy as np
 
 def get_video_id():
     db_hostname = "ozmidov.physics.mun.ca"
@@ -106,6 +107,8 @@ print "Press the key 'd' (in Camera Window) to select the reference image to sta
 reference = img
 diff = img
 cv2.namedWindow("Difference",1)
+cv2.namedWindow("HTS",1)
+HTS = img[:800,:]
 
 scale = 2
 max_scale = 10
@@ -113,7 +116,11 @@ max_scale = 10
 def changeScale(scale):
     print "scale changed to %d" % scale
 
+def changeHTS(j):
+    pass
+
 cv2.createTrackbar("scale", "Difference", scale, max_scale, changeScale)
+cv2.createTrackbar("j", "camera", 0, 900, changeHTS)
     
 while not finished:
 
@@ -130,18 +137,36 @@ while not finished:
 
        framenum += 1
 
-
     scale = cv2.getTrackbarPos("scale", "Difference")
-    cv2.imshow("camera", img)
     diff = scale * cv2.absdiff(img, reference)
     diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
 
     cv2.imshow("Difference",diff)
-
     
+    j = cv2.getTrackbarPos("j", "camera")
+    if j < 10:
+        j = 10
+    line = img[j-5:j+5,:]
+    print line.reshape(-1,1).shape
+    print HTS.shape
+
+    # append to end of HTS
+    HTS = np.vstack((HTS[10:,:], line))
+    HTSshow = cv2.blur(HTS,( 5,5))
+    HTSshow = cv2.applyColorMap(HTSshow, cv2.COLORMAP_JET)
+    cv2.imshow("HTS", HTSshow)
+    #cv2.imshow("HTS", HTS)
+
+    # horiz line
+    cv2.line(frame, (0, j), (1290, j), (0, 255, 0), 5)
+    # vert line
+    #cv2.line(frame, (j, 0), (j, 900), (0, 255, 0), 5)
+    cv2.imshow("camera", frame)
+
     c = cv2.waitKey(10)
     if c ==100: # 'd' key
         reference = img
+
     if c == 27: # escape key
         finished = True
 
