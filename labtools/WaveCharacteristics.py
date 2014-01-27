@@ -39,6 +39,8 @@ def createncfile(dz_id,t,x,z,
         rows = db.execute(sql)
         a_xi_id = rows[0][0]
     else:
+        # this is incase cache is set to False and the nc file needs to be
+        # recomputed again
         sql = "SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id = %s" % a_xi_id
         previous_dz_id, = db.execute_one(sql)
         if previous_dz_id != dz_id:
@@ -52,11 +54,17 @@ def createncfile(dz_id,t,x,z,
     a_xi_filename = os.path.join(a_xi_path,"a_xi.nc")
     print "A xi : ",a_xi_filename
 
+    # open the dz file corresponding to the vertical displacement nc file so as
+    # to get info about the number of rows and column.
+    dzncfile = netCDF4.Dataset('/Volumes/HD4/dz/%d/dz.nc' % dz_id)
+    Nrow = dzncfile.variables['row'].size
+    Ncol = dzncfile.variables['column'].size
+    dzncfile.close()
 
-    # Declare the nc file for the first time
+    # Declare the axi nc file for the first time
     nc = netCDF4.Dataset(a_xi_filename,'w',format = 'NETCDF4')
-    row_dim = nc.createDimension('row',964)
-    col_dim = nc.createDimension('column',1292)
+    row_dim = nc.createDimension('row',Nrow)
+    col_dim = nc.createDimension('column',Ncol)
     lenT=t.shape[0]  #lenT is the length of the dz file
     
     # changing time to underfined as the variable is set to being contiguous
@@ -124,7 +132,7 @@ def compute_a_xi(dz_id, cache=True):
             # delete a_xi.nc if it exists and recreate
             if os.path.exists(a_xi_filename):
                 os.unlink(a_xi_filename)
-
+    
     #  open the dataset dz.nc for calculating a_xi
     filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
     print "dz filepath: WC.py" , filepath 
@@ -157,7 +165,7 @@ def compute_a_xi(dz_id, cache=True):
     print "V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta
     # calculate dt
     dt = numpy.mean(numpy.diff(t))
-    print "dt of dz:",dt
+    print "dt of delta z:",dt
     
     #call the function to create the nc file in which we are going to store the dz array
     a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z,a_xi_id=a_xi_id)

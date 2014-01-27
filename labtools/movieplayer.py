@@ -102,8 +102,8 @@ def movie(var, id, max_min,
     
     def animate(i):
         print "frame num", i+n
-        plt.title(' Frame number :: %d , Time ::  %.2f s , Field: %s , Video ID:%d'\
-                    % (i+n, t[i+n],array_name,video_id))
+        plt.title(' Frame number :: %d , Time ::  %.2f s , Field: %s , Video ID:%d'% (
+            i+n, t[i+n],array_name,video_id))
         im.set_array(a(i))
         return im 
     # Need window length and height 
@@ -118,7 +118,7 @@ def movie(var, id, max_min,
     ax = plt.axes(xlim=(0,win_l), ylim =(win_h,0))
     plt.xlabel('window length (cm)')
     plt.ylabel('window height (cm)')
-    im=plt.imshow(a(i),extent=[x[0],x[-1],z[0],z[-1]],\
+    im=plt.imshow(a(i),extent=[x[0],x[-1],z[0],z[-1]],
             vmax=+max_min,vmin=-max_min,interpolation="nearest",aspect=win_h/win_l,origin='lower')
     plt.colorbar()
     frame_num = stop_frame - start_frame 
