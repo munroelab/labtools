@@ -10,6 +10,8 @@ from matplotlib import pyplot as plt
 from  matplotlib import animation 
 import labdb
 import argparse
+import progressbar
+
 def checkvar(var,id):
     """
     Given a variable name with a given id,
@@ -100,12 +102,14 @@ def movie(var, id, max_min,
         return array[i+n,:,:]
     
     
-    def animate(i):
-        print "frame num", i+n
+    def animate(i, pbar):
+        pbar.update(i)
+    #    print "frame num", i+n
         plt.title(' Frame number :: %d , Time ::  %.2f s , Field: %s , Video ID:%d'% (
             i+n, t[i+n],array_name,video_id))
         im.set_array(a(i))
         return im 
+
     # Need window length and height 
     win_l = x[-1]
     win_h = z[-1]
@@ -124,13 +128,21 @@ def movie(var, id, max_min,
     frame_num = stop_frame - start_frame 
     print "frames to render: ", frame_num
 
-    anim =animation.FuncAnimation(fig,animate,frames=frame_num,repeat=False,blit=False)
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=frame_num).start()
+
+    anim =animation.FuncAnimation(fig,animate,frames=frame_num,fargs=(pbar,),
+            repeat=False,blit=False)
+
     #plt.show()
 
     if saveFig:
         if movieName is None:
             movieName = '%s_VID%d_animation.mp4' % (array_name,video_id)
+
         anim.save(movieName, dpi=100,fps=7,extra_args=['-vcodec','libx264'])
+
+        pbar.finish()
 
 
 

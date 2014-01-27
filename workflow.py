@@ -9,6 +9,7 @@ from ruffus import *
 import sys
 import os
 import pickle
+import datetime
 
 from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
@@ -31,10 +32,6 @@ tabledir = "tables/"
 @split(None, workingdir + '*.expt_id')
 def forEachExperiment(infiles, outfiles):
     
-    #   clean up files from previous runs
-    for f in outfiles:
-        os.unlink(f)
-
     # select experiments
     db = labdb.LabDB()
 
@@ -44,13 +41,24 @@ def forEachExperiment(infiles, outfiles):
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
                AND ve.expt_id >= 748
-             LIMIT 1
+             LIMIT 3
              """
     rows = db.execute(sql)
 
     for expt_id, in rows:
-        f = open(workingdir + '%d.expt_id' % expt_id, 'wb')
-        pickle.dump(expt_id, f)
+        expt_id_filename = workingdir + '%d.expt_id' % expt_id
+
+        # does the .expt_id already exist?
+        if expt_id_filename in outfiles:
+            # all good, leave it alone
+            outfiles.remove(expt_id_filename)
+        else:
+            f = open(expt_id_filename, 'wb')
+            pickle.dump(expt_id, f)
+
+    # clean up files from previous runs
+    for f in outfiles:
+        os.unlink(f)
 
 @transform(forEachExperiment, suffix('.expt_id'), '.video_id')
 def determineVideoId(infile, outfile):
@@ -259,36 +267,54 @@ def plotFilteredLR(infile, outfile):
 
     pickle.dump('outfile', open(outfile, 'w'))
 
-finalTasks = [
-        movieDz, 
-        movieAxi,
-        plotEnergyFlux, 
-        plotFilteredLR,
-        tableExperimentParameters,
-        plotAxiHorizontalTimeSeries,
-        plotAxiVerticalTimeSeries,
-        ]
+if __name__ == "__main__":
 
-forcedTasks = [
-        #computeDz,
-        #computeAxi,
-        #forEachExperiment,
-        #filterAxiLR,
-        ]
+    start_time = datetime.datetime.now()
 
-pipeline_printout_graph( open('workflow.pdf', 'w'), 
-    'pdf', 
-    finalTasks,
-    #forcedtorun_tasks = [forEachExperiment],
-    forcedtorun_tasks = forcedTasks,
-    
-    no_key_legend=True)
+    print "="*40
+    print "  WORKFLOW START"
 
+    print "="*40
 
-pipeline_run(finalTasks,
-        forcedTasks,
-     #  [forEachExperiment], 
-        verbose=2, 
-    #    multiprocess=4, 
-        one_second_per_job=True)
+    finalTasks = [
+            movieDz, 
+            movieAxi,
+            plotEnergyFlux, 
+            plotFilteredLR,
+            tableExperimentParameters,
+            plotAxiHorizontalTimeSeries,
+            plotAxiVerticalTimeSeries,
+            ]
 
+    forcedTasks = [
+            forEachExperiment,
+            #computeDz,
+            #computeAxi,
+            #filterAxiLR,
+            ]
+
+    pipeline_printout_graph( open('workflow.pdf', 'w'), 
+        'pdf', 
+        finalTasks,
+        #forcedtorun_tasks = [forEachExperiment],
+        forcedtorun_tasks = forcedTasks,
+        
+        no_key_legend=True)
+
+    pipeline_run(finalTasks,
+            forcedTasks,
+         #  [forEachExperiment], 
+            verbose=2, 
+        #    multiprocess=4, 
+            one_second_per_job=True)
+
+    stop_time = datetime.datetime.now()
+    elapsed_time = stop_time - start_time
+
+    print "="*40
+    print "  WORKFLOW STOP"
+    print
+    print "    start_time:", start_time
+    print "    stop_time:", stop_time
+    print "    elapsed_time:", elapsed_time
+    print "="*40

@@ -16,6 +16,7 @@ import netCDF4
 import pylab
 import matplotlib.pyplot as plt
 import Energy_flux
+import progressbar
 
 
 def createncfile(dz_id,t,x,z,
@@ -101,7 +102,6 @@ def append2ncfile(a_xi,var,num):
     """
     Append the array to the end of the nc file
     """
-    print "appending.."
     a_xi[num, : ,:] = var
 
     
@@ -144,7 +144,7 @@ def compute_a_xi(dz_id, cache=True):
     # loading the dz data from the nc file
     dz = nc.variables['dz_array']
     t = nc.variables['time']
-    print "t from dz_array", t[:]
+    #print "t from dz_array", t[:]
     z = nc.variables['row']
     x = nc.variables['column']
     # print information about dz dataset
@@ -171,8 +171,8 @@ def compute_a_xi(dz_id, cache=True):
     a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z,a_xi_id=a_xi_id)
     
     #get info about the nc file to see if the var is contiguous
-    print " info axi nc file :  chk if the var is contiguous"
-    os.system('ncdump -h -s %s' % a_xi_filename)
+#    print " info axi nc file :  chk if the var is contiguous"
+#    os.system('ncdump -h -s %s' % a_xi_filename)
     
     # open the a_xi nc file for appending data
     axi_nc=netCDF4.Dataset(a_xi_filename,'a')
@@ -185,7 +185,7 @@ def compute_a_xi(dz_id, cache=True):
     rho0 = 0.998
     kx = (omega * kz)/(N*N - omega*omega)**0.5
     const1 = -1.0 * omega* N * N * kz
-    print "constant1 :" ,const1
+#    print "constant1 :" ,const1
     
     # calculate constants needed for getting dn2t from dz
     
@@ -193,19 +193,20 @@ def compute_a_xi(dz_id, cache=True):
     rows = db.execute(sql)
     win_l = rows[0][0]
     win_l=win_l*1.0
-    print "length" , win_l
+#    print "length" , win_l
     n_water = 1.3330
     L_tank = 453.0
     gamma = 0.0001878
     const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
-    print "constant2:",const2
+#    print "constant2:",const2
 
-
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=dz.shape[0]).start()
     for num in range(dz.shape[0]):
+        pbar.update(num)
         var1 = (1.0*const2*dz[num,:,:])/(dt*const1)
-        print "appending frame %d" % num
         append2ncfile(a_xi,var1,num)
-    print "done...!"
+    pbar.finish()
 
     axi_nc.close()
     nc.close()
