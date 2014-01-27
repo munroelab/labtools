@@ -44,7 +44,7 @@ def forEachExperiment(infiles, outfiles):
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
                AND ve.expt_id >= 748
-             LIMIT 2
+             LIMIT 1
              """
     rows = db.execute(sql)
 
@@ -93,8 +93,10 @@ def computeDz(infiles, outfile):
             10, # minTol
             p['sigma'],
             p['filterSize'],
-           startF = 200,        # startFrame
-           stopF = 200+30,         # stopFrame
+            skip_row = 2, # number of rows to jump ... z
+            skip_col = 2 , # number of columns to jump .. x
+            startF = 100,        # startFrame
+            stopF = 100+200,         # stopFrame
                     # skipFrame
                     # diffFrame
             cache = True
@@ -108,7 +110,7 @@ def computeAxi(infile, outfile):
     
     Axi_id = WaveCharacteristics.compute_a_xi(
             dz_id,
-            cache=True,
+            cache=False,
             )
 
     pickle.dump(Axi_id, open(outfile, 'w'))
@@ -138,7 +140,7 @@ def filterAxiLR(infile, outfile):
             Axi_id,
             0.1, #maxMin
             100, # plotColumn
-            cache=True,
+            cache=False,
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
@@ -153,7 +155,7 @@ def movieAxi(infile, outfile):
     # make the movie
     movieplayer.movie('Axi',  # var
                       Axi_id, # id of nc file
-                      0.01,  # min_max value
+                      0.02,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -221,7 +223,7 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
     axi_TS_row.compute_energy_flux(
             Axi_id,
             300,  # row number 
-            0.005,      # maxmin
+            0.01,      # maxmin
             plotname = plotName,
             )
 
@@ -237,7 +239,7 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     axi_TS_col.compute_energy_flux(
             Axi_id,
             300,  # column number 
-            0.005,      # maxmin
+            0.01,      # maxmin
             plotname = plotName,
             )
 
@@ -268,8 +270,10 @@ finalTasks = [
         ]
 
 forcedTasks = [
-     #   computeDz
-        #computeAxi
+        #computeDz,
+        #computeAxi,
+        #forEachExperiment,
+        #filterAxiLR,
         ]
 
 pipeline_printout_graph( open('workflow.pdf', 'w'), 

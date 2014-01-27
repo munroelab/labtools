@@ -76,11 +76,19 @@ def create_nc_file(a_xi_id, fw_id=None):
         os.mkdir(fw_path)
     fw_filename = os.path.join(fw_path, "waves.nc")
     
+    # open the axi nc file and set the nrow and Ncol for setting the limits for
+    # the new created file
+
+    axincfile = netCDF4.Dataset(
+            '/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc'% a_xi_id,
+            'r')
+    Nrow = axincfile.variables['row'].size
+    Ncol = axincfile.variables['column'].size
     # Declare the nc file for the first time 
         
     nc = netCDF4.Dataset(fw_filename,'w',format = 'NETCDF4')
     row_dim = nc.createDimension('row',None)
-    col_dim = nc.createDimension('column',1292)
+    col_dim = nc.createDimension('column',Ncol)
     t_dim = nc.createDimension('time',None)
     
     #the dimensions are also variables
@@ -102,8 +110,11 @@ def create_nc_file(a_xi_id, fw_id=None):
     
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
-    C =np.arange(0,win_l,win_l/1292,dtype=float)
+    C =np.arange(0,win_l,win_l/Ncol,dtype=float)
+    print "spectrumLR c.shape", C.shape
+    print "column.shape",COLUMN.shape
     COLUMN[:] = C
+    
 
     db.commit()
     nc.close()
@@ -155,7 +166,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
         print "Error: axi_nc", filename, "not found"
         raise
 
-
+    # open the axi dataset and get the no of rows and col
     axi_nc = netCDF4.Dataset(filename, 'r')
 
     #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
@@ -359,7 +370,9 @@ def plotFilteredLR(fw_id,
         fname = plotName
 
     vmax = 0.01
-    plotcolumn = 1000
+    plotcolumn = 100
+    plt.figure()
+    plt.clf()
     plt.subplot(2,1,1)
     plt.imshow(left[:,:,plotcolumn], aspect='auto', vmin=-vmax, vmax=vmax)
     plt.ylabel('z')
