@@ -1,2 +1,8 @@
-# ignore compiled python modules
-*.pyc
+*.pyc # ignore compiled python modules
+*.swp
+.DS_Store
+movies
+plots
+tables
+workflow
+workflow.pdf

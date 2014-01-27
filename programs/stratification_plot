@@ -28,12 +28,11 @@ def plot_stratification_file(filename):
     f = open(filename)
     ll = f.readlines()
     for line in ll[1:]:
-        d_, z_, Vc_, Vt_ = line.split(',')
+        d_, steps_, z_, Vc_ = line.split(',')
         d_ = np.datetime64(d_)
-        z_ = np.uint16(z_)
+        steps_ = np.uint16(steps_)
+        z_ = np.float(z_)
         Vc_ = np.float(Vc_)
-        Vt_ = np.float(Vt_)
-
         z.append(z_)
         Vc.append(Vc_)
     f.close()
@@ -85,7 +84,14 @@ def plot_stratification_file(filename):
     pylab.plot(rho, z)
 
     # fit a straight line and estimate N
-    m = (z < (z[-1]-3)) & (z > (z[0]+3))
+    # z is an array going from zmin to zmax (e.g. -50 to 3)
+    zmin = z[0]
+    zmax = z[-1]
+    if zmax > 0:
+        zmax = 0.0
+    
+    # only selected data at least 3cm below the surface
+    m = (z < (zmax-3)) & (z > (zmin))
     fit = np.polyfit(z[m], rho[m], 1)
     fit_line = np.polyval(fit, z[m])
     pylab.plot(fit_line, z[m], "k--")

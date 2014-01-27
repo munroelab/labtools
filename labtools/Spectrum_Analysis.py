@@ -23,7 +23,7 @@ def xzt_fft(dz_id):
     dz_filename = dz_path+ "/dz.nc"
     nc = netCDF4.Dataset(dz_filename)
     dz_array = nc.variables['dz_array']
-    dz_array = dz_array[100:300,300:800,600:1000] 
+    dz_array = dz_array[100:600,300:800,600:1000] 
     dz_array = np.float16(dz_array)
     t = nc.variables['time']
     t = t[100:300]
@@ -86,7 +86,7 @@ def estimate_dominant_frequency_fft(F, kx, kz, omega):
     """
     # compute power spectrum
     P = abs(F)
-    
+    print "P:", P.shape
     # identify the peak in each spectrum for each component
     index = P.argmax(2)
     kx_ = kx[index]
@@ -173,15 +173,17 @@ def test():
     """
 
     # create a grid for x, z, t
-    xmin, xmax, nx = 0, 6, 30
+    xmin, xmax, nx = 0, 10, 50
     zmin, zmax, nz = 0, 100, 100
-    tmin, tmax, dt = 0, 500, 0.5
+    tmin, tmax, dt = 0, 100, 0.5
     x = np.mgrid[xmin:xmax:nx*1j]
     z = np.mgrid[zmin:zmax:nz*1j]
     t = np.mgrid[tmin:tmax:dt]
+    print "x",x.shape, "z ", z.shape,"t ",t.shape
     X, Z, T = np.mgrid[xmin:xmax:nx*1j,
                        zmin:zmax:nz*1j,
                        tmin:tmax:dt]
+    print "X",X.shape, "Z ", Z.shape,"T ",T.shape
     # ensure nx, nz, nt, dx, dz, dt are all defined
     nx, nz, nt = len(x), len(z), len(t)
     dx = x[1] - x[0]
@@ -193,7 +195,7 @@ def test():
     kz0 = 2.0
     omega0 = 2.0
     f = np.cos(kx0*X + kz0*Z - omega0*T)
-
+    print "F:",f.shape
     # find the peak frequencies
     kx_, kz_, omega_ = estimate_dominant_frequency(f, x, z, t)
 
@@ -240,6 +242,6 @@ def fft_test_code():
     plot_fft(max_kx,max_kz,max_omega,args.dz_id)
 
 if __name__ == "__main__":
-    #test()
-    fft_test_code()
+    test()
+    #fft_test_code()
 
