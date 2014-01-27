@@ -14,6 +14,7 @@ import os
 import labdb
 import netCDF4
 from scipy import ndimage
+import progressbar
 
 def getTol(image, mintol = 10):
     """
@@ -287,6 +288,14 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,startF=0,stopF=0
     
     #check if path exists
     filename2 = path % (video_id, count)
+
+    """
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
+    for n in range(nx):
+        pbar.update(n)
+    pbar.finish()
+    """
 
     # while True
     while os.path.exists(filename2) & (count <=stopF):
