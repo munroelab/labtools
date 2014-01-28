@@ -202,7 +202,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     axi_nc.close() 
 
     chunked_filename = 'chunked_axi.nc'
-    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename) )
+    os.system('nccopy -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename) )
     axi_nc = netCDF4.Dataset(chunked_filename, 'r')
     # get information about the copied nc file to see if its chunked 
 #    print "ncdump %s" % chunked_filename

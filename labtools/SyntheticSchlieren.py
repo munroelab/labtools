@@ -448,7 +448,9 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
     # USE nccopy to rechunk Dz
     chunked_filename = 'chunked_dz.nc'
-    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (tl, nz, 1, dz_filename, chunked_filename) )
+    cmd = 'nccopy -c time/%d,row/%d,column/%d %s %s' % (tl, nz, 1, dz_filename, chunked_filename) 
+    print cmd
+    os.system(cmd)
 
     # get information about the copied nc file to see if its chunked 
     print "ncdump %s" % chunked_filename
@@ -476,7 +478,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     pbar.finish()
     
     # and rechunk back to ordered by frames
-    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (1, nz, nx,
+    os.system('nccopy -m 1G -h 2G -e 65001 -c time/%d,row/%d,column/%d %s %s' % (1, nz, nx,
         chunked_filename, dz_filename) )
 
     # get information about the copied nc file to see if its chunked correctly

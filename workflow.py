@@ -107,7 +107,7 @@ def computeDz(infiles, outfile):
             #stopF = 100+200,         # stopFrame
                     # skipFrame
                     # diffFrame
-            cache = False
+            cache = True
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
