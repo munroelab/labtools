@@ -384,15 +384,16 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     ZZ = nc.variables['row'][:]
     CC = nc.variables['column'][:]
     count=0
+    
     # TRIAL :: apply uniform filter in the time axis with the filter size of 6 (about
     # 1second). This should smoothen the dz along time.
     col_count=0
     start=0
-    print "row shape: ",ZZ.shape
-    for row_count in range(ZZ.size):
-        print "looping %d out of %d" %(row_count,ZZ.size)
-        temp1 = DZarray[:,row_count,:]
-        DZarray[:,row_count,:] = ndimage.uniform_filter(temp1,size = (6,1))
+    print "row shape: ",CC.shape
+    for col_count in range(CC.size):
+        print "looping %d out of %d" %(col_count,CC.size)
+        temp1 = DZarray[:,:,col_count]
+        DZarray[:,:,col_count] = ndimage.uniform_filter(temp1,size = (6,1))
     
     print "DZarray::" ,DZarray.shape
     print "time.shape(before):" ,Tm.shape

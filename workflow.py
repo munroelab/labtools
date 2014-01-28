@@ -103,8 +103,8 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
-            startF = 100,        # startFrame
-            stopF = 100+200,         # stopFrame
+            #startF = ,        # startFrame
+            #stopF = 100+200,         # stopFrame
                     # skipFrame
                     # diffFrame
             cache = True
@@ -288,9 +288,9 @@ if __name__ == "__main__":
 
     forcedTasks = [
             forEachExperiment,
-            #computeDz,
-            #computeAxi,
-            #filterAxiLR,
+            computeDz,
+            computeAxi,
+            filterAxiLR,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

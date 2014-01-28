@@ -17,7 +17,6 @@ import pylab
 import copy
 import labdb
 import time
-import progressbar
 
 
 def create_nc_file(a_xi_id, fw_id=None):
@@ -140,13 +139,12 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
 
         fw_id = rows[0][0]
 
-        print "filterLR id already exists in database"
+        print "It has already been computed"
         fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
         print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
         if os.path.exists(fw_filename) and cache:
-            print "returning cached data"
             return fw_id
         else:
             # delete waves.nc file if exists
@@ -158,8 +156,6 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     else:
         # create the nc file for the first time for storing the filtered data
         fw_filename,fw_id = create_nc_file(a_xi_id)
-
-    print "computing filterLR"
 
     #set the path to the data
     path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
@@ -179,7 +175,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     t = axi_nc.variables['time'][:]
     z = axi_nc.variables['row'][:]
     x = axi_nc.variables['column'][:]
-    #print "Axi, time", t
+    print "Axi, time", t
 
     # DEBUG MESSAGES
     print "x shape",x.shape
@@ -205,8 +201,8 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename) )
     axi_nc = netCDF4.Dataset(chunked_filename, 'r')
     # get information about the copied nc file to see if its chunked 
-#    print "ncdump %s" % chunked_filename
-#    os.system('ncdump -h -s %s' %  chunked_filename )
+    print "ncdump %s" % chunked_filename
+    os.system('ncdump -h -s %s' %  chunked_filename )
 
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
@@ -215,13 +211,16 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     omega = np.fft.fftfreq(nt, dt)
    # omega = np.fft.fftshift(omega)
     
-    #print "kx shape: ", kx.shape
-    #print "omega shape: ", omega.shape
+    print np.fft.fftshift(kx) 
+    print np.fft.fftshift(omega) 
+
+    print "kx shape: ", kx.shape
+    print "omega shape: ", omega.shape
     
     # create a 2D mesh grid so that omega,kx and fft have the same dimensions
     K,O=np.meshgrid(kx[kx>=0],omega)
-    #print "KX.shape" ,K.shape
-    #print "OMEGA.shape",O.shape
+    print "KX.shape" ,K.shape
+    print "OMEGA.shape",O.shape
     
     # Open the nc file for writing data
     nc = netCDF4.Dataset(fw_filename,'a')
@@ -233,15 +232,15 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     fz = nc.variables['row']
     # data stored into the nc file
     ft[:] = np.mgrid[t[0]:t[-1]:nt *1.0j]
-    #print ft
+    print ft
     
     # print information about dz dataset
-#    print "variables  of the nc file :", nc.variables.keys()
-#    print "left_w shape : " , left.shape
-#    print "right_w shape : " , right.shape
-#    print "t  shape : " , ft.shape
-#    print "x  shape : " , fx.shape
-#    print "z  shape : " , fz.shape
+    print "variables  of the nc file :", nc.variables.keys()
+    print "left_w shape : " , left.shape
+    print "right_w shape : " , right.shape
+    print "t  shape : " , ft.shape
+    print "x  shape : " , fx.shape
+    print "z  shape : " , fz.shape
 
 
     start_time = time.time()
@@ -251,13 +250,11 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     ifft_total = 0.
     write_total = 0.
 
-
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
-
     for count in range(nz):
-        pbar.update(count)
+        #print "calculating 2DFFT and performing HT for row %d out of %d..." %(count,nz)
+        print ".",
 
+    
         st = time.time()
         a_xi_arr = axi_nc.variables['a_xi_array'][:,count,:]
         ed = time.time()
@@ -319,21 +316,27 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
                 (1,a_xi_arr.shape[0], a_xi_arr.shape[1]))
         ed = time.time()
         write_total += (st-ed)
-
-    pbar.finish()
         
  
     fz[:]= np.mgrid[z[0]:z[-1]:nz*1.0j]
-#    print "ft.shape",ft.shape
-#    print ft[0],ft[-1]
-#    print "fz.shape",fz.shape
-#    print fz[0],fz[-1]
-#    print "fx.shape",fx.shape
-#    print fx[0],fx[-1]
+    print "ft.shape",ft.shape
+    print ft[0],ft[-1]
+    print "fz.shape",fz.shape
+    print fz[0],fz[-1]
+    print "fx.shape",fx.shape
+    print fx[0],fx[-1]
 
     print "@@@ stored the data into nc file @@@"
     nc.close()
     axi_nc.close()
+
+    end_time = time.time()
+    print "Filter took", (end_time-start_time), "seconds"
+    print "read:", read_total
+    print "fft:", fft_total
+    print "filter:", filter_total
+    print "ifft:", ifft_total
+    print "write:", write_total
 
     return fw_id
 
