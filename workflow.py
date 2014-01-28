@@ -107,7 +107,7 @@ def computeDz(infiles, outfile):
             #stopF = 100+200,         # stopFrame
                     # skipFrame
                     # diffFrame
-            cache = True
+            cache = False
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
@@ -118,7 +118,7 @@ def computeAxi(infile, outfile):
     
     Axi_id = WaveCharacteristics.compute_a_xi(
             dz_id,
-            cache=False,
+            cache=True,
             )
 
     pickle.dump(Axi_id, open(outfile, 'w'))
@@ -148,7 +148,7 @@ def filterAxiLR(infile, outfile):
             Axi_id,
             0.1, #maxMin
             100, # plotColumn
-            cache=False,
+            cache=True,
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
@@ -296,14 +296,12 @@ if __name__ == "__main__":
     pipeline_printout_graph( open('workflow.pdf', 'w'), 
         'pdf', 
         finalTasks,
-        #forcedtorun_tasks = [forEachExperiment],
         forcedtorun_tasks = forcedTasks,
         
         no_key_legend=True)
 
     pipeline_run(finalTasks,
             forcedTasks,
-         #  [forEachExperiment], 
             verbose=2, 
         #    multiprocess=4, 
             one_second_per_job=True)

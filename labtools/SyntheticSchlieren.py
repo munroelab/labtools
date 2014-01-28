@@ -15,6 +15,12 @@ import labdb
 import netCDF4
 from scipy import ndimage
 import progressbar
+import multiprocessing
+import socket
+
+import warnings
+# to eliminate DivideByZero warnings
+warnings.filterwarnings("ignore")
 
 def getTol(image, mintol = 10):
     """
@@ -82,8 +88,8 @@ def append2ncfile(dz_filename,dz_arr):
     DZ = nc.variables['dz_array']
     i= len(DZ)
     DZ[i,:,:]=dz_arr
-    print "dz shape: ", DZ.shape,"appending"
-    print "len(dz): ", i 
+    #print "dz shape: ", DZ.shape,"appending"
+    #print "len(dz): ", i 
     nc.close()
 
 
@@ -238,6 +244,59 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         return None
 
 
+def calculate(func, args):
+    result = func(*args)
+    msg = '%s does %s%s' % (
+        multiprocessing.current_process().name,
+        func.__name__, args,
+        )
+    return result, msg
+
+def schlieren_lines(p):
+    """
+    p is a dictionary containing parameters need to 
+    compute synthetic schliren on a pair of images
+
+    returns array
+    """
+
+    IM1 = numpy.array(Image.open(p['filename1']))
+    
+    #loading the array according to user specification 
+    image1 = IM1[::p['skip_row'],::p['skip_col']]    
+    
+    IM2 = numpy.array(Image.open(p['filename2']))
+    
+    #loading the array according to user specification 
+    image2 = IM2[::p['skip_row'],::p['skip_col']]
+    
+    #change the filter size accordingly
+    filtersize_r = p['filter_size']//p['skip_row']
+    filtersize_c =  p['filter_size']//p['skip_col']
+
+    C = getTol(image1, mintol = p['min_tol'])
+    delz = compute_dz_image(image1, image2, p['dz']) 
+    delz = numpy.nan_to_num(delz) * C
+    #delz_m = ma.masked_where(C==False, delz)
+    #dz_array = generate_dz_array(delz,dz_array)
+    # clip large values
+    bound = 1.0
+    delz[delz > bound] = bound
+    delz[delz < -bound] = -bound
+
+    # fill in missing values
+    filt_delz = ndimage.gaussian_filter(delz, (p['sigma'],p['sigma']))
+    #i = abs(delz) > 1e-8
+    filt_delz = C*delz+ (1-C)*filt_delz
+
+    # smooth
+    #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
+    
+    # spatial smoothing along x and z axis
+    smooth_filt_delz =ndimage.uniform_filter(filt_delz,size=(filtersize_r,filtersize_c))
+
+    return smooth_filt_delz
+
 def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_col=1,
             startF=0,stopF=0,diff_frames=1,cache=True):
     """
@@ -303,21 +362,34 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     from scipy.ndimage import gaussian_filter
     from numpy import ma
     
+
+    hostname = socket.gethostname()
+    cpu_count = multiprocessing.cpu_count()
+    if hostname == 'taylor.physics.mun.ca':
+        PROCESSES = cpu_count
+    else:
+        PROCESSES = cpu_count / 2
+
+    PROCESSES = 4
+    # Create pool
+    pool = multiprocessing.Pool(PROCESSES)
+
     #check if path exists
     filename2 = path % (video_id, count)
 
-    """
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
-    for n in range(nx):
-        pbar.update(n)
-    pbar.finish()
-    """
+    p = {}
+    p['filename1'] = None
+    p['filename2'] = None
+    p['skip_row'] = skip_row
+    p['skip_col'] = skip_col
+    p['filter_size'] = filter_size
+    p['min_tol'] = min_tol
+    p['dz'] = dz
+    p['sigma'] = sigma
 
-    # while True
+    tasks = []
+    # Build up a list of tasks to perform
     while os.path.exists(filename2) & (count <=stopF):
-        
-        print "render frame %d of %d" % (count-startF, num_frames)
 
         filename1 = path % (video_id, count - n)
         filename2 = path % (video_id, count)
@@ -325,88 +397,93 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
         if not os.path.exists(filename2):
             break
 
-        IM1 = numpy.array(Image.open(filename1))
-        
-        #loading the array according to user specification 
-        image1 = IM1[::skip_row,::skip_col]    
-        
-        IM2 = numpy.array(Image.open(filename2))
-        
-        #loading the array according to user specification 
-        image2 = IM2[::skip_row,::skip_col]
-        
-        
-        #change the filter size accordingly
-        filtersize_r = filter_size//skip_row
-        filtersize_c =  filter_size//skip_col
-        
+        # add filename1, filename2 to list of tasks
+        p['filename1'] = filename1
+        p['filename2'] = filename2
+        tasks.append( (schlieren_lines, (dict(p),)))
 
-        C = getTol(image1, mintol = min_tol)
-        delz = compute_dz_image(image1, image2, dz) 
-        delz = numpy.nan_to_num(delz) * C
-        #delz_m = ma.masked_where(C==False, delz)
-        #dz_array = generate_dz_array(delz,dz_array)
-        # clip large values
-        bound = 1.0
-        delz[delz > bound] = bound
-        delz[delz < -bound] = -bound
-
-        # fill in missing values
-        filt_delz = ndimage.gaussian_filter(delz, (sigma,sigma))
-        #i = abs(delz) > 1e-8
-        filt_delz = C*delz+ (1-C)*filt_delz
-
-        # smooth
-        #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
-        
-        # spatial smoothing along x and z axis
-        smooth_filt_delz =ndimage.uniform_filter(filt_delz,size=(filtersize_r,filtersize_c))
-
-        # Old ploting
-        """ img.set_data(filt_delz)
-        fig.canvas.draw()
-        ax.set_title('n = %d' % count)"""
-        print "max: ",numpy.max(smooth_filt_delz)
-        print "min: ",numpy.min(smooth_filt_delz)
-        append2ncfile(dz_filename,smooth_filt_delz)
         count += skip_frames
         filename2 = path % (video_id, count)
 
+    # submit all tasks to worker pool
+    results = [pool.apply_async(calculate, t) for t in tasks]
 
-    
-    # define time axis for the nc time variable
-    nc = netCDF4.Dataset(dz_filename,'a')
+    nc=netCDF4.Dataset(dz_filename,'a')
     DZarray = nc.variables['dz_array']
-    
+
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=len(results)).start()
+    for i, r in enumerate(results):
+        pbar.update(i)
+
+        # combine results into one .nc file
+        result, msg = r.get()
+
+        #print '\t', msg, result.shape
+        
+        #append2ncfile(dz_filename, result)
+        DZarray[i,:,:] = result
+
+    pbar.finish()
+
+    # define time axis for the nc time variable
     tl = DZarray.shape[0]
+    nz = DZarray.shape[1]
+    nx = DZarray.shape[2]
     print "no of timesteps:", tl
     Tm=nc.variables['time']
+    count=0
+
+    #print "DZarray::" ,DZarray.shape
+    #print "time.shape(before):" ,Tm.shape
+    t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
+    #print "time:",t_array
+    Tm[:] = t_array
+    
+    nc.close()
+
+    # get information about the copied nc file to see if its chunked 
+    print "ncdump %s" % dz_filename
+    os.system('ncdump -h -s %s' %  dz_filename )
+
+    # USE nccopy to rechunk Dz
+    chunked_filename = 'chunked_dz.nc'
+    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (tl, nz, 1, dz_filename, chunked_filename) )
+
+    # get information about the copied nc file to see if its chunked 
+    print "ncdump %s" % chunked_filename
+    os.system('ncdump -h -s %s' %  chunked_filename )
+
+    nc=netCDF4.Dataset(chunked_filename,'a')
+    DZarray = nc.variables['dz_array']
+
     ZZ = nc.variables['row'][:]
     CC = nc.variables['column'][:]
-    count=0
-    
+
     # TRIAL :: apply uniform filter in the time axis with the filter size of 6 (about
     # 1second). This should smoothen the dz along time.
     col_count=0
     start=0
-    print "row shape: ",CC.shape
+    #print "row shape: ",CC.shape
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=CC.size).start()
     for col_count in range(CC.size):
-        print "looping %d out of %d" %(col_count,CC.size)
+        pbar.update(col_count)
+
         temp1 = DZarray[:,:,col_count]
         DZarray[:,:,col_count] = ndimage.uniform_filter(temp1,size = (6,1))
-    
-    print "DZarray::" ,DZarray.shape
-    print "time.shape(before):" ,Tm.shape
-    t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    print "time:",t_array
-    Tm[:] = t_array
-    
 
+    pbar.finish()
     
-    nc.close()
+    # and rechunk back to ordered by frames
+    os.system('nccopy -u -c time/%d,row/%d,column/%d %s %s' % (1, nz, nx,
+        chunked_filename, dz_filename) )
+
+    # get information about the copied nc file to see if its chunked correctly
+    print "ncdump %s" % dz_filename
+    os.system('ncdump -h -s %s' %  dz_filename )
 
     return dz_id
-
 
 def test():
     # Need two images
