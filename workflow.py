@@ -10,6 +10,7 @@ import sys
 import os
 import pickle
 import datetime
+import time
 
 from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
@@ -42,7 +43,11 @@ def forEachExperiment(infiles, outfiles):
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
                AND ve.expt_id >= 758
+<<<<<<< Updated upstream
              LIMIT 1
+=======
+             LIMIT 1 
+>>>>>>> Stashed changes
              """
     rows = db.execute(sql)
 
@@ -107,7 +112,7 @@ def determineSchlierenParameters(infile, outfile):
     # sigma depends on background image line thickness
     p = {}
     p['sigma'] = 8 # constant for now
-    p['filterSize'] = 30
+    p['filterSize'] = 400 # 190 pixel is about 10 cm in space.
 
     pickle.dump(p, open(outfile, 'w'))
 
@@ -127,15 +132,19 @@ def computeDz(infiles, outfile):
             10, # minTol
             p['sigma'],
             p['filterSize'],
-            skip_row = 2, # number of rows to jump ... z
+            #skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
-            #startF = ,        # startFrame
-            #stopF = 100+200,         # stopFrame
+            startF = 300,        # startFrame
+            stopF = 300+100,         # stopFrame
                     # skipFrame
                     # diffFrame
+<<<<<<< Updated upstream
             startF = 400,
             stopF = 500,
             cache = True
+=======
+            cache = False
+>>>>>>> Stashed changes
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
@@ -156,12 +165,14 @@ def movieDz(infile, outfile):
     dz_id = pickle.load(open(infile))
 
     movieName = os.path.basename(outfile) # e.g 123.movieDz
-    movieName = os.path.join(moviedir, movieName + '.mp4')
-
+    # get time stamp
+    t = time.ctime().rsplit()[3]
+    movieName = os.path.join(moviedir, movieName+ t + '.mp4')
+    
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.001,  # min_max value
+                      0.01,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -305,6 +316,7 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
+<<<<<<< Updated upstream
             movieVideo, 
     #        movieDz, 
     #        movieAxi,
@@ -313,6 +325,15 @@ if __name__ == "__main__":
     #        tableExperimentParameters,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
+=======
+            movieDz, 
+            #movieAxi,
+            #plotEnergyFlux, 
+            #plotFilteredLR,
+            #tableExperimentParameters,
+            #plotAxiHorizontalTimeSeries,
+            #plotAxiVerticalTimeSeries,
+>>>>>>> Stashed changes
             ]
 
     forcedTasks = [

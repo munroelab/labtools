@@ -273,28 +273,29 @@ def schlieren_lines(p):
     #change the filter size accordingly
     filtersize_r = p['filter_size']//p['skip_row']
     filtersize_c =  p['filter_size']//p['skip_col']
-
+    #filtersize_r = 1
     C = getTol(image1, mintol = p['min_tol'])
     delz = compute_dz_image(image1, image2, p['dz']) 
     delz = numpy.nan_to_num(delz) * C
+     
     #delz_m = ma.masked_where(C==False, delz)
     #dz_array = generate_dz_array(delz,dz_array)
     # clip large values
     bound = 1.0
     delz[delz > bound] = bound
     delz[delz < -bound] = -bound
-
+    return delz
     # fill in missing values
     filt_delz = ndimage.gaussian_filter(delz, (p['sigma'],p['sigma']))
     #i = abs(delz) > 1e-8
     filt_delz = C*delz+ (1-C)*filt_delz
-
+    return filt_delz
     # smooth
     #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
     
     # spatial smoothing along x and z axis
-    smooth_filt_delz =ndimage.uniform_filter(filt_delz,size=(filtersize_r,filtersize_c))
-
+    #smooth_filt_delz=ndimage.uniform_filter(filt_delz,size=(filtersize_c,filtersize_r))
+    smooth_filt_delz = filt_delz
     return smooth_filt_delz
 
 def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_col=1,
@@ -441,6 +442,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     Tm[:] = t_array
     
     nc.close()
+    return dz_id
 
     # get information about the copied nc file to see if its chunked 
     print "ncdump %s" % dz_filename
