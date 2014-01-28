@@ -1,4 +1,6 @@
-
+"""
+Given a video_id, create an nc file of raw images
+"""
 
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
@@ -8,8 +10,10 @@ import pylab
 import numpy
 import time
 import os
-import labdb
 import netCDF4
+
+import labdb
+import progressbar
 
 def append2ncfile(video_filename,img_arr):
     """
@@ -24,7 +28,6 @@ def append2ncfile(video_filename,img_arr):
     print "video shape: ", VIDEO.shape,"appending"
     print "len(video): ",len(VIDEO)
     nc.close()
-
 
 def create_nc_file(video_id):
     """ Need to compute dz for the first time.
@@ -41,15 +44,20 @@ def create_nc_file(video_id):
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
     
-    print "lenght" , win_l, "\nheight", win_h
+    print "length" , win_l, "\nheight", win_h
 
     # Create the directory in which to store the nc file
     video_path = "/Volumes/HD4/videoncfiles/%d" % video_id
-    os.mkdir(video_path)
+    if not os.path.exists(video_path):
+        os.mkdir(video_path)
+
     video_filename = os.path.join(video_path, "video.nc")
+    if os.path.exists(video_filename):
+        os.unlink(video_filename)
     
     # Declare the nc file for the first time 
     nc = netCDF4.Dataset(video_filename,'w',format = 'NETCDF4')
+
     row_dim = nc.createDimension('row',964)
     col_dim = nc.createDimension('column',1292)
     t_dim = nc.createDimension('time',None)
@@ -85,9 +93,9 @@ def create_nc_file(video_id):
     print "R",ROW.shape
     print "C",COLUMN.shape
 
-    db.commit()
     nc.close()
-    return video_filename,dt,num_frames
+
+    return video_filename, dt, num_frames
 
 def compute_videoncfile(video_id):
 
@@ -96,23 +104,32 @@ def compute_videoncfile(video_id):
     # current frame
     count=0
 
+    num_frames = 200
+
     # Set path to the images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
-   
+
+    nc=netCDF4.Dataset(video_filename,'a')
+    array = nc.variables['img_array']
+
     filename1 = path % (video_id, count)
     
-    # while True
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=num_frames).start()
+
     while os.path.exists(filename1) & (count <=num_frames):
-        image1 = numpy.array(Image.open(filename1))*1.0
-        print "render frame %d of %d" % (count, num_frames)
-        append2ncfile(video_filename,image1)
+        pbar.update(count)
+
+        image1 = numpy.array(Image.open(filename1))
+
+        array[count, :, :] = image1
+
         count +=1
         filename1 = path % (video_id, count)
-        print "file:", filename1
+
+    pbar.finish()
 
     # define time axis for the nc time variable
-    nc = netCDF4.Dataset(video_filename,'a')
-    array = nc.variables['img_array']
     tl = array.shape[0]
     print "no of timesteps:", tl
     Tm=nc.variables['time']
@@ -123,9 +140,6 @@ def compute_videoncfile(video_id):
     print "time:",Tm.shape
 
     nc.close()
-    return 
-
-
 
 
 def UI(): 

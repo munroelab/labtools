@@ -18,6 +18,7 @@ from labtools import Energy_flux
 from labtools import movieplayer
 from labtools import axi_TS_row
 from labtools import axi_TS_col
+from labtools import createncfilefromimages
 from labtools import labdb
 
 workingdir = "workflow/"
@@ -40,8 +41,8 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id >= 748
-             LIMIT 3
+               AND ve.expt_id >= 758
+             LIMIT 1
              """
     rows = db.execute(sql)
 
@@ -73,7 +74,32 @@ def determineVideoId(infile, outfile):
     video_id, = db.execute_one(sql)
 
     pickle.dump(video_id, open(outfile, 'w'))
+
+@transform(determineVideoId, suffix('.video_id'), '.videonc')
+def createVideoNcFile(infile, outfile):
+    video_id = pickle.load(open(infile))
     
+    createncfilefromimages.compute_videoncfile(video_id)
+
+    pickle.dump(video_id, open(outfile, 'w'))
+
+@transform(createVideoNcFile, suffix('.videonc'), '.movieVideo')
+def movieVideo(infile, outfile):
+    video_id = pickle.load(open(infile))
+
+    movieName = os.path.basename(outfile) # e.g 123.movieDz
+    movieName = os.path.join(moviedir, movieName + '.mp4')
+
+    # make the movie
+    movieplayer.movie('video',  # var
+                      video_id, # id of nc file
+                      256,  # min_max value
+                      saveFig=True,
+                      movieName= movieName
+                     )
+    pickle.dump(movieName, open(outfile, 'w'))
+
+   
 @transform(forEachExperiment, suffix('.expt_id'), '.schlierenParameters')
 def determineSchlierenParameters(infile, outfile):
     expt_id = pickle.load(open(infile))
@@ -107,6 +133,8 @@ def computeDz(infiles, outfile):
             #stopF = 100+200,         # stopFrame
                     # skipFrame
                     # diffFrame
+            startF = 400,
+            stopF = 500,
             cache = True
             )
 
@@ -277,13 +305,14 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-            movieDz, 
-            movieAxi,
-            plotEnergyFlux, 
-            plotFilteredLR,
-            tableExperimentParameters,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+            movieVideo, 
+    #        movieDz, 
+    #        movieAxi,
+    #        plotEnergyFlux, 
+    #        plotFilteredLR,
+    #        tableExperimentParameters,
+    #        plotAxiHorizontalTimeSeries,
+    #        plotAxiVerticalTimeSeries,
             ]
 
     forcedTasks = [
