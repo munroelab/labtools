@@ -43,11 +43,7 @@ def forEachExperiment(infiles, outfiles):
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
                AND ve.expt_id >= 758
-<<<<<<< Updated upstream
-             LIMIT 1
-=======
              LIMIT 1 
->>>>>>> Stashed changes
              """
     rows = db.execute(sql)
 
@@ -138,13 +134,7 @@ def computeDz(infiles, outfile):
             stopF = 300+100,         # stopFrame
                     # skipFrame
                     # diffFrame
-<<<<<<< Updated upstream
-            startF = 400,
-            stopF = 500,
             cache = True
-=======
-            cache = False
->>>>>>> Stashed changes
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
@@ -316,7 +306,6 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-<<<<<<< Updated upstream
             movieVideo, 
     #        movieDz, 
     #        movieAxi,
@@ -325,15 +314,6 @@ if __name__ == "__main__":
     #        tableExperimentParameters,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
-=======
-            movieDz, 
-            #movieAxi,
-            #plotEnergyFlux, 
-            #plotFilteredLR,
-            #tableExperimentParameters,
-            #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
->>>>>>> Stashed changes
             ]
 
     forcedTasks = [
