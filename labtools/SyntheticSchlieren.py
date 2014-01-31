@@ -12,6 +12,7 @@ import numpy
 import time
 import os
 import labdb
+import gc
 import netCDF4
 from scipy import ndimage
 import progressbar
@@ -245,13 +246,13 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         return None
 
 
-def calculate(func, args):
+def calculate(func, (args, index)):
     result = func(*args)
     msg = '%s does %s%s' % (
         multiprocessing.current_process().name,
         func.__name__, args,
         )
-    return result, msg
+    return index, result, msg
 
 def schlieren_lines(p):
     """
@@ -317,7 +318,7 @@ def schlieren_lines(p):
     # Step 7 : applying the Gaussian filter to do a spatial smoothing of the image
     smooth_filt_delz = skimage.filter.gaussian_filter(filled_delz, 
             [p['sigma'],p['sigma']])
-    return smooth_filt_delz
+    return p['i'], smooth_filt_delz
     
     """
     old code below 
@@ -400,7 +401,6 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
     from scipy.ndimage import gaussian_filter
     from numpy import ma
-    
 
     hostname = socket.gethostname()
     cpu_count = multiprocessing.cpu_count()
@@ -409,7 +409,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     else:
         PROCESSES = cpu_count / 2
 
-    PROCESSES = 4
+    PROCESSES = 8
     # Create pool
     pool = multiprocessing.Pool(PROCESSES)
 
@@ -426,8 +426,21 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     p['dz'] = dz
     p['sigma'] = sigma
 
+    lock = multiprocessing.Lock()
+    def cb(r):
+        with lock:
+            i, dz = r
+            print "writing", i
+
+            nc=netCDF4.Dataset(dz_filename,'a')
+            DZarray = nc.variables['dz_array']
+
+            DZarray[i,:,:] = dz
+            nc.close()
+
     tasks = []
-    # Build up a list of tasks to perform
+    i = 0
+    # submit tasks to perform
     while os.path.exists(filename2) & (count <=stopF):
 
         filename1 = path % (video_id, count - n)
@@ -439,35 +452,48 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
         # add filename1, filename2 to list of tasks
         p['filename1'] = filename1
         p['filename2'] = filename2
-        tasks.append( (schlieren_lines, (dict(p),)))
+        p['i'] = i
+        #tasks.append( (schlieren_lines, (dict(p),)))
 
         count += skip_frames
         filename2 = path % (video_id, count)
-    # submit all tasks to worker pool
-    results = [pool.apply_async(calculate, t) for t in tasks]
 
+        pool.apply_async(schlieren_lines, (dict(p),), callback=cb)
+        i += 1
+
+    # submit all tasks to worker pool
+
+    #results = [pool.apply_async(calculate, t) for t in tasks]
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=len(results)).start()
-    i=0
-    while len(results) > 0:
-        print " i:", i
-        r = results.pop()
-        pbar.update(i)
-        
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=i.start()
 
-        # combine results into one .nc file
-        result, msg = r.get()
-        
-        nc=netCDF4.Dataset(dz_filename,'a')
-        DZarray = nc.variables['dz_array']
+    pool.close()
 
-        #append2ncfile(dz_filename, result)
-        DZarray[i,:,:] = result
-        nc.close()
-        i+=1
+
+
+    pool.join()
+
+   # for i, r in enumerate(results):
+   #     pbar.update(i)
+#
+#        print r
+#        print type(r)
+#        # combine results into one .nc file
+#        result, msg = r.get()
+#        
+#        #nc=netCDF4.Dataset(dz_filename,'a')
+        #DZarray = nc.variables['dz_array']
+#
+#        DZarray[i,:,:] = result
+#        nc.sync()
+#        nc.close()
+
+#        del result
+#        gc.collect()
     
-    pbar.finish()
+#    pbar.finish()
+
 
     nc=netCDF4.Dataset(dz_filename,'a')
     DZarray = nc.variables['dz_array']
