@@ -409,7 +409,6 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     else:
         PROCESSES = cpu_count / 2
 
-    PROCESSES = 8
     # Create pool
     pool = multiprocessing.Pool(PROCESSES)
 
@@ -426,11 +425,14 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     p['dz'] = dz
     p['sigma'] = sigma
 
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets)
+
     lock = multiprocessing.Lock()
     def cb(r):
         with lock:
             i, dz = r
-            print "writing", i
+            pbar.update(i)
 
             nc=netCDF4.Dataset(dz_filename,'a')
             DZarray = nc.variables['dz_array']
@@ -440,6 +442,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
     tasks = []
     i = 0
+
     # submit tasks to perform
     while os.path.exists(filename2) & (count <=stopF):
 
@@ -462,15 +465,16 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
         i += 1
 
     # submit all tasks to worker pool
+    pbar.maxval = i
+    pbar.start()
+
 
     #results = [pool.apply_async(calculate, t) for t in tasks]
 
-    #widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    #pbar = progressbar.ProgressBar(widgets=widgets, maxval=i.start())
-    #pbar.finish()
-
     pool.close()
     pool.join()
+
+    pbar.finish()
 
    # for i, r in enumerate(results):
    #     pbar.update(i)
