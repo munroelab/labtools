@@ -21,11 +21,13 @@ from labtools import axi_TS_row
 from labtools import axi_TS_col
 from labtools import createncfilefromimages
 from labtools import labdb
+from labtools import predictions_wave
 
 workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
+cacheValue = False 
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -42,8 +44,8 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id >= 758
-             LIMIT 1 
+               AND ve.expt_id >= 776
+             LIMIT 5 
              """
     rows = db.execute(sql)
 
@@ -130,11 +132,11 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
-            startF = 300,        # startFrame
-            stopF = 300+100,         # stopFrame
+            startF = 0,        # startFrame
+            stopF = 1500,         # stopFrame
                     # skipFrame
                     # diffFrame
-            cache = True
+            cache = cacheValue
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
@@ -145,7 +147,7 @@ def computeAxi(infile, outfile):
     
     Axi_id = WaveCharacteristics.compute_a_xi(
             dz_id,
-            cache=True,
+            cache=cacheValue,
             )
 
     pickle.dump(Axi_id, open(outfile, 'w'))
@@ -175,9 +177,9 @@ def filterAxiLR(infile, outfile):
     
     fw_id = Spectrum_LR.task_hilbert_func(
             Axi_id,
-            0.1, #maxMin
+            0.02, #maxMin
             100, # plotColumn
-            cache=True,
+            cache=cacheValue,
             )
 
     pickle.dump(fw_id, open(outfile, 'w'))
@@ -207,12 +209,18 @@ def getParameters(infile, outfile):
 
     # look up parameters for the given expt_id
     video_id, N, omega, kz, theta = Energy_flux.get_info(expt_id)
-
+    theta,kz,wavelengthZ,kx,wavelengthX,c_gx,c_px=predictions_wave.predictionsWave(N,omega)
     params = { 'expt_id' : expt_id, 
                'N' : N,
-               'omega' : omega,
-               'kz' : kz,
-               'theta' : theta }
+               'omega (/s)' : omega,
+               'theta (degree)' : theta,
+               'kz (/cm)' : kz,
+               'wavelength_z (cm)' : wavelengthZ,
+               'kx (/cm)': kx,
+               'wavelength_x (cm)' : wavelengthX,
+               'group velocity (cm/s)' : c_gx,
+               'phase velocity (cm/s)' : c_px,
+               }
     
     pickle.dump(params, open(outfile, 'w'))
 
@@ -259,8 +267,8 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
 
     axi_TS_row.compute_energy_flux(
             Axi_id,
-            300,  # row number 
-            0.01,      # maxmin
+            400,  # row number 
+            0.02,      # maxmin
             plotname = plotName,
             )
 
@@ -276,7 +284,7 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     axi_TS_col.compute_energy_flux(
             Axi_id,
             300,  # column number 
-            0.01,      # maxmin
+            0.02,      # maxmin
             plotname = plotName,
             )
 
@@ -306,21 +314,23 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-            movieVideo, 
-    #        movieDz, 
-    #        movieAxi,
-    #        plotEnergyFlux, 
-    #        plotFilteredLR,
-    #        tableExperimentParameters,
-    #        plotAxiHorizontalTimeSeries,
-    #        plotAxiVerticalTimeSeries,
+    #        movieVideo, 
+            movieDz, 
+            movieAxi,
+            plotEnergyFlux, 
+            plotFilteredLR,
+            tableExperimentParameters,
+            plotAxiHorizontalTimeSeries,
+            plotAxiVerticalTimeSeries,
             ]
 
     forcedTasks = [
             forEachExperiment,
-            computeDz,
-            computeAxi,
+    #        computeDz,
+    #        computeAxi,
             filterAxiLR,
+            plotAxiHorizontalTimeSeries,
+            plotAxiVerticalTimeSeries,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

@@ -17,8 +17,11 @@ from scipy import ndimage
 import progressbar
 import multiprocessing
 import socket
-
 import warnings
+
+import skimage.morphology, skimage.filter 
+
+
 # to eliminate DivideByZero warnings
 warnings.filterwarnings("ignore")
 
@@ -88,8 +91,6 @@ def append2ncfile(dz_filename,dz_arr):
     DZ = nc.variables['dz_array']
     i= len(DZ)
     DZ[i,:,:]=dz_arr
-    #print "dz shape: ", DZ.shape,"appending"
-    #print "len(dz): ", i 
     nc.close()
 
 
@@ -171,11 +172,11 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     
     #the dimensions are also variables
     ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
+    print  ROW.shape,ROW.dtype
     COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
+    print COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',numpy.float32,('time'))
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
+    print TIME.shape, TIME.dtype
     
     # declare the 3D data variable 
     DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
@@ -193,9 +194,9 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     dt = dt*skip_frames
     dz = win_h / Nrow
     dx = win_l / Ncol
-    print "timestep: " ,dt
-    print "dz : ", dz
-    print "dx : ",dx 
+    #print "timestep: " ,dt
+    #print "dz : ", dz
+    #print "dx : ",dx 
 
     ROW[:] = R
     COLUMN[:] = C
@@ -277,14 +278,51 @@ def schlieren_lines(p):
     C = getTol(image1, mintol = p['min_tol'])
     delz = compute_dz_image(image1, image2, p['dz']) 
     delz = numpy.nan_to_num(delz) * C
-     
-    #delz_m = ma.masked_where(C==False, delz)
-    #dz_array = generate_dz_array(delz,dz_array)
+    """
     # clip large values
     bound = 1.0
     delz[delz > bound] = bound
     delz[delz < -bound] = -bound
-    return delz
+    """
+
+    # implementing the skimage.filter.mean so as to apply mean filter on a
+    # masked array and then applying a gaussian filter to smooth the image
+
+    # step 1: clip the large values
+    min_max = 0.03
+    clip_min_max = 0.95 * min_max
+    delz[delz > clip_min_max] = clip_min_max
+    delz[delz < -clip_min_max] = -clip_min_max
+    # Step 2 : map the original data from -0.1 to +0.1 to range from 0 to 255
+    mapped_delz = numpy.array(delz + min_max/ (0.5 * min_max) * 256,
+            dtype = numpy.uint8)
+    
+    # Step 3 : prepare a mask:: 1 means use the data and 0 means ignore the
+    # data here within the disk
+    mask_delz = numpy.uint8(mapped_delz <>128)
+    
+    #Step 4: apply the mean filter to compute values for the masked pixels 
+    disk_size = 4
+    filt_delz = skimage.filter.rank.mean(mapped_delz,
+            skimage.morphology.disk(disk_size),
+            mask = mask_delz,
+            ) 
+    # Step 5: mapping back the values from 0 to 255 to its original values of
+    # -0.1 to 0.1
+    filtered_delz = (filt_delz / 256.0) * (0.5 * min_max) - min_max 
+    
+    # Step 6: Replacing the elements that were already right in the beginning
+    filled_delz = (1-mask_delz) * filtered_delz + mask_delz * delz
+    
+    # Step 7 : applying the Gaussian filter to do a spatial smoothing of the image
+    smooth_filt_delz = skimage.filter.gaussian_filter(filled_delz, 
+            [p['sigma'],p['sigma']])
+    return smooth_filt_delz
+    
+    """
+    old code below 
+    """
+
     # fill in missing values
     filt_delz = ndimage.gaussian_filter(delz, (p['sigma'],p['sigma']))
     #i = abs(delz) > 1e-8
@@ -405,28 +443,35 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
         count += skip_frames
         filename2 = path % (video_id, count)
-
     # submit all tasks to worker pool
     results = [pool.apply_async(calculate, t) for t in tasks]
 
-    nc=netCDF4.Dataset(dz_filename,'a')
-    DZarray = nc.variables['dz_array']
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=len(results)).start()
-    for i, r in enumerate(results):
+    i=0
+    while len(results) > 0:
+        print " i:", i
+        r = results.pop()
         pbar.update(i)
+        
 
         # combine results into one .nc file
         result, msg = r.get()
-
-        #print '\t', msg, result.shape
         
+        nc=netCDF4.Dataset(dz_filename,'a')
+        DZarray = nc.variables['dz_array']
+
         #append2ncfile(dz_filename, result)
         DZarray[i,:,:] = result
-
+        nc.close()
+        i+=1
+    
     pbar.finish()
 
+    nc=netCDF4.Dataset(dz_filename,'a')
+    DZarray = nc.variables['dz_array']
+    
     # define time axis for the nc time variable
     tl = DZarray.shape[0]
     nz = DZarray.shape[1]
@@ -442,8 +487,8 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     Tm[:] = t_array
     
     nc.close()
-    return dz_id
 
+    return dz_id
     # get information about the copied nc file to see if its chunked 
     print "ncdump %s" % dz_filename
     os.system('ncdump -h -s %s' %  dz_filename )

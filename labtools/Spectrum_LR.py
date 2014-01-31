@@ -41,7 +41,6 @@ def create_nc_file(a_xi_id, fw_id=None):
             vertical_displacement_amplitude.dz_id AND \
             vertical_displacement_amplitude.a_xi_id = %d) """ %a_xi_id
     rows = db.execute(sql)
-    print rows 
     video_id = rows[0][0]
     expt_id = rows[0][1]
     print " experiment ID : ", expt_id, "Video ID :", video_id
@@ -94,11 +93,8 @@ def create_nc_file(a_xi_id, fw_id=None):
     
     #the dimensions are also variables
     ROW = nc.createVariable('row',np.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
     COLUMN = nc.createVariable('column',np.float32,('column'))
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',np.float32,('time'))
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
     
     # declare the 3D data variable 
     raw = nc.createVariable('raw_array',np.float32,('row','time','column'))
@@ -182,8 +178,7 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
     #print "Axi, time", t
 
     # DEBUG MESSAGES
-    print "x shape",x.shape
-    print "z shape",z.shape
+    print "x & z shape",x.shape ,z.shape
     
     # determine lengths of x, z, t
     nz = len(z)
@@ -288,8 +283,8 @@ def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
       #         operator.and_(O<0.0,K>0.0))] = 0.0
       #  Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),
       #        operator.and_(O<0.0,K<0.0))] = 0.0
-        Fright[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
-        Fleft[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
+        Fleft[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
+        Fright[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
 
         ed = time.time()
         filter_total += (st-ed)
@@ -366,8 +361,8 @@ def plotFilteredLR(fw_id,
     else:
         fname = plotName
 
-    vmax = 0.01
-    plotcolumn = 100
+    vmax = 0.02
+    plotcolumn = 300
     plt.figure()
     plt.clf()
     plt.subplot(2,1,1)

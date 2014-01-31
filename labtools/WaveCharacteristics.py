@@ -76,11 +76,11 @@ def createncfile(dz_id,t,x,z,
 
     # Dimensions are also variable
     ROW = nc.createVariable('row',numpy.float32,('row'),contiguous=False)
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
+    print  ROW.shape,ROW.dtype
     COLUMN = nc.createVariable('column',numpy.float32,('column'),contiguous=False)
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
+    print COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',numpy.float32,('time'),contiguous=False)
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
+    print TIME.shape, TIME.dtype
 
     # declare the 3D data variable 
     a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'),
@@ -144,15 +144,11 @@ def compute_a_xi(dz_id, cache=True):
     # loading the dz data from the nc file
     dz = nc.variables['dz_array']
     t = nc.variables['time']
-    #print "t from dz_array", t[:]
     z = nc.variables['row']
     x = nc.variables['column']
     # print information about dz dataset
     print "variables  of the nc file :", nc.variables.keys()
     print "dz shape : " , dz.shape
-    print "t  shape : " , t.shape
-    print "z shape : " , z.shape
-    print "x shape : " , x.shape
     
     # call get_info function from Energy_flux program :: to get info!
     

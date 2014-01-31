@@ -20,7 +20,7 @@ import labdb
 import progressbar
 
 def movie(var, id, 
-        max_min,
+        max_min=None,
         start_frame=0, stop_frame=None,
         saveFig=False,
         movieName = None):
@@ -82,7 +82,8 @@ def movie(var, id,
     ax = plt.axes(xlim=(0,win_l), ylim =(win_h,0))
     plt.xlabel('window length (cm)')
     plt.ylabel('window height (cm)')
-
+    if max_min is None:
+        max_min = abs(array[n,:,:]).max()
     im=plt.imshow(array[n,:,:], 
                   extent=[x[0],x[-1],z[0],z[-1]],
                   vmax=+max_min, vmin=-max_min,
