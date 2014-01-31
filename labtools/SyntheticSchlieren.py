@@ -465,13 +465,11 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
     #results = [pool.apply_async(calculate, t) for t in tasks]
 
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=i.start()
+    #widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    #pbar = progressbar.ProgressBar(widgets=widgets, maxval=i.start())
+    #pbar.finish()
 
     pool.close()
-
-
-
     pool.join()
 
    # for i, r in enumerate(results):
