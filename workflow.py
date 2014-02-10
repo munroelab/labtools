@@ -11,6 +11,7 @@ import os
 import pickle
 import datetime
 import time
+import collections
 
 from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
@@ -27,7 +28,7 @@ workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = False 
+cacheValue = True 
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -44,8 +45,8 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id >= 776
-             LIMIT 5 
+               AND ve.expt_id = 766
+             LIMIT 1 
              """
     rows = db.execute(sql)
 
@@ -133,7 +134,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 1500,         # stopFrame
+            stopF = 500,         # stopFrame
                     # skipFrame
                     # diffFrame
             cache = cacheValue
@@ -205,22 +206,23 @@ def movieAxi(infile, outfile):
 def getParameters(infile, outfile):
     expt_id = pickle.load(open(infile))
 
-    params = {}
 
     # look up parameters for the given expt_id
     video_id, N, omega, kz, theta = Energy_flux.get_info(expt_id)
     theta,kz,wavelengthZ,kx,wavelengthX,c_gx,c_px=predictions_wave.predictionsWave(N,omega)
-    params = { 'expt_id' : expt_id, 
-               'N' : N,
-               'omega (/s)' : omega,
-               'theta (degree)' : theta,
-               'kz (/cm)' : kz,
-               'wavelength_z (cm)' : wavelengthZ,
-               'kx (/cm)': kx,
-               'wavelength_x (cm)' : wavelengthX,
-               'group velocity (cm/s)' : c_gx,
-               'phase velocity (cm/s)' : c_px,
-               }
+    wgAmplitude = Energy_flux.getwgamplitude(expt_id)
+    params = collections.OrderedDict([ ('expt_id' , expt_id), 
+                ('WG amplitude' , wgAmplitude),
+               ('N' , N),
+               ('omega (/s)' , omega),
+               ('theta (degree)' , theta),
+               ('kz (/cm)' , kz),
+               ('wavelength_z (cm)' , wavelengthZ),
+               ('kx (/cm)', kx),
+               ('wavelength_x (cm)' , wavelengthX),
+               ('group velocity (cm/s)' , c_gx),
+               ('phase velocity (cm/s)' , c_px),
+               ])
     
     pickle.dump(params, open(outfile, 'w'))
 
@@ -317,8 +319,8 @@ if __name__ == "__main__":
     #        movieVideo, 
             movieDz, 
             movieAxi,
-            plotEnergyFlux, 
-            plotFilteredLR,
+    #        plotEnergyFlux, 
+    #        plotFilteredLR,
             tableExperimentParameters,
             plotAxiHorizontalTimeSeries,
             plotAxiVerticalTimeSeries,
@@ -328,9 +330,11 @@ if __name__ == "__main__":
             forEachExperiment,
     #        computeDz,
     #        computeAxi,
-            filterAxiLR,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+    #        filterAxiLR,
+    #        plotAxiHorizontalTimeSeries,
+    #        plotAxiVerticalTimeSeries,
+            getParameters,
+            tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

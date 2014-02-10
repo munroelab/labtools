@@ -346,6 +346,14 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3):
 
     return
 
+def getwgamplitude(expt_id):
+    # Get the video_id for the corresponding expt.id
+    sql = """ SELECT wg_amplitude FROM wavemaker WHERE wavemaker_id = 
+    (SELECT wavemaker_id FROM wavemaker_experiments WHERE expt_id = %d) """ % expt_id
+    rows = db.execute(sql)
+    wg_amplitude = rows[0][0]
+    return wg_amplitude
+
 def get_info(expt_id):
     
     # Get the video_id for the corresponding expt.id
@@ -365,6 +373,7 @@ def get_info(expt_id):
     sql = """ SELECT kz , frequency_measured FROM wavemaker WHERE wavemaker_id \
             = (SELECT wavemaker_id FROM wavemaker_experiments WHERE expt_id = %d) """% expt_id
     rows = db.execute(sql)
+    print sql , rows
     kz = rows[0][0]
     f = rows[0][1]
     print "kz : ",kz, "frequency:" ,f
