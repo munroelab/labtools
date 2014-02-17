@@ -13,6 +13,122 @@ import plotting_functions
 # Open database for access
 db  = labdb.LabDB()
 
+
+def compute_energy_flux_raw(
+        a_xi_id,
+        row_s,
+        row_e,
+        col1,
+        plotname="energyflux_raw"):
+    """
+        Given an Axi_id, calculate the vertically averaged energy flux
+
+        plot the result.
+
+    """
+    db = labdb.LabDB()
+    
+    #check if the file already exists
+    sql = """ SELECT a_xi_id FROM vertical_displacement_amplitude WHERE a_xi_id = %d""" % a_xi_id
+    rows=db.execute(sql)
+    
+    if len(rows) == 0:
+        print "axi.nc has not been computed"
+        return
+
+    
+    axi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    if not os.path.exists(axi_path):
+        print axi_path, 'not found'
+        return
+    
+    # Get experiment ID
+    
+    sql = """ SELECT  dz.expt_id FROM dz INNER JOIN \
+            vertical_displacement_amplitude ON (dz.dz_id = \
+            vertical_displacement_amplitude.dz_id AND \
+            vertical_displacement_amplitude.a_xi_id = %d) """ %a_xi_id
+    rows = db.execute(sql)
+    print rows 
+    expt_id = rows[0][0]
+    print " experiment ID : ", expt_id
+
+    # Call the function get_info() to get omega, kz and theta
+    video_id, N_frequency, omega, kz, theta = get_info(expt_id)
+    print "Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta
+    # Open the nc file for reading data
+    nc = netCDF4.Dataset(axi_path,'r')
+    data = nc.variables['a_xi_array']
+    print "axi array shape", data.shape
+    ft = nc.variables['time'][:]
+    print 'row shape', nc.variables['row'].shape
+    fz = nc.variables['row'][row_s:row_e]
+    fx = nc.variables['column'][col1]
+    # print information about dz dataset
+    print "variables  of the nc file :", nc.variables.keys()
+    print "t  shape : " , ft.shape
+    
+    #select the timeseries of the rows along the column you are interested in 
+    raw = data[:,row_s:row_e,col1]
+    raw_squared = raw**2
+    
+    print "raw_squared shape: ",raw_squared.shape
+    print "depth from :: ", fz[0], " to ", fz[-1]
+    print "time from :: ", ft[0], " to ", ft[-1]
+    
+    # Calculate kx and  energy flux
+    rho0 = 0.998
+    kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
+    const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
+    print "kx:",kx
+    print "const:",const
+    
+    EF1 = (numpy.mean(raw_squared,1)) * const
+    print "EF arrays shape:: ", EF1.shape
+    # get dt and length of the timeseries
+    dt = numpy.mean(numpy.diff(ft))
+    nt = len(ft)
+    print "dt :: ",dt,"nt ::", nt
+    
+    # perform fft along the time axis
+    F1 = numpy.fft.fft(EF1)/nt*nt
+    print "F1 shape::", F1.shape
+    
+    # normalize
+    F1 = numpy.fft.fftshift(F1)
+    print "after shifting fft F1 shape::", F1.shape
+
+    #Frequency axis
+    freq = numpy.fft.fftfreq(nt,dt)
+    print "freq.shape" ,freq.shape
+    freq = numpy.fft.fftshift(freq) * 2*numpy.pi
+    print "after shifting freq.shape ::",freq.shape
+    
+    # get the moving average
+    window = 2*numpy.pi/(omega*dt)
+    print "window:", window
+    window = numpy.int16(window)
+    print "window:", window
+
+    avg1 = moving_average(EF1,window)
+    print EF1.shape,avg1.shape
+    #  plotting outouts
+    title1 = "Energy Flux at %d cm from left edge of window  " %fx
+    fig1 = plt.figure(1,figsize=(15,12))
+    fig1.clf()
+    fig1.patch.set_facecolor('white')
+    plotting_functions.sharexy_plot_ts(EF1,avg1,ft,title1,"time","Energy_flux")
+    plt.savefig(plotname + "_ef.pdf")
+
+    
+    title1 = "FFT of energy flux at %d cm of the raw data" % fx
+    fig2=plt.figure(2,figsize=(15,12))
+    fig2.clf()
+    fig2.patch.set_facecolor('white')
+    plotting_functions.plot_ts(abs(F1),freq,title1,"frequency","A")
+    plt.savefig(plotname + "_fft.pdf")
+
+
 def compute_energy_flux(
         a_xi_id,
         row_s,
@@ -35,6 +151,7 @@ def compute_energy_flux(
         print "fw_id has not been computed"
         return
 
+    
     fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
     if not os.path.exists(fw_path):
         print fw_path, 'not found'
@@ -364,7 +481,8 @@ def get_info(expt_id):
 
     # Get the Buoyancy frequency
     sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\
-            (SELECT strat_id FROM stratification_experiments WHERE expt_id = %d )""" % expt_id
+            (SELECT strat_id FROM stratification_experiments WHERE \
+            expt_id = %d ORDER BY strat_id ASC LIMIT 1)""" % expt_id
     rows = db.execute(sql)
     N_frequency = rows[0][0]
     print "Buoyancy Frequency: ", N_frequency

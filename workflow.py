@@ -28,7 +28,7 @@ workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = True 
+cacheValue = False
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -45,8 +45,8 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id = 766
-             LIMIT 1 
+               AND ve.expt_id IN (758,760,764)
+             LIMIT 3
              """
     rows = db.execute(sql)
 
@@ -111,7 +111,7 @@ def determineSchlierenParameters(infile, outfile):
     # sigma depends on background image line thickness
     p = {}
     p['sigma'] = 8 # constant for now
-    p['filterSize'] = 400 # 190 pixel is about 10 cm in space.
+    p['filterSize'] = 40 # 190 pixel is about 10 cm in space.
 
     pickle.dump(p, open(outfile, 'w'))
 
@@ -134,10 +134,11 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 500,         # stopFrame
+            stopF = 0,         # stopFrame .. 
+            #set stopF=0 if you want it to consider all the frames
                     # skipFrame
                     # diffFrame
-            cache = cacheValue
+            cache = cacheValue #set to False to recompute the nc file
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
@@ -178,7 +179,7 @@ def filterAxiLR(infile, outfile):
     
     fw_id = Spectrum_LR.task_hilbert_func(
             Axi_id,
-            0.02, #maxMin
+            2, #maxMin
             100, # plotColumn
             cache=cacheValue,
             )
@@ -195,7 +196,7 @@ def movieAxi(infile, outfile):
     # make the movie
     movieplayer.movie('Axi',  # var
                       Axi_id, # id of nc file
-                      0.02,  # min_max value
+                      2,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -243,18 +244,19 @@ def tableExperimentParameters(infiles, outfile):
 
 
 
-@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
+#@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
+@transform([computeAxi], suffix('.Axi_id'), '.plotEnergyFlux')
 def plotEnergyFlux(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
     plotName = os.path.basename(outfile) + '.pdf'
     plotName = os.path.join(plotdir, plotName)
 
-    Energy_flux.compute_energy_flux(
+    Energy_flux.compute_energy_flux_raw(
             Axi_id,
-            300,  # rowStart
-            400,  # rowEnd
-            500,      # column
+            400,  # rowStart
+            500,  # rowEnd
+            300,      # column
             plotname = plotName,
             )
 
@@ -269,8 +271,8 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
 
     axi_TS_row.compute_energy_flux(
             Axi_id,
-            400,  # row number 
-            0.02,      # maxmin
+            300,  # row number 
+            2,      # maxmin
             plotname = plotName,
             )
 
@@ -285,8 +287,8 @@ def plotAxiVerticalTimeSeries(infile, outfile):
 
     axi_TS_col.compute_energy_flux(
             Axi_id,
-            300,  # column number 
-            0.02,      # maxmin
+            200,  # column number 
+            2,      # maxmin
             plotname = plotName,
             )
 
@@ -317,11 +319,11 @@ if __name__ == "__main__":
 
     finalTasks = [
     #        movieVideo, 
-            movieDz, 
-            movieAxi,
-    #        plotEnergyFlux, 
+             movieDz, 
+             movieAxi,
+             plotEnergyFlux, 
     #        plotFilteredLR,
-            tableExperimentParameters,
+             tableExperimentParameters,
             plotAxiHorizontalTimeSeries,
             plotAxiVerticalTimeSeries,
             ]
@@ -333,6 +335,7 @@ if __name__ == "__main__":
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
+    #        plotEnergyFlux, 
             getParameters,
             tableExperimentParameters,
             ]

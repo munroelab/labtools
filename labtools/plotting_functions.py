@@ -3,12 +3,21 @@ import pylab
 import matplotlib.pyplot as plt
 
 
-def plot_ts(ts,taxis,fig_num,title):
-    plt.figure(fig_num)
-    plt.xlabel('time')
+def plot_ts(ts,taxis,title,xlab,ylab):
+    plt.figure()
+    plt.xlabel('%s' %xlab)
+    plt.ylabel('%s' %ylab)
     plt.title('%s' % title)
     plt.plot(taxis[:],ts)
+    return
 
+def sharexy_plot_ts(ts1,ts2,taxis,title,xlab,ylab):
+    plt.figure()
+    plt.xlabel('%s' %xlab)
+    plt.ylabel('%s' %ylab)
+    plt.title('%s' % title)
+    plt.plot(taxis[:],ts1,taxis[:],ts2)
+    return
 
 def sharexy_plot_6plts(ts1,ts2,ts3,ma1,ma2,ma3,taxis,title1,title2,title3,xlab,ylab):
     ax1 = plt.subplot(3,1,1)

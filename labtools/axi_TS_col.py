@@ -76,7 +76,10 @@ def get_info(expt_id):
 
     # Get the Buoyancy frequency
     sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\
-            (SELECT strat_id FROM stratification_experiments WHERE expt_id = %d )""" % expt_id
+            (SELECT strat_id FROM stratification_experiments WHERE expt_id = %d
+            \
+                    ORDER BY strat_id ASC LIMIT 1\
+            )""" % expt_id
     rows = db.execute(sql)
     N_frequency = rows[0][0]
     print "Buoyancy Frequency: ", N_frequency
