@@ -117,6 +117,21 @@ def create_nc_file(a_xi_id, fw_id=None):
     nc.close()
     return fw_filename,fw_id
 
+def hilbert_transform(U_nc_filename):
+    """
+    U is a real valued array  index in (t, z, x)
+
+    Since the arrays are large, we actually pass netCDF files names.
+    """
+
+    # step 1:
+    #FFT in t
+
+    # open the nc file and fft over all time...
+    # open the file, for each row/col
+    nc = netCDF4.Dataset(U_nc_filename)
+    print nc
+
 
 #def task_hilbert_func(a_xi_id,t_start,t_end,r_start,r_end,c_start,c_end,t_step,r_step,c_step,maxmin):
 def task_hilbert_func(a_xi_id,maxmin,plotcolumn, cache=True):
@@ -1072,7 +1087,190 @@ def UI():
     #        args.c_start,args.c_end,args.t_step,args.r_step,args.c_step,args.maxmin) 
     task_hilbert_func(args.a_xi_id,args.maxmin,args.plot_column)
 
+def test_ht_filter():
+    # we assume we have a three dimensional dataset in x, z, t of some array,
+    # called, U, stored in a single .nc file
+
+    nx = 122
+    nz = 96
+    nt = 100
+    
+    # make an ncfile containing the input real array
+    nc = netCDF4.Dataset('input.nc', 'w', format='NETCDF4')
+        
+    x_dim = nc.createDimension('x', nx)
+    z_dim = nc.createDimension('z', nz)
+    t_dim = nc.createDimension('t', nt)
+    
+    x = nc.createVariable('x',np.float32, ('x'))
+    z = nc.createVariable('z',np.float32, ('z'))
+    t = nc.createVariable('t',np.float32, ('t'))
+    
+    # define grids
+    x[:] = np.mgrid[0:60:nx*1j]
+    z[:] = np.mgrid[0:50:nz*1j]
+    t[:] = np.mgrid[0:120:nt*1j]
+
+    X, Z = np.meshgrid(x[:], z[:])
+
+    omega = 0.5
+    kx = 0.01
+    A = 1.0
+    B = 2.0
+
+    U = nc.createVariable('U',np.float32,('t','x','z'))
+    # populate the ncfile 
+
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
+    for n in range(nt):
+        pbar.update(n)
+        U[n,:,:] = A * np.cos(kx*X - omega*t[n])  \
+                 + B * np.cos(kx*X + omega*t[n])
+    pbar.finish()
+
+    nc.close()
+
+
+    # STEP 1: FFT in t
+    nc = netCDF4.Dataset('input.nc')
+
+    U = nc.variables['U']
+    nt, nx, nz = U.shape
+
+    # create ncfile to store Hilbert transform of U
+    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    complex128 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    complex128_t = nc_ht.createCompoundType(complex128, 'complex128')
+
+    # copy grid from U ncfile
+    x_dim = nc_ht.createDimension('x', nx)
+    z_dim = nc_ht.createDimension('z', nz)
+    t_dim = nc_ht.createDimension('t', nt)
+    
+    x = nc_ht.createVariable('x', np.float32, ('x'))
+    z = nc_ht.createVariable('z', np.float32, ('z'))
+    t = nc_ht.createVariable('t', np.float32, ('t'))
+
+    x[:] = nc.variables['x'][:]
+    z[:] = nc.variables['z'][:]
+    t[:] = nc.variables['t'][:]
+
+    Uht = nc_ht.createVariable('Uht', complex128_t, ('t', 'x', 'z'))
+    
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
+    # loop over all z
+    for j in range(nz):
+        pbar.update(j)
+
+        datain = U[:,:,j]
+
+        # take FFT in time
+        U_spectrum = np.fft.fft(datain)
+
+        # only keep positive frequencies 
+        #   could extend this to a band pass filter
+
+        # explicitly set all non-postive frequencies to zero
+        U_spectrum[-nt/2:, :] = 0
+
+        # take inverse FFT and multiply by 2
+        datac = 2 * np.fft.ifft(U_spectrum)
+
+        # convert to a compound datatype
+        dataout = np.empty(datain.shape, complex128)
+        dataout['real'] = datac.real
+        dataout['imag'] = datac.imag
+
+        # store in netcdf4 file
+        Uht[:,:,j] = dataout
+    pbar.finish()
+
+    nc_ht.close()
+    nc.close()
+
+
+    ## STEP 2 
+    ### extract out only rightward and leftward propgating portions of Uht
+    nc_ht = netCDF4.Dataset('HT.nc')
+
+    Uht = nc_ht.variables['Uht']
+    nt, nx, nz = Uht.shape
+
+    # create ncfile to store Hilbert transform of U
+    nc_lr = netCDF4.Dataset('LR.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    complex128 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    complex128_t = nc_lr.createCompoundType(complex128, 'complex128')
+
+    # copy grid from Uht ncfile
+    x_dim = nc_lr.createDimension('x', nx)
+    z_dim = nc_lr.createDimension('z', nz)
+    t_dim = nc_lr.createDimension('t', nt)
+    
+    x = nc_lr.createVariable('x', np.float32, ('x'))
+    z = nc_lr.createVariable('z', np.float32, ('z'))
+    t = nc_lr.createVariable('t', np.float32, ('t'))
+
+    x[:] = nc_ht.variables['x'][:]
+    z[:] = nc_ht.variables['z'][:]
+    t[:] = nc_ht.variables['t'][:]
+
+    L = nc_lr.createVariable('L', complex128_t, ('t', 'x', 'z'))
+    R = nc_lr.createVariable('R', complex128_t, ('t', 'x', 'z'))
+    
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
+    # loop over all t
+    for n in range(nt):
+        pbar.update(n)
+
+        # grab frame
+        datain = Uht[n, :, :]
+
+        # form complex array
+        datac = np.empty(datain.shape, np.complex64)
+        datac.real = datain['real']
+        datac.imag = datain['imag']
+
+        # fft
+        datac_spectrum = np.fft.fft2(datac)
+
+        # make a copy
+        datac_R_spectrum = datac_spectrum[:,:]
+        datac_L_spectrum = datac_spectrum # note: no copy here
+
+        # only include right ward propagating (kx > 0)
+        datac_R_spectrum[-nx/2:, :] = 0.0
+        # only include left ward propagating (kx < 0)
+        datac_L_spectrum[:nx/2, :] = 0.0
+
+        # inverse FFT
+        datac_R = np.fft.ifft2(datac_R_spectrum)
+        datac_L = np.fft.ifft2(datac_L_spectrum)
+
+        # convert to compound datatype and save
+        dataout = np.empty(datain.shape, complex128)
+        dataout['real'] = datac_R.real
+        dataout['imag'] = datac_R.imag
+        R[n, :, :] = dataout
+        dataout['real'] = datac_L.real
+        dataout['imag'] = datac_L.imag
+        L[n, :, :] = dataout
+
+    pbar.finish()
+
+    nc_lr.close()
+    nc_ht.close()
+
+
+
 if __name__ == "__main__":
     #test()
     #testing_HT()
-    UI()
+    #UI()
+    test_ht_filter()
