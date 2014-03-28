@@ -6,7 +6,7 @@ import glob
 import os
 import dateutil
 import argparse
-from labdb import LabDB
+from ..labtools.labdb import LabDB
 
 g = 980
 rho0 = 0.9982
@@ -95,7 +95,7 @@ def plot_stratification_file(filename):
     fit = np.polyfit(z[m], rho[m], 1)
     fit_line = np.polyval(fit, z[m])
     pylab.plot(fit_line, z[m], "k--")
-    print "N2 = %.3f" % np.sqrt(-g/rho0*fit[0])
+    print "N = %.3f" % np.sqrt(-g/rho0*fit[0])
 
 def plot_all():
     """
