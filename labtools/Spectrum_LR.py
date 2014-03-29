@@ -21,6 +21,7 @@ import labdb
 import time
 import progressbar
 from matplotlib import animation
+from chunk_shape_3D import chunk_shape_3D
 
 
 def create_nc_file(a_xi_id, fw_id=None):
@@ -1108,10 +1109,10 @@ def test_ht_filter():
 
     H = 10.0
     L = 50.0
-    T = 60
+    T = 120
     omega = 0.72
-    kx = 3*np.pi / L
-    kz = 1*np.pi / H
+    kx = 8*np.pi / L
+    kz = 4*np.pi / H
     A = 1.0
     B = 0.5
 
@@ -1122,49 +1123,21 @@ def test_ht_filter():
 
     X, Z = np.meshgrid(x[:], z[:], indexing='ij')
 
-    U = nc.createVariable('U', np.float32, ('t', 'x', 'z'))
+    valSize = np.float32().itemsize
+    chunksizes = chunk_shape_3D( ( nt, nx, nz),
+                                  valSize=valSize)
+    U = nc.createVariable('U', np.float32, ('t', 'x', 'z'),
+                          chunksizes=chunksizes)
+
     # populate the ncfile
 
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
-    for n in range(nt):
-        pbar.update(n)
-        U[n, :, :] = A * np.cos(kx * X + kz * Z - omega * t[n]) \
-                   + A * np.cos(kx * X - kz * Z - omega * t[n]) \
-                   + B * np.cos(kx * X + kz * Z + omega * t[n]) \
-                   + B * np.cos(kx * X - kz * Z + omega * t[n])
-    pbar.finish()
+    print "Generate initial data"
+    chunksizes = chunk_shape_3D( ( nt, nx, nz),
+                                  valSize=valSize )
+    Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'x', 'z'),
+                               chunksizes=chunksizes)
 
-    nc.close()
-
-    # STEP 1: FFT in t ######
-    nc = netCDF4.Dataset('input.nc')
-
-    U = nc.variables['U']
-    nt, nx, nz = U.shape
-
-    # create ncfile to store Hilbert transform of U
-    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
-
-    # since at HT of U is complex, we need complex data types
-    complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
-    complex64_t = nc_ht.createCompoundType(complex64, 'complex64')
-
-    # copy grid from U ncfile
-    x_dim = nc_ht.createDimension('x', nx)
-    z_dim = nc_ht.createDimension('z', nz)
-    t_dim = nc_ht.createDimension('t', nt)
-
-    x = nc_ht.createVariable('x', np.float32, ('x'))
-    z = nc_ht.createVariable('z', np.float32, ('z'))
-    t = nc_ht.createVariable('t', np.float32, ('t'))
-
-    x[:] = nc.variables['x'][:]
-    z[:] = nc.variables['z'][:]
-    t[:] = nc.variables['t'][:]
-
-    Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'x', 'z'))
-
+    print "Temporal filtering"
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
     # loop over all z
@@ -1197,8 +1170,11 @@ def test_ht_filter():
     nc_ht.close()
     nc.close()
 
+    # now rechunk so thank we are able to loop quickly in t
+    #print "Rechunking %dx1x%d -> 1x%dx%d" % (nt, nz, nx, nz)
+    #os.system('nccopy -c t/%d,x/%d,z/%d %s %s' % (1, nx, nz, 'chunked_HT.nc', 'HT.nc'))
 
-    ## STEP 2 
+    ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
     nc_ht = netCDF4.Dataset('HT.nc')
 
@@ -1225,10 +1201,18 @@ def test_ht_filter():
     x[:] = nc_ht.variables['x'][:]
     z[:] = nc_ht.variables['z'][:]
 
-    L = nc_lr.createVariable('L', complex64_t, ('t', 'x', 'z'))
-    R = nc_lr.createVariable('R', complex64_t, ('t', 'x', 'z'))
 
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    valSize = complex64.itemsize
+    chunksizes = chunk_shape_3D( ( nt, nx, nz),
+                                  valSize=valSize )
+    L = nc_lr.createVariable('L', complex64_t, ('t', 'x', 'z'),
+                             chunksizes=chunksizes)
+    R = nc_lr.createVariable('R', complex64_t, ('t', 'x', 'z'),
+                             chunksizes=chunksizes)
+
+    print "Spatial filtering"
+    widgets = [progressbar.Percentage(), ' '
+        , progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
     # loop over all t
     for n in range(nt):
