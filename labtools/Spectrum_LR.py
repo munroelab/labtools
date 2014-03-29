@@ -120,22 +120,6 @@ def create_nc_file(a_xi_id, fw_id=None):
     return fw_filename, fw_id
 
 
-def hilbert_transform(U_nc_filename):
-    """
-    U is a real valued array  index in (t, z, x)
-
-    Since the arrays are large, we actually pass netCDF files names.
-    """
-
-    # step 1:
-    #FFT in t
-
-    # open the nc file and fft over all time...
-    # open the file, for each row/col
-    nc = netCDF4.Dataset(U_nc_filename)
-    print nc
-
-
 #def task_hilbert_func(a_xi_id,t_start,t_end,r_start,r_end,c_start,c_end,t_step,r_step,c_step,maxmin):
 def task_hilbert_func(a_xi_id, maxmin, plotcolumn, cache=True):
     """
@@ -1092,9 +1076,9 @@ def test_ht_filter():
     # we assume we have a three dimensional data set in x, z, t of some array,
     # called, U, stored in a single .nc file
 
-    nx = 256
-    nz = 256
-    nt = 1024
+    nx = 64
+    nz = 64
+    nt = 256
 
     # make an ncfile containing the input real array
     nc = netCDF4.Dataset('input.nc', 'w', format='NETCDF4')
@@ -1145,18 +1129,8 @@ def test_ht_filter():
 
     nc.close()
 
-    # Since this first loop is over x (not t) it is faster to first
-    # rechunk the .nc file
-
     filename = 'input.nc'
-    chunked_filename = 'chunked_input.nc'
-    #print "Rechunking 1x%dx%d -> %dx1x%d" % (nx, nz, nt, nz)
-    #os.system('nccopy -c t/%d,x/%d,z/%d %s %s' % (nt, 1, nz, filename, chunked_filename))
 
-    # get information about the copied nc file to see if its chunked correctly
-    #os.system('ncdump -h -s %s' % chunked_filename )
-
-    #
     # STEP 1: FFT in t ######
     nc = netCDF4.Dataset(filename)
 
@@ -1222,10 +1196,6 @@ def test_ht_filter():
 
     nc_ht.close()
     nc.close()
-
-    # now rechunk so thank we are able to loop quickly in t
-    #print "Rechunking %dx1x%d -> 1x%dx%d" % (nt, nz, nx, nz)
-    #os.system('nccopy -c t/%d,x/%d,z/%d %s %s' % (1, nx, nz, 'chunked_HT.nc', 'HT.nc'))
 
     ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
@@ -1525,5 +1495,5 @@ if __name__ == "__main__":
     #testing_HT()
     #UI()
     test_ht_filter()
-    #test_plot_real()
+    test_plot_real()
     #test_plot_amp_phase()
