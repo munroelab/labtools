@@ -1132,12 +1132,65 @@ def test_ht_filter():
     # populate the ncfile
 
     print "Generate initial data"
+    print
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
+    for n in range(nt):
+        pbar.update(n)
+        U[n, :, :] = A * np.cos(kx * X + kz * Z - omega * t[n]) \
+                   + A * np.cos(kx * X - kz * Z - omega * t[n]) \
+                   + B * np.cos(kx * X + kz * Z + omega * t[n]) \
+                   + B * np.cos(kx * X - kz * Z + omega * t[n])
+    pbar.finish()
+
+    nc.close()
+
+    # Since this first loop is over x (not t) it is faster to first
+    # rechunk the .nc file
+
+    filename = 'input.nc'
+    chunked_filename = 'chunked_input.nc'
+    #print "Rechunking 1x%dx%d -> %dx1x%d" % (nx, nz, nt, nz)
+    #os.system('nccopy -c t/%d,x/%d,z/%d %s %s' % (nt, 1, nz, filename, chunked_filename))
+
+    # get information about the copied nc file to see if its chunked correctly
+    #os.system('ncdump -h -s %s' % chunked_filename )
+
+    #
+    # STEP 1: FFT in t ######
+    nc = netCDF4.Dataset(filename)
+
+    U = nc.variables['U']
+    nt, nx, nz = U.shape
+
+    # create ncfile to store Hilbert transform of U
+    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    complex64_t = nc_ht.createCompoundType(complex64, 'complex64')
+
+    # copy grid from U ncfile
+    x_dim = nc_ht.createDimension('x', nx)
+    z_dim = nc_ht.createDimension('z', nz)
+    t_dim = nc_ht.createDimension('t', nt)
+
+    x = nc_ht.createVariable('x', np.float32, ('x'))
+    z = nc_ht.createVariable('z', np.float32, ('z'))
+    t = nc_ht.createVariable('t', np.float32, ('t'))
+
+    x[:] = nc.variables['x'][:]
+    z[:] = nc.variables['z'][:]
+    t[:] = nc.variables['t'][:]
+
+    valSize = complex64.itemsize
     chunksizes = chunk_shape_3D( ( nt, nx, nz),
                                   valSize=valSize )
     Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'x', 'z'),
                                chunksizes=chunksizes)
 
     print "Temporal filtering"
+    print
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
     # loop over all z
@@ -1368,14 +1421,14 @@ def test_plot_amp_phase():
 
     # HT field real
     plt.subplot(3, 2, 1)
-    im_ht_real = plt.imshow(datac.real,
+    im_ht_real = plt.imshow(datac.real.T,
                             extent=(x[0], x[-1], z[0], z[-1]),
                             aspect='auto',
                             origin='lower', vmin=-1, vmax=1)
     plt.colorbar()
     # HT field imag
     plt.subplot(3, 2, 2)
-    im_ht_imag = plt.imshow(datac.imag,
+    im_ht_imag = plt.imshow(datac.imag.T,
                             extent=(x[0], x[-1], z[0], z[-1]),
                             aspect='auto', origin='lower', vmin=-1, vmax=1,)
     plt.colorbar()
@@ -1388,14 +1441,14 @@ def test_plot_amp_phase():
 
     # L field real
     plt.subplot(3, 2, 3)
-    im_L_amp = plt.imshow(abs(datac),
+    im_L_amp = plt.imshow(abs(datac).T,
                           extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='lower',
                           vmin =0, vmax=1)
     plt.colorbar()
     # L field imag
     plt.subplot(3, 2, 4)
-    im_L_phase = plt.imshow(np.angle(datac),
+    im_L_phase = plt.imshow(np.angle(datac).T,
                           extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='lower')
     plt.colorbar()
@@ -1408,14 +1461,14 @@ def test_plot_amp_phase():
 
     # R field real
     plt.subplot(3, 2, 5)
-    im_R_amp = plt.imshow(np.abs(datac),
+    im_R_amp = plt.imshow(np.abs(datac).T,
                           extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='lower',
                           vmin =0, vmax=1)
     plt.colorbar()
     # R field imag
     plt.subplot(3, 2, 6)
-    im_R_phase = plt.imshow(np.angle(datac),
+    im_R_phase = plt.imshow(np.angle(datac).T,
                           extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='lower',
                           )
@@ -1435,8 +1488,8 @@ def test_plot_amp_phase():
         datac.real = datain['real']
         datac.imag = datain['imag']
 
-        im_ht_real.set_array(datac.real)
-        im_ht_imag.set_array(datac.imag)
+        im_ht_real.set_array(datac.real.T)
+        im_ht_imag.set_array(datac.imag.T)
 
         # L field
         datain = L[n, :, :]
@@ -1444,8 +1497,8 @@ def test_plot_amp_phase():
         datac.real = datain['real']
         datac.imag = datain['imag']
 
-        im_L_amp.set_array(np.abs(datac))
-        im_L_phase.set_array(np.angle(datac))
+        im_L_amp.set_array(np.abs(datac).T)
+        im_L_phase.set_array(np.angle(datac).T)
 
         # R field
         datain = R[n, :, :]
@@ -1453,8 +1506,8 @@ def test_plot_amp_phase():
         datac.real = datain['real']
         datac.imag = datain['imag']
 
-        im_R_amp.set_array(np.abs(datac))
-        im_R_phase.set_array(np.angle(datac))
+        im_R_amp.set_array(np.abs(datac).T)
+        im_R_phase.set_array(np.angle(datac).T)
 
         return (im_ht_real, im_ht_imag,
                 im_L_amp, im_L_phase,
@@ -1472,4 +1525,5 @@ if __name__ == "__main__":
     #testing_HT()
     #UI()
     test_ht_filter()
-    test_plot_real()
+    #test_plot_real()
+    #test_plot_amp_phase()
