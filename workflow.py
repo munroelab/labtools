@@ -77,18 +77,36 @@ def determineVideoId(infile, outfile):
              WHERE ve.expt_id = %s""" % expt_id
     video_id, = db.execute_one(sql)
 
+    # assumption: there is only one video per experiment
+    # In general, one experiment would lead to multiple videos
+    #   might need to change this step in a split
+
     pickle.dump(video_id, open(outfile, 'w'))
 
 @transform(determineVideoId, suffix('.video_id'), '.videonc')
 def createVideoNcFile(infile, outfile):
+
+    # Videos need a associate time and space grid
+
+    # also, we only want to consider a limited window in time and space
+
+    # multiple such windows would require this step to be converted
+    # into a split
+
     video_id = pickle.load(open(infile))
-    
+
+    # should this return something?
+    # an nc_id containing the the videonc?
+    # currently, the video_id is used as the id
+
     createncfilefromimages.compute_videoncfile(video_id)
 
     pickle.dump(video_id, open(outfile, 'w'))
 
 @transform(createVideoNcFile, suffix('.videonc'), '.movieVideo')
 def movieVideo(infile, outfile):
+    # given a videonc file, make a movie
+
     video_id = pickle.load(open(infile))
 
     movieName = os.path.basename(outfile) # e.g 123.movieDz
