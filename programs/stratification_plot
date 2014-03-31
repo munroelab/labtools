@@ -91,7 +91,7 @@ def plot_stratification_file(filename):
         zmax = 0.0
     
     # only selected data at least 3cm below the surface
-    m = (z < (zmax-3)) & (z > (zmin))
+    m = (z < (zmax-14)) & (z > (zmin)) # 14 is the mixed layer depth
     fit = np.polyfit(z[m], rho[m], 1)
     fit_line = np.polyval(fit, z[m])
     pylab.plot(fit_line, z[m], "k--")
