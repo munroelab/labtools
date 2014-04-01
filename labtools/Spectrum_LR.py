@@ -87,12 +87,41 @@ def create_nc_file(a_xi_id, fw_id=None):
         'r')
     Nrow = axincfile.variables['row'].size
     Ncol = axincfile.variables['column'].size
+    Ntime = axincfile.variables['time'].size
+
     # Declare the nc file for the first time 
+    # lines copied for reference
+    # create ncfile to store Hilbert transform of U
+    #nc_lr = netCDF4.Dataset('LR.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    #complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    #complex64_t = nc_lr.createCompoundType(complex64, 'complex64')
+
+    #    valSize = complex64.itemsize
+    #    chunksizes = chunk_shape_3D( ( nt, nx, nz),
+    #                                  valSize=valSize )
+    #    L = nc_lr.createVariable('L', complex64_t, ('t', 'x', 'z'),
+    #                             chunksizes=chunksizes)
+    #    R = nc_lr.createVariable('R', complex64_t, ('t', 'x', 'z'),
+    #                             chunksizes=chunksizes)
+
 
     nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
-    row_dim = nc.createDimension('row', None)
+    
+    # chunk the data intelligently
+    valSize = complex64.itemsize
+    chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
+   
+    # the final processed data is a compound data type consisting of the real and imaginary
+    # parts
+    complex64 = np.dtype([('real',np.float32), ('imag', np.float32)])
+    complex64_t = nc_lr.createCompoundType(complex64, 'complex64')
+    
+    # Create Dimension
+    row_dim = nc.createDimension('row', Nrow)
     col_dim = nc.createDimension('column', Ncol)
-    t_dim = nc.createDimension('time', None)
+    t_dim = nc.createDimension('time', Ntime)
 
     #the dimensions are also variables
     ROW = nc.createVariable('row', np.float32, ('row'))
@@ -100,9 +129,12 @@ def create_nc_file(a_xi_id, fw_id=None):
     TIME = nc.createVariable('time', np.float32, ('time'))
 
     # declare the 3D data variable 
-    raw = nc.createVariable('raw_array', np.float32, ('row', 'time', 'column'))
-    left_w = nc.createVariable('left_array', np.float32, ('row', 'time', 'column'))
-    right_w = nc.createVariable('right_array', np.float32, ('row', 'time', 'column'))
+    raw = nc.createVariable('raw_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
+    left_w = nc.createVariable('left_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
+    right_w = nc.createVariable('right_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
 
     print nc.dimensions.keys()
     print "L", left_w.shape, left_w.dtype
@@ -111,6 +143,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     C = np.arange(0, win_l, win_l / Ncol, dtype=float)
+
     print "spectrumLR c.shape", C.shape
     print "column.shape", COLUMN.shape
     COLUMN[:] = C
@@ -268,34 +301,15 @@ def task_hilbert_func(a_xi_id, maxmin, plotcolumn, cache=True):
         ed = time.time()
         fft_total += (st - ed)
 
-        #   print "## Completed: FFT"
-
-        #        Fright, Fleft = np.copy(F), np.copy(F)
-
-        #        Fright[operator.or_(operator.and_(O > 0.0,K < 0.0),operator.and_(O<0.0,K>0.0))] = 0.0
-        #        Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),operator.and_(O<0.0,K<0.0))] = 0.0
-
         st = time.time()
         # Fright, Fleft = np.copy(F), np.copy(F)
         Fright = np.copy(F)
         Fleft = F
-
-        #  Fright[operator.or_(operator.and_(O > 0.0,K < 0.0),
-        #         operator.and_(O<0.0,K>0.0))] = 0.0
-        #  Fleft[operator.or_(operator.and_(O > 0.0,K > 0.0),
-        #        operator.and_(O<0.0,K<0.0))] = 0.0
         Fleft[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
         Fright[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
 
         ed = time.time()
         filter_total += (st - ed)
-
-        #    print "## Completed HT"
-
-        # inverse shift and ifft the fft-ed data to get back the rightward
-        # travelling and leftward travelling axi
-        #a_xi_R = np.fft.ifft2(np.fft.ifftshift(Fright),axes=(1,0))
-        #a_xi_L = np.fft.ifft2(np.fft.ifftshift(Fleft),axes=(1,0))
 
         st = time.time()
         a_xi_R = np.fft.irfft2(Fright, axes=(0, 1))
@@ -305,8 +319,6 @@ def task_hilbert_func(a_xi_id, maxmin, plotcolumn, cache=True):
         ifft_total += (st - ed)
 
         st = time.time()
-        #raw[count,:,:]= np.reshape(a_xi_arr,
-        #         (1,a_xi_arr.shape[0],a_xi_arr.shape[1]))
         right[count, :, :] = np.reshape(a_xi_R,
                                         (1, a_xi_arr.shape[0], a_xi_arr.shape[1]))
 
@@ -1071,6 +1083,319 @@ def UI():
     #        args.c_start,args.c_end,args.t_step,args.r_step,args.c_step,args.maxmin) 
     task_hilbert_func(args.a_xi_id, args.maxmin, args.plot_column)
 
+def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
+    """
+        Given an Axi_id, computes Hilbert transform to filter out
+        Leftward and Rightward propagating waves.
+
+        Results stored as  'left_array' and 'right_array' in a waves.nc file
+    """
+
+    db = labdb.LabDB()
+
+    #check if the file already exists
+    sql = """ SELECT fw_id FROM filtered_waves WHERE a_xi_id = %d""" % a_xi_id
+    rows = db.execute(sql)
+    if len(rows) > 0:
+
+        fw_id = rows[0][0]
+
+        print "filterLR id already exists in database"
+        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        print fw_filename
+        #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
+        #plt.show()
+        if os.path.exists(fw_filename) and cache:
+            print "returning cached data"
+            return fw_id
+        else:
+            # delete waves.nc file if exists
+            if os.path.exists(fw_filename):
+                os.unlink(fw_filename)
+
+            # create a new wave.nc file with the same fw_id
+            fw_filename, fw_id = create_nc_file(a_xi_id, fw_id=fw_id)
+    else:
+        # create the nc file for the first time for storing the filtered data
+        fw_filename, fw_id = create_nc_file(a_xi_id)
+
+    print "computing filterLR"
+
+    #set the path to the data
+    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    filename = path + "/a_xi.nc"
+
+    # check for existance of axi_nc
+    if not os.path.exists(filename):
+        print "Error: axi_nc", filename, "not found"
+        raise
+
+    # open the axi dataset and get the no of rows and col
+    axi_nc = netCDF4.Dataset(filename, 'r')
+
+    #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
+
+    # variables
+    t = axi_nc.variables['time'][:]
+    z = axi_nc.variables['row'][:]
+    x = axi_nc.variables['column'][:]
+    #print "Axi, time", t
+
+    # DEBUG MESSAGES
+    print "x & z shape", x.shape, z.shape
+
+    # determine lengths of x, z, t
+    nz = len(z)
+    nx = len(x)
+    nt = len(t)
+    print "length of X, T, Z:  ", nx, nt, nz
+
+    # assume data is sampled evenly
+    dx = np.mean(np.diff(x))
+    dt = np.mean(np.diff(t))
+    dz = np.mean(np.diff(z))
+    print "dx,dz,dt :: ", dx, dz, dt
+
+
+    # USE nccopy to rechunk Axi
+    axi_nc.close()
+
+    chunked_filename = 'chunked_axi.nc'
+    os.system('nccopy -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename))
+    axi_nc = netCDF4.Dataset(chunked_filename, 'r')
+    print "CHUNKED AXI NC FILE information: ", axi_nc.variables.keys()
+     #get information about the copied nc file to see if its chunked 
+    print "ncdump %s" % chunked_filename
+    os.system('ncdump -h -s %s' %  chunked_filename )
+
+    # determine frequency axes
+    kx = np.fft.fftfreq(nx, dx)
+    # kx = np.fft.fftshift(kx)
+
+    omega = np.fft.fftfreq(nt, dt)
+    # omega = np.fft.fftshift(omega)
+
+    #print "kx shape: ", kx.shape
+    #print "omega shape: ", omega.shape
+
+    # create a 2D mesh grid so that omega,kx and fft have the same dimensions
+    K, O = np.meshgrid(kx[kx >= 0], omega)
+    #print "KX.shape" ,K.shape
+    #print "OMEGA.shape",O.shape
+
+    # Open the nc file for writing data
+    nc = netCDF4.Dataset(fw_filename, 'a')
+    raw = nc.variables['raw_array']
+    left = nc.variables['left_array']
+    right = nc.variables['right_array']
+    ft = nc.variables['time']
+    fx = nc.variables['column']
+    fz = nc.variables['row']
+    # data stored into the nc file
+    ft[:] = np.mgrid[t[0]:t[-1]:nt * 1.0j]
+    #print ft
+
+    # print information about dz dataset
+    #    print "variables  of the nc file :", nc.variables.keys()
+    #    print "left_w shape : " , left.shape
+    #    print "right_w shape : " , right.shape
+    #    print "t  shape : " , ft.shape
+    #    print "x  shape : " , fx.shape
+    #    print "z  shape : " , fz.shape
+
+
+    # STEP 1: FFT in t ######
+    
+    # create ncfile to store Hilbert transform of U
+    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    complex64_t = nc_ht.createCompoundType(complex64, 'complex64')
+
+    # copy grid from U ncfile
+    x_dim = nc_ht.createDimension('x', nx)
+    z_dim = nc_ht.createDimension('z', nz)
+    t_dim = nc_ht.createDimension('t', nt)
+
+    x = nc_ht.createVariable('x', np.float32, ('x'))
+    z = nc_ht.createVariable('z', np.float32, ('z'))
+    t = nc_ht.createVariable('t', np.float32, ('t'))
+    x[:] = nc.variables['column'][:]
+    z[:] = nc.variables['row'][:]
+    t[:] = nc.variables['time'][:]
+
+
+    valSize = complex64.itemsize
+    chunksizes = chunk_shape_3D( ( nt, nz, nx),
+                                  valSize=valSize )
+    Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'z', 'x'),
+                               chunksizes=chunksizes)
+
+    print "Temporal filtering"
+    print
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
+    # loop over all z
+    for i in range(nz):
+        pbar.update(i)
+
+        datain = axi_nc.variables['a_xi_array'][:, i, :]
+
+        # take FFT in time
+        U_spectrum = np.fft.fft(datain, axis=0)
+
+        # only keep positive frequencies 
+        #   could extend this to a band pass filter
+
+        # explicitly set all non-positive frequencies to zero
+        U_spectrum[nt/2:, :] = 0
+
+        # take inverse FFT and multiply by 2
+        datac = 2 * np.fft.ifft(U_spectrum, axis=0)
+
+        # convert to a compound datatype
+        dataout = np.empty(datain.shape, complex64)
+        dataout['real'] = datac.real
+        dataout['imag'] = datac.imag
+
+        # store in netcdf4 file
+        Uht[:, i, :] = dataout
+    pbar.finish()
+
+    #need to close the axi array nc file 
+    nc_ht.close()
+    #need to close the LR waves nc file as well
+    nc.close()
+
+    ## STEP 2
+    ### extract out only rightward and leftward propagating portions of Uht
+    nc_ht = netCDF4.Dataset('HT.nc')
+
+    Uht = nc_ht.variables['Uht']
+    nt, nz, nx = Uht.shape
+
+    print "Spatial filtering"
+    widgets = [progressbar.Percentage(), ' '
+        , progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
+    # loop over all t
+    for n in range(nt):
+        pbar.update(n)
+
+        # grab frame
+        datain = Uht[n, :, :]
+
+        # form complex array
+        datac = np.empty(datain.shape, np.complex64)
+        datac.real = datain['real']
+        datac.imag = datain['imag']
+
+        # fft
+        datac_spectrum = np.fft.fft2(datac, axes=(0,1))
+
+        # make a copy
+        datac_R_spectrum = datac_spectrum.copy()
+        datac_L_spectrum = datac_spectrum # note: no copy here
+
+        # only include right ward propagating (kx > 0)
+        datac_R_spectrum[:, :nx/2] = 0
+
+        # only include left ward propagating (kx < 0)
+        datac_L_spectrum[:,nx/2:] = 0
+
+        # inverse FFT
+        datac_R = np.fft.ifft2(datac_R_spectrum, axes=(0,1))
+        datac_L = np.fft.ifft2(datac_L_spectrum, axes=(0,1))
+
+        # convert to compound datatype and save
+        dataout1 = np.empty(datain.shape, complex64)
+        dataout1['real'] = datac_R.real
+        dataout1['imag'] = datac_R.imag
+        right[n, :, :] = dataout1
+
+        dataout = np.empty(datain.shape, complex64)
+        dataout['real'] = datac_L.real
+        dataout['imag'] = datac_L.imag
+        left[n, :, :] = dataout
+
+    pbar.finish()
+
+    nc_lr.close()
+    nc_ht.close()
+    
+    return
+    # old code
+
+    start_time = time.time()
+    read_total = 0.
+    fft_total = 0.
+    filter_total = 0.
+    ifft_total = 0.
+    write_total = 0.
+
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
+
+    for count in range(nz):
+        pbar.update(count)
+
+        st = time.time()
+        a_xi_arr = axi_nc.variables['a_xi_array'][:, count, :]
+        ed = time.time()
+        read_total += (st - ed)
+
+        #    print a_xi_arr.shape
+        # FFT the data and Normalize and shift so that zero frequency is at the center
+
+        st = time.time()
+        #F = np.fft.fftshift(np.fft.fft2(a_xi_arr,axes=(0,1)))
+        F = np.fft.rfft2(a_xi_arr, axes=(0, 1))
+        ed = time.time()
+        fft_total += (st - ed)
+
+        st = time.time()
+        # Fright, Fleft = np.copy(F), np.copy(F)
+        Fright = np.copy(F)
+        Fleft = F
+        Fleft[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
+        Fright[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
+
+        ed = time.time()
+        filter_total += (st - ed)
+
+        st = time.time()
+        a_xi_R = np.fft.irfft2(Fright, axes=(0, 1))
+        a_xi_L = np.fft.irfft2(Fleft, axes=(0, 1))
+        #    print "a_xi .shape", a_xi_L.shape
+        ed = time.time()
+        ifft_total += (st - ed)
+
+        st = time.time()
+        right[count, :, :] = np.reshape(a_xi_R,
+                                        (1, a_xi_arr.shape[0], a_xi_arr.shape[1]))
+
+        left[count, :, :] = np.reshape(a_xi_L,
+                                       (1, a_xi_arr.shape[0], a_xi_arr.shape[1]))
+        ed = time.time()
+        write_total += (st - ed)
+
+    pbar.finish()
+
+    fz[:] = np.mgrid[z[0]:z[-1]:nz * 1.0j]
+    #    print "ft.shape",ft.shape
+    #    print ft[0],ft[-1]
+    #    print "fz.shape",fz.shape
+    #    print fz[0],fz[-1]
+    #    print "fx.shape",fx.shape
+    #    print fx[0],fx[-1]
+
+    print "@@@ stored the data into nc file @@@"
+    nc.close()
+    axi_nc.close()
+
+    return fw_id
+
 
 def test_ht_filter():
     # we assume we have a three dimensional data set in x, z, t of some array,
@@ -1496,4 +1821,4 @@ if __name__ == "__main__":
     #UI()
     test_ht_filter()
     test_plot_real()
-    #test_plot_amp_phase()
+    test_plot_amp_phase()
