@@ -16,7 +16,7 @@ class LabDB:
     def __init__(self):
 
         # for whatever reasons, I can't connect to the db using the hostname if 
-        # I am comming from the local machine.
+        # I am coming from the local machine.
         hostname = os.uname()[1]
         if hostname == self.hostname:
             self.hostname = "localhost"

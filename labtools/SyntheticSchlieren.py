@@ -257,7 +257,7 @@ def calculate(func, (args, index)):
 def schlieren_lines(p):
     """
     p is a dictionary containing parameters need to 
-    compute synthetic schliren on a pair of images
+    compute synthetic schlieren on a pair of images
 
     returns array
     """
@@ -337,7 +337,7 @@ def schlieren_lines(p):
     smooth_filt_delz = filt_delz
     return smooth_filt_delz
 
-def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_col=1,
+def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,skip_col=1,
             startF=0,stopF=0,diff_frames=1,cache=True):
     """
     > Given video_id, calculate the dz array. Output is cached on disk.
