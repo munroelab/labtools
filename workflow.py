@@ -45,7 +45,7 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (758,760,764)
+               AND ve.expt_id IN (758)
              LIMIT 3
              """
     rows = db.execute(sql)
@@ -152,7 +152,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 2 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 0,         # stopFrame .. 
+            stopF = 400,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
                     # diffFrame
@@ -173,13 +173,13 @@ def computeAxi(infile, outfile):
     pickle.dump(Axi_id, open(outfile, 'w'))
 
 
-@transform(computeDz, suffix('.dz_id'), '.LR_filtered')
+@transform(computeAxi, suffix('.Axi_id'), '.fw_id')
 def filter_LR(infile, outfile):
-    dz_id = pickle.load(open(infile))
+    Axi_id = pickle.load(open(infile))
 
-    nc_id = Spectrum_LR.HT_filter(dz_id)
+    fw_id = Spectrum_LR.task_hilbert_NEWfunc(Axi_id,cache =cacheValue )
 
-    pickle.dump(nc_id, open(outfile, 'w'))
+    pickle.dump(fw_id, open(outfile, 'w'))
 
 
 @transform(computeDz, suffix('.dz_id'), '.movieDz')
@@ -330,11 +330,11 @@ def plotFilteredLR(infile, outfile):
     plotName = os.path.basename(outfile) + '.pdf'
     plotName = os.path.join(plotdir, plotName)
 
-    Spectrum_LR.plotFilteredLR(fw_id,
-            plotName = plotName,
+    Spectrum_LR.plot_data(fw_id,
+            #plotName = plotName,
             )
 
-    pickle.dump('outfile', open(outfile, 'w'))
+    #pickle.dump('outfile', open(outfile, 'w'))
 
 if __name__ == "__main__":
 
@@ -347,25 +347,26 @@ if __name__ == "__main__":
 
     finalTasks = [
     #        movieVideo, 
-             movieDz, 
-             movieAxi,
-             plotEnergyFlux, 
-    #        plotFilteredLR,
-             tableExperimentParameters,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+             #movieDz, 
+             #movieAxi,
+             #plotEnergyFlux, 
+             plotFilteredLR,
+             #tableExperimentParameters,
+            #plotAxiHorizontalTimeSeries,
+            #plotAxiVerticalTimeSeries,
+            #filter_LR
             ]
 
     forcedTasks = [
-            forEachExperiment,
-    #        computeDz,
-    #        computeAxi,
+            #forEachExperiment,
+            #computeDz,
+             #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
     #        plotEnergyFlux, 
-            getParameters,
-            tableExperimentParameters,
+            #getParameters,
+            #tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

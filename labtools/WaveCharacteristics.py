@@ -5,7 +5,7 @@
 # related by the deltaN2_id fields.
 #
 
-
+from chunk_shape_3D import chunk_shape_3D
 import playncfile
 import matplotlib
 import argparse 
@@ -71,8 +71,8 @@ def createncfile(dz_id,t,x,z,
     # changing time to underfined as the variable is set to being contiguous
     # despite setting contiguous=False which is also the default setting
     #print "time axis  length",lenT     # debug info
-    #t_dim = nc.createDimension('time',lenT)
-    t_dim = nc.createDimension('time', None)
+    t_dim = nc.createDimension('time',lenT)
+    #t_dim = nc.createDimension('time', None)
 
     # Dimensions are also variable
     ROW = nc.createVariable('row',numpy.float32,('row'),contiguous=False)
@@ -81,10 +81,14 @@ def createncfile(dz_id,t,x,z,
     print COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',numpy.float32,('time'),contiguous=False)
     print TIME.shape, TIME.dtype
+    
+    # chunk the data intelligently
+    valSize = numpy.float32().itemsize
+    chunksizes = chunk_shape_3D( ( lenT, Nrow, Ncol), valSize=valSize )
 
     # declare the 3D data variable 
     a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'),
-            contiguous=False)
+            chunksizes = chunksizes)
     print nc.dimensions.keys() ,a_xi.shape,a_xi.dtype
 
     # assign the values

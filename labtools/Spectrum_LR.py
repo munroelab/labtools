@@ -97,8 +97,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     # since at HT of U is complex, we need complex data types
     #complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
     #complex64_t = nc_lr.createCompoundType(complex64, 'complex64')
-
-    #    valSize = complex64.itemsize
+#    valSize = complex64.itemsize
     #    chunksizes = chunk_shape_3D( ( nt, nx, nz),
     #                                  valSize=valSize )
     #    L = nc_lr.createVariable('L', complex64_t, ('t', 'x', 'z'),
@@ -109,14 +108,15 @@ def create_nc_file(a_xi_id, fw_id=None):
 
     nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
     
+    # the final processed data is a compound data type consisting of the real and imaginary
+    # parts
+    complex64 = np.dtype([('real',np.float32), ('imag', np.float32)])
+    complex64_t = nc.createCompoundType(complex64, 'complex64')
+    
     # chunk the data intelligently
     valSize = complex64.itemsize
     chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
    
-    # the final processed data is a compound data type consisting of the real and imaginary
-    # parts
-    complex64 = np.dtype([('real',np.float32), ('imag', np.float32)])
-    complex64_t = nc_lr.createCompoundType(complex64, 'complex64')
     
     # Create Dimension
     row_dim = nc.createDimension('row', Nrow)
@@ -781,39 +781,63 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     return
 
 
-def plot_data(kx, omega, F, F_R, F_L, K, O):
-    #plt.figure(4)
-    #plt.imshow(K,extent=[omega[0],omega[-1],kx[0],kx[-1]],\
-    #        interpolation = "nearest", aspect = "auto")
-    #plt.xlabel('KX')
-    #plt.colorbar()
+def plot_data(fw_id):
 
-    #plt.figure(5)
-    #plt.imshow(O,extent =[omega[0],omega[-1],kx[0],kx[-1]],interpolation="nearest", aspect="auto")
-    #plt.xlabel('omega')
-    #plt.colorbar()
+    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+    nc = netCDF4.Dataset(fw_filename, 'r')
+    raw = nc.variables['raw_array']
+    left = nc.variables['left_array']
+    right = nc.variables['right_array']
+    t = nc.variables['time'][:]
+    x = nc.variables['column'][:]
+    z = nc.variables['row'][:]
 
-    plt.figure(6)
-    pylab.subplot(1, 2, 1)
-    plt.imshow(abs(F_R), extent=[omega[0], omega[-1], kx[0], kx[-1]], interpolation="nearest", aspect="auto")
-    plt.xlabel('abs FFT_R')
-    plt.colorbar()
-    plt.subplot(1, 2, 2)
-    plt.imshow(abs(F_L), extent=[omega[0], omega[-1], kx[0], kx[-1]], interpolation="nearest", aspect="auto")
-    plt.xlabel('abs FFT_L')
-    plt.colorbar()
+    nt, nz, nx = left.shape
 
-    plt.figure(7)
+    fig = plt.figure()
+
+
+    # L field
+    datain = left[0, :, :]
+
+    # L field real
     plt.subplot(2, 1, 1)
-    plt.imshow(abs(F_L + F_R), extent=[omega[0], omega[-1], kx[0], kx[-1]], interpolation="nearest", aspect="auto")
-    plt.xlabel('abs(F_L+F_R)  reconstructed')
+    im_L = plt.imshow(datain['real'],
+                          #extent=(x[0], x[-1], z[0], z[-1]),
+                          aspect='auto', origin='upper',
+                          vmin =-1, vmax=1)
     plt.colorbar()
-    pylab.subplot(2, 1, 2)
-    plt.imshow(abs(F), extent=[omega[0], omega[-1], kx[0], kx[-1]], interpolation="nearest", aspect="auto")
-    plt.xlabel('FFT of the original data')
-    plt.colorbar()
+    plt.title('Left')
 
-    #plt.show()
+    # R field
+    datain = right[0, :, :]
+
+    # R field real
+    plt.subplot(2, 1, 2)
+    im_R = plt.imshow(datain['real'],
+                          #extent=(x[0], x[-1], z[0], z[-1]),
+                          aspect='auto', origin='upper',
+                          vmin =-1, vmax=1)
+    plt.colorbar()
+    plt.title('Right')
+
+    def updatefig(n, *args):
+
+        # L field
+        datain = left[n, :, :]
+        im_L.set_array(datain['real'])
+
+        # R field
+        datain = right[n, :, :]
+        im_R.set_array(datain['real'])
+
+        return (im_L,  im_R, )
+
+    ani = animation.FuncAnimation(fig, updatefig, nt, blit=True)
+    plt.show()
+
+    nc.close()
+
     return
 
 
@@ -1083,7 +1107,7 @@ def UI():
     #        args.c_start,args.c_end,args.t_step,args.r_step,args.c_step,args.maxmin) 
     task_hilbert_func(args.a_xi_id, args.maxmin, args.plot_column)
 
-def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
+def task_hilbert_NEWfunc(a_xi_id,cache=True):
     """
         Given an Axi_id, computes Hilbert transform to filter out
         Leftward and Rightward propagating waves.
@@ -1124,7 +1148,7 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
     #set the path to the data
     path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
-
+    
     # check for existance of axi_nc
     if not os.path.exists(filename):
         print "Error: axi_nc", filename, "not found"
@@ -1133,6 +1157,7 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
     # open the axi dataset and get the no of rows and col
     axi_nc = netCDF4.Dataset(filename, 'r')
 
+    print "AXI ## filename: ", filename
     #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
 
     # variables
@@ -1158,8 +1183,8 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
 
 
     # USE nccopy to rechunk Axi
-    axi_nc.close()
 
+    """
     chunked_filename = 'chunked_axi.nc'
     os.system('nccopy -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename))
     axi_nc = netCDF4.Dataset(chunked_filename, 'r')
@@ -1167,7 +1192,7 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
      #get information about the copied nc file to see if its chunked 
     print "ncdump %s" % chunked_filename
     os.system('ncdump -h -s %s' %  chunked_filename )
-
+    """
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
     # kx = np.fft.fftshift(kx)
@@ -1235,43 +1260,42 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
     print "Temporal filtering"
     print
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
     # loop over all z
     for i in range(nz):
         pbar.update(i)
 
-        datain = axi_nc.variables['a_xi_array'][:, i, :]
+        A = axi_nc.variables['a_xi_array']
+        datain = A[:, i, :]
 
         # take FFT in time
         U_spectrum = np.fft.fft(datain, axis=0)
-
-        # only keep positive frequencies 
+        # only keep positive frequencies
         #   could extend this to a band pass filter
 
         # explicitly set all non-positive frequencies to zero
         U_spectrum[nt/2:, :] = 0
-
         # take inverse FFT and multiply by 2
         datac = 2 * np.fft.ifft(U_spectrum, axis=0)
-
         # convert to a compound datatype
         dataout = np.empty(datain.shape, complex64)
         dataout['real'] = datac.real
         dataout['imag'] = datac.imag
-
+        
         # store in netcdf4 file
+        
         Uht[:, i, :] = dataout
     pbar.finish()
 
     #need to close the axi array nc file 
     nc_ht.close()
     #need to close the LR waves nc file as well
-    nc.close()
-
+    #nc.close()
+    print "done step 1"
     ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
-    nc_ht = netCDF4.Dataset('HT.nc')
-
+    nc_ht = netCDF4.Dataset('HT.nc','r')
+    print nc_ht.variables.keys()
     Uht = nc_ht.variables['Uht']
     nt, nz, nx = Uht.shape
 
@@ -1320,11 +1344,9 @@ def task_hilbert_NEWfunc(a_xi_id, maxmin, plotcolumn, cache=True):
         left[n, :, :] = dataout
 
     pbar.finish()
-
-    nc_lr.close()
-    nc_ht.close()
-    
-    return
+    nc.close()    
+    print "FW_ID ## ", fw_id
+    return fw_id
     # old code
 
     start_time = time.time()
