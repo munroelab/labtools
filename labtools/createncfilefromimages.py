@@ -2,157 +2,96 @@
 Given a video_id, create an nc file of raw images
 """
 
-import matplotlib
-#matplotlib.use('module://mplh5canvas.backend_h5canvas')
-import argparse
 import Image
-import pylab
-import numpy
-import time
+import numpy as np
 import os
-import netCDF4
 
 import labdb
+from dataset import Dataset
 import progressbar
 
-def append2ncfile(video_filename,img_arr):
+def video2dataset(video_id,
+                  imin = 0, imax = 0,
+                  jmin = 0, jmax = 0,
+                  tmin = 0, tmax = 1000,
+                  ):
     """
-    Open the nc file
-    Append the array to the end of the nc file
-    Close the nc file 
-    """
-    nc=netCDF4.Dataset(video_filename,'a')
-    VIDEO = nc.variables['img_array']
-    i = len(VIDEO)
-    VIDEO[i,:,:]=img_arr
-    print "video shape: ", VIDEO.shape,"appending"
-    print "len(video): ",len(VIDEO)
-    nc.close()
+    Given a video_id, we create a Dataset contained a limited field of view
 
-def create_nc_file(video_id):
-    """ Need to compute dz for the first time.
-        Need to create the path for the video file and create the empty nc file
+    Grid and time axis are also defined
     """
-    
+
     db = labdb.LabDB()
+
+    # for a first go, just include everything
+
     # get the window length and window height
     sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
     rows = db.execute(sql)
     win_l = rows[0][0]*1.0
-    
+
     sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
-    
-    print "length" , win_l, "\nheight", win_h
 
-    # Create the directory in which to store the nc file
-    video_path = "/Volumes/HD4/videoncfiles/%d" % video_id
-    if not os.path.exists(video_path):
-        os.mkdir(video_path)
+    print "length", win_l, "\nheight", win_h
 
-    video_filename = os.path.join(video_path, "video.nc")
-    if os.path.exists(video_filename):
-        os.unlink(video_filename)
-    
-    # Declare the nc file for the first time 
-    nc = netCDF4.Dataset(video_filename,'w',format = 'NETCDF4')
+    nx = 1292
+    nz = 964
+    x = np.arange(0, win_l, win_l/nx, dtype=np.float32)
+    z = np.arange(0, win_h, win_h/nz, dtype=np.float32)
 
-    row_dim = nc.createDimension('row',964)
-    col_dim = nc.createDimension('column',1292)
-    t_dim = nc.createDimension('time',None)
-    
-    #the dimensions are also variables
-    ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
-    COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print nc.dimensions.keys() , COLUMN.shape, COLUMN.dtype
-    TIME = nc.createVariable('time',numpy.float32,('time'))
-    print nc.dimensions.keys() ,TIME.shape, TIME.dtype
-    
-    # declare the 3D data variable 
-    VIDEO = nc.createVariable('img_array',numpy.float32,('time','row','column'))
-    print "VIDEO array:",nc.dimensions.keys() , VIDEO.shape,VIDEO.dtype
-    
-    # the length and height dimensions are variables containing the length and
-    # height of each pixel in cm
-    R =numpy.arange(0,win_h,win_h/964,dtype=float)
-    C =numpy.arange(0,win_l,win_l/1292,dtype=float)
     path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-    t=numpy.loadtxt(path2time)
-    dt = numpy.mean(numpy.diff(t[:,1]))
+
+    t = np.loadtxt(path2time)
+    dt = np.mean(np.diff(t[:,1]))
     print "dt = " ,dt
-    ROW[:] = R
-    COLUMN[:] = C
 
     #get the number of frames
     sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id
     rows = db.execute(sql)
     num_frames = rows[0][0]
-    
-    print "R",ROW.shape
-    print "C",COLUMN.shape
 
-    nc.close()
+    # uniform grid
+    t = np.arange(0, num_frames*dt, dt, dtype=np.float32)
 
-    return video_filename, dt, num_frames
+    # select a window
+    # xmin, xmax -> imin, imax
+    # zmin, zmax -> jmin, jmax
+    # tmin, tmax -> nmin, nmax
 
-def compute_videoncfile(video_id):
+    # determine indices, grid defined only on range that is included
 
-    db = labdb.LabDB()
-    video_filename,dt,num_frames = create_nc_file(video_id)
-    # current frame
-    count=0
-
-    num_frames = 200
+    # create nc file to hold output
+    d = Dataset('video', 'w')
+    d.defineGrid(x, z, t)
+    # video are images of intensity
+    I = d.addVariable('I', np.uint8)
 
     # Set path to the images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
 
-    nc=netCDF4.Dataset(video_filename,'a')
-    array = nc.variables['img_array']
-
-    filename1 = path % (video_id, count)
-    
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=num_frames).start()
+    for n in range(num_frames):
+        pbar.update(n)
 
-    while os.path.exists(filename1) & (count <=num_frames):
-        pbar.update(count)
+        t_star = t[n]
+        if t_star < tmin or t_star > tmax:
+            continue
 
-        image1 = numpy.array(Image.open(filename1))
+        filename = path % (video_id, n)
+        if not os.path.exists(filename):
+            break
 
-        array[count, :, :] = image1
+        im = Image.open(filename)
 
-        count +=1
-        filename1 = path % (video_id, count)
+        # TODO: need to determine these from xmin, zmin, ...
+        box = (50, 50, 200, 300)
+        region = np.array(im.crop(box))
+
+        I[:, :, n] = region
 
     pbar.finish()
 
-    # define time axis for the nc time variable
-    tl = array.shape[0]
-    print "no of timesteps:", tl
-    Tm=nc.variables['time']
-    print "time.shape(before):" ,Tm.shape
-    t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    print "t array:",t_array.shape
-    Tm[:] = t_array
-    print "time:",Tm.shape
-
-    nc.close()
-
-
-def UI(): 
-    
-    """
-    take arguments from the user :video id and combine the images into 1 nc file 
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("video_id",type = int, 
-                        help = "Enter the video id of the frames on which to do Synthetic Schlieren")
-    args = parser.parse_args()
-    compute_videoncfile(args.video_id)
-
-
-if __name__ == "__main__":
-    UI()
+    return d.nc_id

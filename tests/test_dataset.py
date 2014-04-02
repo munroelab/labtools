@@ -6,13 +6,13 @@ __author__ = 'jmunroe'
 
 class TestDataset(TestCase):
     def test_empty_dataset(self):
-        d = Dataset(1)
+        d = Dataset('test', 'w')
 
         d.close()
 
 
     def test_create_complex_variable(self):
-        d = Dataset(2)
+        d = Dataset('test', 'w')
 
         H = 10.0
         L = 50.0
@@ -28,8 +28,6 @@ class TestDataset(TestCase):
         t = np.mgrid[0:T:nt * 1j]
         d.defineGrid(x, z, t)
 
-        X, Z = np.meshgrid(x, z, indexing='ij')
-
         complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
         Pc = d.addVariable('Pc', complex64)
         Qc = d.addVariable('Qc', complex64)
@@ -37,7 +35,7 @@ class TestDataset(TestCase):
         d.close()
 
     def test_create_dataset(self):
-        d = Dataset(3)
+        d = Dataset('test', 'w')
 
         H = 10.0
         L = 50.0

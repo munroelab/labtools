@@ -172,6 +172,16 @@ def computeAxi(infile, outfile):
 
     pickle.dump(Axi_id, open(outfile, 'w'))
 
+
+@transform(computeDz, suffix('.dz_id'), '.LR_filtered')
+def filter_LR(infile, outfile):
+    dz_id = pickle.load(open(infile))
+
+    nc_id = Spectrum_LR.HT_filter(dz_id)
+
+    pickle.dump(nc_id, open(outfile, 'w'))
+
+
 @transform(computeDz, suffix('.dz_id'), '.movieDz')
 def movieDz(infile, outfile):
     dz_id = pickle.load(open(infile))

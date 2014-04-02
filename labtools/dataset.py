@@ -1,5 +1,5 @@
 """
-This module subclasess a netCDF4 Dataset and provides support
+This module subclasses a netCDF4 Dataset and provides support
 for database integration and file system management
 
 Datasets contain one or more variables of the form
@@ -17,18 +17,20 @@ long name
 variables are chunked to optimize I/O temporally and spatially
 
 datasets are open for writing - create
-datasets are opened for appending?
 datasets are opened for reading
     # dataset must already exist
+
+nc_id's are stored in a database table
 
 """
 import numpy as np
 import netCDF4
 from chunk_shape_3D import chunk_shape_3D
+import labdb
 
 class Dataset(netCDF4.Dataset):
 
-    def __init__(self, nc_id=None):
+    def __init__(self, nc_id=None, mode='r'):
 
         # nc_id is a identifier for this dataset
 
@@ -37,16 +39,44 @@ class Dataset(netCDF4.Dataset):
         # if nc_id is not None, then we want to open a dataset with specific id
         #   what if that id does not exist?
 
+        # mode only matters if nc_id is not None, otherwise the
+        # netcdf file is opened for writing
 
-        #nc = netCDF4.Dataset.__init__(self, filename, 'w')
+        # access database
+        db = labdb.LabDB()
 
         if nc_id is None:
-            # select a new nc_id
-            filename = 'temp.nc'
+            # creating a new netcdf file
+
+            sql = "INSERT INTO datasets"
+            db.execute(sql)
+
+            sql = "SELECT LAST_INSERT_ID()"
+            row = db.execute_one(sql)
+            nc_id = row[0]
+
+            db.commit()
+
+            filename = "%d.nc" % nc_id
+
+            super(Dataset, self).__init__(filename, 'w', format='NETCDF4')
+
+            # set global attributes
+            self.nc_id = nc_id
+
         else:
-            filename = "sample_%d.nc" % nc_id
-        super(Dataset, self).__init__(filename, 'w', format='NETCDF4')
-        #super(Dataset, self).__init__(filename, 'r')
+            #check if this dataset already exists
+            sql = "SELECT nc_id FROM datasets WHERE nc_id = %d" % (nc_id)
+            rows = db.execute(sql)
+
+            if len(rows) == 0:
+                # no such nc_id
+                # raise exception?
+                return None
+
+            filename = "%d.nc" % nc_id
+
+            super(Dataset, self).__init__(filename, mode, format='NETCDF4')
 
     def defineGrid(self, x, z, t):
         # x, z, t are 1D sequences that define the size of the array
