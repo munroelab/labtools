@@ -126,9 +126,11 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     print  video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
     print "dz_ID ###", dz_id
     if dz_id is None:
+        if diff_frames is None:
+            diff_frames = "NULL"
         sql = """INSERT INTO dz (video_id,skip_frames,skip_row,skip_col,expt_id,mintol,\
                 sigma,filter_size,startF,stopF,diff_frames)\
-                VALUES (%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%d)""" %\
+                VALUES (%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%s)""" %\
                 (video_id,skip_frames,skip_row,skip_col,expt_id,\
                 mintol,sigma,filter_size,startF,stopF,diff_frames)
         print sql
@@ -216,10 +218,11 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
     """
     db = labdb.LabDB()
     # check if this dz array has already been computed?
-
+    if diff_frames is None:
+        diff_frames =  "NULL"
     sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d \
             AND skip_row = %d AND skip_col = %d AND mintol=%d AND sigma=%.1f \
-            AND filter_size=%d AND startF=%d AND stopF=%d AND diff_frames=%d""" %\
+            AND filter_size=%d AND startF=%d AND stopF=%d AND diff_frames=%s""" %\
             (video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_size,startF,stopF,diff_frames)
 
     rows = db.execute(sql)
@@ -370,11 +373,15 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
             sigma,filter_size,startF,stopF,diff_frames,dz_id = dz_id)
 
     
-    # n: number of frames between 2 images we subtract 
-    n=diff_frames
+
+
     # count: start from the second frame. count is the variable that tracks the
     # current frame
-    count=startF+n
+    if diff_frames is None:
+        count = startF
+    else:
+        count=startF+diff_frames
+
 
     # Set path to the two images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
@@ -424,6 +431,26 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     p['min_tol'] = min_tol
     p['dz'] = dz
     p['sigma'] = sigma
+    Ls = 13.5 # distance from front of screen to back of tank
+    Lb = 0.9 # thickness of barrier
+    Ld = 14.9 # width of rear channel
+    Lp = 2.4 # thickness of back and front walls
+    Lw = 29.5 # width of experimental region of tank
+    # index of refraction
+    na = 1.00
+    np = 1.49
+    nb = 1.49
+    nw = 1.33
+    gamma = 0.0001878 # See eqn 2.8 in Sutherland1999
+
+    #const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
+    dN2dz = -1.0/(Lw*gamma) * 1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls)
+    # diff__frames needs to be computed for dN2t
+    if diff_frames is not None:
+        path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+        t=numpy.loadtxt(path2time)
+        dt = numpy.mean(numpy.diff(t[:,1]))
+        dN2dz = dN2dz / (dt*diff_frames)
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets)
@@ -437,7 +464,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
             nc=netCDF4.Dataset(dz_filename,'a')
             DZarray = nc.variables['dz_array']
 
-            DZarray[i,:,:] = dz
+            DZarray[i,:,:] = dN2dz * dz
             nc.close()
 
     tasks = []
@@ -445,8 +472,12 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     # submit tasks to perform
     while os.path.exists(filename2) & (count <=stopF):
+        if diff_frames is not None:
+            ref_frame = count - diff_frames
+        else:
+            ref_frame = startF
 
-        filename1 = path % (video_id, count - n)
+        filename1 = path % (video_id, ref_frame)
         filename2 = path % (video_id, count)
 
         if not os.path.exists(filename2):

@@ -58,8 +58,8 @@ def compute_energy_flux(a_xi_id,row_no,max_min,plotname = "axiHorizontalTimeSeri
     plt.imshow(data[:,:],extent=[x[0],x[-1],t[-1],t[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
     plt.xlabel(' window length (cm)')
     plt.ylabel('Time (seconds)')
-    plt.title('Vertical Displacement Amplitude of Video ID %d \n  Timeseries of a row of pixels at depth: %.1f cm'\
-                    % (video_id, z[row_no]) )
+    plt.title('timeseries (A_xi-Video ID %d) \n At depth: %.1f cm '\
+                    % (video_id, z[row_no], ) )
     plt.colorbar()
     plt.savefig(plotname + "_%drow.pdf" % row_no)
     return
