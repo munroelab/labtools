@@ -45,7 +45,7 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (758)
+               AND ve.expt_id IN (845)
              LIMIT 3
              """
     rows = db.execute(sql)
@@ -150,12 +150,12 @@ def computeDz(infiles, outfile):
             p['sigma'],
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
-            skip_col = 2 , # number of columns to jump .. x
+            skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 400,         # stopFrame ..
+            stopF = 1000,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
-                    # diffFrame
+            #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
             cache = cacheValue #set to False to recompute the nc file
             )
 
@@ -194,7 +194,7 @@ def movieDz(infile, outfile):
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.01,  # min_max value
+                      0.03,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -299,8 +299,8 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
 
     axi_TS_row.compute_energy_flux(
             Axi_id,
-            300,  # row number 
-            2,      # maxmin
+            700,  # row number
+            1,      # maxmin
             plotname = plotName,
             )
 
@@ -315,8 +315,8 @@ def plotAxiVerticalTimeSeries(infile, outfile):
 
     axi_TS_col.compute_energy_flux(
             Axi_id,
-            200,  # column number 
-            2,      # maxmin
+            600,  # column number
+            1,      # maxmin
             plotname = plotName,
             )
 
@@ -347,26 +347,26 @@ if __name__ == "__main__":
 
     finalTasks = [
     #        movieVideo, 
-             #movieDz, 
+             #movieDz,
              #movieAxi,
              #plotEnergyFlux, 
-             plotFilteredLR,
+             #plotFilteredLR,
              #tableExperimentParameters,
-            #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
+            plotAxiHorizontalTimeSeries,
+            plotAxiVerticalTimeSeries,
             #filter_LR
             ]
 
     forcedTasks = [
-            #forEachExperiment,
-            #computeDz,
+            forEachExperiment,
+             #computeDz,
              #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,
-    #        plotAxiVerticalTimeSeries,
+            plotAxiVerticalTimeSeries,
     #        plotEnergyFlux, 
-            #getParameters,
-            #tableExperimentParameters,
+            getParameters,
+            tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

@@ -143,10 +143,12 @@ def create_nc_file(a_xi_id, fw_id=None):
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     C = np.arange(0, win_l, win_l / Ncol, dtype=float)
+    R = np.arange(0,win_h, win_h/Ncol,dtype=float)
 
     print "spectrumLR c.shape", C.shape
     print "column.shape", COLUMN.shape
     COLUMN[:] = C
+    ROW[:]= R
 
     db.commit()
     nc.close()
@@ -1347,76 +1349,9 @@ def task_hilbert_NEWfunc(a_xi_id,cache=True):
     nc.close()    
     print "FW_ID ## ", fw_id
     return fw_id
+
+
     # old code
-
-    start_time = time.time()
-    read_total = 0.
-    fft_total = 0.
-    filter_total = 0.
-    ifft_total = 0.
-    write_total = 0.
-
-    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
-
-    for count in range(nz):
-        pbar.update(count)
-
-        st = time.time()
-        a_xi_arr = axi_nc.variables['a_xi_array'][:, count, :]
-        ed = time.time()
-        read_total += (st - ed)
-
-        #    print a_xi_arr.shape
-        # FFT the data and Normalize and shift so that zero frequency is at the center
-
-        st = time.time()
-        #F = np.fft.fftshift(np.fft.fft2(a_xi_arr,axes=(0,1)))
-        F = np.fft.rfft2(a_xi_arr, axes=(0, 1))
-        ed = time.time()
-        fft_total += (st - ed)
-
-        st = time.time()
-        # Fright, Fleft = np.copy(F), np.copy(F)
-        Fright = np.copy(F)
-        Fleft = F
-        Fleft[((O > 0.0) & (K < 0.0)) | ((O < 0.0) & (K > 0.0))] = 0.0
-        Fright[((O > 0.0) & (K > 0.0)) | ((O < 0.0) & (K < 0.0))] = 0.0
-
-        ed = time.time()
-        filter_total += (st - ed)
-
-        st = time.time()
-        a_xi_R = np.fft.irfft2(Fright, axes=(0, 1))
-        a_xi_L = np.fft.irfft2(Fleft, axes=(0, 1))
-        #    print "a_xi .shape", a_xi_L.shape
-        ed = time.time()
-        ifft_total += (st - ed)
-
-        st = time.time()
-        right[count, :, :] = np.reshape(a_xi_R,
-                                        (1, a_xi_arr.shape[0], a_xi_arr.shape[1]))
-
-        left[count, :, :] = np.reshape(a_xi_L,
-                                       (1, a_xi_arr.shape[0], a_xi_arr.shape[1]))
-        ed = time.time()
-        write_total += (st - ed)
-
-    pbar.finish()
-
-    fz[:] = np.mgrid[z[0]:z[-1]:nz * 1.0j]
-    #    print "ft.shape",ft.shape
-    #    print ft[0],ft[-1]
-    #    print "fz.shape",fz.shape
-    #    print fz[0],fz[-1]
-    #    print "fx.shape",fx.shape
-    #    print fx[0],fx[-1]
-
-    print "@@@ stored the data into nc file @@@"
-    nc.close()
-    axi_nc.close()
-
-    return fw_id
 
 
 def test_ht_filter():
