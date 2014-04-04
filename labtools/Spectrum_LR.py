@@ -74,7 +74,7 @@ def create_nc_file(a_xi_id, fw_id=None):
             print "fw_id, a_xi_id, mismatch!"
             return None
 
-    fw_path = "/Volumes/HD4/filtered_waves/%d" % fw_id
+    fw_path = "/data/filtered_waves/%d" % fw_id
     if not os.path.exists(fw_path):
         os.mkdir(fw_path)
     fw_filename = os.path.join(fw_path, "waves.nc")
@@ -83,7 +83,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     # the new created file
 
     axincfile = netCDF4.Dataset(
-        '/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc' % a_xi_id,
+        '/data/vertical_displacement_amplitude/%d/a_xi.nc' % a_xi_id,
         'r')
     Nrow = axincfile.variables['row'].size
     Ncol = axincfile.variables['column'].size
@@ -172,7 +172,7 @@ def task_hilbert_func(a_xi_id, maxmin, plotcolumn, cache=True):
         fw_id = rows[0][0]
 
         print "filterLR id already exists in database"
-        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
         print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
@@ -193,7 +193,7 @@ def task_hilbert_func(a_xi_id, maxmin, plotcolumn, cache=True):
     print "computing filterLR"
 
     #set the path to the data
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
 
     # check for existance of axi_nc
@@ -353,7 +353,7 @@ def plotFilteredLR(fw_id,
     db = labdb.LabDB()
 
     #check if the file already exists
-    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
 
     if not os.path.exists(fw_filename):
         print "waves.nc not found"
@@ -490,7 +490,7 @@ def hilbert_func(a_xi_id, t_start, t_end, r_start, r_end, c_start, c_end, t_step
     db = labdb.LabDB()
     # get the path to the nc file
     # Open &  Load the nc file
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
     nc = netCDF4.Dataset(filename)
     #load the variables
@@ -655,7 +655,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
 
     # get the path to the nc file
     # Open &  Load the nc file
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
     nc = netCDF4.Dataset(filename)
 
@@ -783,7 +783,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
 
 def plot_data(fw_id):
 
-    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(fw_filename, 'r')
     raw = nc.variables['raw_array']
     left = nc.variables['left_array']
@@ -848,7 +848,7 @@ def plot_fft(kx, kz, omega, F):
     print " kz shape", kz.shape
     print " omega shape", omega.shape
 
-    path = "/Volumes/HD4/deltaN2/%d" % deltaN2_id
+    path = "/data/deltaN2/%d" % deltaN2_id
     filename = path + "/deltaN2.nc"
     nc = netCDF4.Dataset(filename)
     deltaN2 = nc.variables['deltaN2_array']
@@ -1125,7 +1125,7 @@ def task_hilbert_NEWfunc(a_xi_id,cache=True):
         fw_id = rows[0][0]
 
         print "filterLR id already exists in database"
-        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
         print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
@@ -1146,7 +1146,7 @@ def task_hilbert_NEWfunc(a_xi_id,cache=True):
     print "computing filterLR"
 
     #set the path to the data
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
     
     # check for existance of axi_nc

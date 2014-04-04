@@ -1,6 +1,6 @@
 # This program calculates the dn2t of the deltaN2.nc file given and then
 # if not already done, computes the vertical displacement amplitude and creates an entry for it in
-# the database "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc 
+# the database "/data/vertical_displacement_amplitude/%d/a_xi.nc 
 # The deltaN2 database and the vertical_displacement_amplitude database are
 # related by the deltaN2_id fields.
 #
@@ -48,7 +48,7 @@ def createncfile(dz_id,t,x,z,
             print "dz_id, a_xi_id mismatch!"
             return None
 
-    a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id 
+    a_xi_path = "/data/vertical_displacement_amplitude/%d" % a_xi_id 
     if not os.path.exists(a_xi_path):
         os.mkdir(a_xi_path)
 
@@ -57,7 +57,7 @@ def createncfile(dz_id,t,x,z,
 
     # open the dz file corresponding to the vertical displacement nc file so as
     # to get info about the number of rows and column.
-    dzncfile = netCDF4.Dataset('/Volumes/HD4/dz/%d/dz.nc' % dz_id)
+    dzncfile = netCDF4.Dataset('/data/dz/%d/dz.nc' % dz_id)
     Nrow = dzncfile.variables['row'].size
     Ncol = dzncfile.variables['column'].size
     dzncfile.close()
@@ -127,7 +127,7 @@ def compute_a_xi(dz_id, cache=True):
         # A xi array already computed
         a_xi_id = rows[0][0]
 
-        a_xi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/" % a_xi_id
+        a_xi_path = "/data/vertical_displacement_amplitude/%d/" % a_xi_id
         a_xi_filename = a_xi_path + 'a_xi.nc'
 
         if os.path.exists(a_xi_filename) and cache:
@@ -138,7 +138,7 @@ def compute_a_xi(dz_id, cache=True):
                 os.unlink(a_xi_filename)
     
     #  open the dataset dz.nc for calculating a_xi
-    filepath = "/Volumes/HD4/dz/%d/dz.nc"  % dz_id
+    filepath = "/data/dz/%d/dz.nc"  % dz_id
     print "dz filepath: WC.py" , filepath 
     if not os.path.exists(filepath):
         print filepath, "not found"
@@ -225,7 +225,7 @@ def compute_a_xi(dz_id, cache=True):
     return a_xi_id
 
 def test():
-    nc = netCDF4.Dataset('/Volumes/HD4/dn2t/3/dn2t.nc','r')
+    nc = netCDF4.Dataset('/data/HD4/dn2t/3/dn2t.nc','r')
     dn2t = nc.variables['dn2t_array']
     Eflux1 = dn2t[:,200,:]*4.125
     t = nc.variables['time']

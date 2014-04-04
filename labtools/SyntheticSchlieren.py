@@ -19,6 +19,7 @@ import progressbar
 import multiprocessing
 import socket
 import warnings
+import sys
 
 import skimage.morphology, skimage.filter 
 
@@ -149,7 +150,7 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
                     print "video id/startF/stopF mismatch!"
                     return None
 
-    dz_path = "/Volumes/HD4/dz/%d" % dz_id
+    dz_path = "/data/dz/%d" % dz_id
     if not os.path.exists(dz_path):
         # Create the directory in which to store the nc file
         os.mkdir(dz_path)
@@ -187,7 +188,7 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     # height of each pixel in cm
     R =numpy.arange(0,win_h,win_h/Nrow,dtype=float)
     C =numpy.arange(0,win_l,win_l/Ncol,dtype=float)
-    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    path2time = "/data/video_data/%d/time.txt" % video_id
     t=numpy.loadtxt(path2time)
     dt = numpy.mean(numpy.diff(t[:,1]))
     
@@ -228,19 +229,24 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         dz_id = rows[0][0]
         print "Loading cached dz %d..." % dz_id
         # load the array from the disk
-        dz_path = "/Volumes/HD4/dz/%d" % dz_id
+        dz_path = "/data/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
         
         #dz_array = numpy.load(dz_filename)
         #loading the nc file
-        print dz_filename
-        nc=netCDF4.Dataset(dz_filename,'a')
+
+        if not os.path.exists(dz_filename):
+            print "Could not find %s even though the database says it should exist..." % dz_filename
+            sys.exit(1)
+
+        nc=netCDF4.Dataset(dz_filename,'r')
         # some information about the nc file
         print "dimensions of nc file -> ", nc.dimensions.keys()
         print "variables of nc file -> ", nc.variables.keys()
         # loading the data 
         dz_arr = nc.variables['dz_array']
         print "shape of nc file -> ", dz_arr.shape
+        nc.close()
         return dz_id 
     else:
         return None
@@ -377,8 +383,8 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     count=startF+n
 
     # Set path to the two images
-    path = "/Volumes/HD3/video_data/%d/frame%05d.png"
-    # path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    path = "/data/video_data/%d/frame%05d.png"
+    # path2time = "/data/video_data/%d/time.txt" % video_id
     
    
     """ C = getTol(image1, mintol = mintol)
@@ -564,7 +570,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
 def test():
     # Need two images
-    path = "/Volumes/HD3/video_data/%d/frame%05d.png"
+    path = "/data/video_data/%d/frame%05d.png"
     video_id = 50
     filename1 = path % (video_id, 500)
     filename2 = path % (video_id, 510)
