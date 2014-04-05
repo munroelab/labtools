@@ -298,7 +298,7 @@ def schlieren_lines(p):
     delz[delz > clip_min_max] = clip_min_max
     delz[delz < -clip_min_max] = -clip_min_max
     # Step 2 : map the original data from -0.1 to +0.1 to range from 0 to 255
-    mapped_delz = numpy.array(delz + min_max/ (0.5 * min_max) * 256,
+    mapped_delz = numpy.array((delz + min_max)/ (0.5 * min_max) * 256,
             dtype = numpy.uint8)
     
     # Step 3 : prepare a mask:: 1 means use the data and 0 means ignore the
