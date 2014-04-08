@@ -590,7 +590,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     CC = dz_nc.variables['column'][:]
     TT = dz_nc.variables['time']
     #set the time axis for the dz array.
-    TT[:] = T
+    TT[:] = T[:]
 
     t_chunk,r_chunk,c_chunk = chunksize
     print "chunk t,z,x :", t_chunk,r_chunk,c_chunk
@@ -599,15 +599,19 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     row_count= ZZ.size-1
     # step 12 of Schlieren :: apply uniform filter in the time axis with the filter size of 6 (about
     # 1second). This should smoothen the dz along time.
+
+    print "### starting computing dz ###"
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=col_count).start()
     for j in range(0,col_count,c_chunk):
         pbar.update(j)
         for i in range(0,row_count,r_chunk):
             temp = temp_dz_array[:,i:i+r_chunk,j:j+c_chunk]
+            #print "1"
             temp_filt = ndimage.uniform_filter(temp,size = (6,1,1))
+            #print "2"
             DZarray[:,i:i+r_chunk,j:j+c_chunk] = temp_filt
-
+            #print "3"
     pbar.finish()
 
 

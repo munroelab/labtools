@@ -151,8 +151,8 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
-            startF = 300,        # startFrame
-            stopF = 550,         # stopFrame ..
+            startF = 500,        # startFrame
+            stopF = 1500,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -316,7 +316,7 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     axi_TS_col.compute_energy_flux(
             Axi_id,
             600,  # column number
-            1,      # maxmin
+            4,      # maxmin
             plotname = plotName,
             )
 
@@ -353,12 +353,13 @@ if __name__ == "__main__":
              #plotFilteredLR,
              #tableExperimentParameters,
             #plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+            #plotAxiVerticalTimeSeries,
             #filter_LR
             ]
 
     forcedTasks = [
             forEachExperiment,
+            determineSchlierenParameters,
              computeDz,
              #computeAxi,
     #        filterAxiLR,
