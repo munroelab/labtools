@@ -110,7 +110,7 @@ def movie(var, id,
             movieName = '%s_%d.mp4' % (var,id)
 
         anim.save(movieName, 
-                 # dpi=100, 
+                  dpi=50,
                   fps=7,
                   extra_args=['-vcodec','libx264'])
 

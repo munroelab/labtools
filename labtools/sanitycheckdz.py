@@ -130,15 +130,16 @@ row_disk = numpy.ones((disk_size,1))
 
 filtmapped_delz = numpy.ones((nz,nt))
 # This is better than applying a spatial filter in x and z .. atleast till we verify that it makes no significant difference
-for i in range(0,nt-1):
-    mdelz = numpy.reshape(mapped_delz[:,i], (nz,1))
-    filt_delz = skimage.filter.rank.mean(mdelz,
+#for i in range(0,nt-1):
+#    mdelz = numpy.reshape(mapped_delz[:,i], (nz,1))
+filt_delz = skimage.filter.rank.mean(mapped_delz,
                 #skimage.morphology.disk(disk_size),
                 row_disk,
-                mask = numpy.reshape(mask_delz[:,i],(nz,1)),
+                #mask = numpy.reshape(mask_delz[:,i],(nz,1)),
+                mask=mask_delz,
                 )
-    filtmapped_delz[:,i] = filt_delz[:,0]
-
+    #filtmapped_delz[:,i] = filt_delz[:,0]
+filtmapped_delz = filt_delz
 #setting the zeros in filtmapped_delz to 128
 filtmapped_delz[filtmapped_delz ==0 ] = 128
 #print skimage.morphology.disk(disk_size)
@@ -160,7 +161,7 @@ plt.title('remapped_delz' )
 plt.colorbar()
 
 # Step 6: Replacing the elements that were already right in the beginning
-filled_delz = (1.0-mask_delz) * filtered_delz + mask_delz * delz
+filled_delz = (1-mask_delz) * filtered_delz + mask_delz * delz
 # take a look at the filled delz
 plt.subplot(2,2,2,sharex = ax ,sharey = ax)
 plt.imshow(filled_delz, vmin = -.05,vmax = 0.05,interpolation='nearest')

@@ -128,8 +128,8 @@ def determineSchlierenParameters(infile, outfile):
    
     # sigma depends on background image line thickness
     p = {}
-    p['sigma'] = 8 # constant for now
-    p['filterSize'] = 40 # 190 pixel is about 10 cm in space.
+    p['sigma'] = 11 # constant for now
+    p['filterSize'] = 40 # 190 pixel is about 10 cm in space. # it is not used
 
     pickle.dump(p, open(outfile, 'w'))
 
@@ -146,13 +146,13 @@ def computeDz(infiles, outfile):
 
     dz_id = SyntheticSchlieren.compute_dz( 
             video_id,
-            10, # minTol
+            7, # minTol
             p['sigma'],
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
-            startF = 0,        # startFrame
-            stopF = 1000,         # stopFrame ..
+            startF = 300,        # startFrame
+            stopF = 500,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -194,7 +194,7 @@ def movieDz(infile, outfile):
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.03,  # min_max value
+                      0.5,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -347,23 +347,23 @@ if __name__ == "__main__":
 
     finalTasks = [
     #        movieVideo, 
-             #movieDz,
+             movieDz,
              #movieAxi,
              #plotEnergyFlux, 
              #plotFilteredLR,
              #tableExperimentParameters,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+            #plotAxiHorizontalTimeSeries,
+            #plotAxiVerticalTimeSeries,
             #filter_LR
             ]
 
     forcedTasks = [
             forEachExperiment,
-             #computeDz,
+             computeDz,
              #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+            #plotAxiVerticalTimeSeries,
     #        plotEnergyFlux, 
             getParameters,
             tableExperimentParameters,

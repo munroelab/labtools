@@ -19,6 +19,7 @@ import progressbar
 import multiprocessing
 import socket
 import warnings
+from chunk_shape_3D import chunk_shape_3D
 
 import skimage.morphology, skimage.filter 
 
@@ -45,6 +46,33 @@ def getTol(image, mintol = 10):
     # only estimate if the sequence is monotonic and differences
     # are at least mintol 
     C = (abs(A) >= mintol) & (abs(B) >= mintol) & (A*B>0)
+    return C
+
+def newGetTol(image, mintol=10, mintol2=10):
+
+    nrows, ncols = image.shape
+    # work with float point arrays
+    image = image * 1.0
+
+     # compute difference between rows
+    D = image[:-1,:] - image[1:,:]  # I_+1 - I_0
+    E = image[:-2,:] + image[2:,:]  # I_+1 + I_-1
+
+    z = numpy.zeros(ncols)
+
+    # construct array of difference between current and upper
+    A = numpy.vstack((D, z))
+
+    # and between current and lower row
+    B = numpy.vstack((z, D))
+
+    # and between upper and lower row
+    E = numpy.vstack((z, E, z))
+
+    # only estimate if the sequence is monotonic and differences
+    # are at least mintol
+    C = (abs(A) >= mintol) & (abs(B) >= mintol) & (A*B>0) #&( abs(E/2.0 - A) < mintol2 )
+
     return C
 
 def compute_dz_image(im1, im2, dz = 1.0):
@@ -81,19 +109,6 @@ def compute_dz_image(im1, im2, dz = 1.0):
 
     ans = -dz * A/E * (B/D + C/F)
     return ans
-
-def append2ncfile(dz_filename,dz_arr):
-    """
-    Open the nc file
-    Append the array to the end of the nc file
-    Close the nc file 
-    """
-    nc=netCDF4.Dataset(dz_filename,'a')
-    DZ = nc.variables['dz_array']
-    i= len(DZ)
-    DZ[i,:,:]=dz_arr
-    nc.close()
-
 
 def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_size,
         startF,stopF,diff_frames,dz_id=None ):
@@ -162,16 +177,22 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
         # ensure you delete the nc file if it exists so as to create new nc file
         os.unlink(dz_filename)
 
-    # find the number for rows and column of the frames
+    # find the number for rows and column of the frames and Ntime for dz field
     Nrow = 964/skip_row
     Ncol = 1292/skip_col
-    print "no of rows : %d and no of columns : %d" %(Nrow,Ncol)
+    Ntime = numpy.int((stopF-startF)/diff_frames)
+
+    print "no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
 
     # create the nc file and set the dimensions of z and x axis.
     nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
     row_dim = nc.createDimension('row',Nrow)
     col_dim = nc.createDimension('column',Ncol)
-    t_dim = nc.createDimension('time',None)
+    t_dim = nc.createDimension('time',Ntime)
+
+    # chunk the data intelligently
+    valSize = numpy.float32().itemsize
+    chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
     
     #the dimensions are also variables
     ROW = nc.createVariable('row',numpy.float32,('row'))
@@ -182,7 +203,7 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     print TIME.shape, TIME.dtype
     
     # declare the 3D data variable 
-    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'))
+    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'),chunksizes = chunksizes)
     print nc.dimensions.keys() , DZ.shape,DZ.dtype
     
     # the length and height dimensions are variables containing the length and
@@ -264,81 +285,66 @@ def schlieren_lines(p):
 
     returns array
     """
-
+    # Loading the INPUT :: 2 images and converting them into arrays
     IM1 = numpy.array(Image.open(p['filename1']))
-    
-    #loading the array according to user specification 
+    #loading the array according to user specification
     image1 = IM1[::p['skip_row'],::p['skip_col']]    
-    
     IM2 = numpy.array(Image.open(p['filename2']))
-    
-    #loading the array according to user specification 
+    #loading the array according to user specification
     image2 = IM2[::p['skip_row'],::p['skip_col']]
-    
-    #change the filter size accordingly
-    filtersize_r = p['filter_size']//p['skip_row']
-    filtersize_c =  p['filter_size']//p['skip_col']
-    #filtersize_r = 1
-    C = getTol(image1, mintol = p['min_tol'])
-    delz = compute_dz_image(image1, image2, p['dz']) 
+
+    #step 1: getTol function returns a mask of the pixels of the image that are monotonically increasing
+    C = getTol(image1,mintol = p['min_tol'])
+
+    #step 2: call the compute_dz_image function that returns raw delz matrix
+    delz = compute_dz_image(image1, image2, p['dz'])
+
+    #step 3: convert the nan's  into 0's and multiply the array with the getTol mask to select
+    # the pixels that are relevant
     delz = numpy.nan_to_num(delz) * C
-    """
-    # clip large values
-    bound = 1.0
-    delz[delz > bound] = bound
-    delz[delz < -bound] = -bound
-    """
 
-    # implementing the skimage.filter.mean so as to apply mean filter on a
-    # masked array and then applying a gaussian filter to smooth the image
-
-    # step 1: clip the large values
+    # step 4: clip the large values
     min_max = 0.03
     clip_min_max = 0.95 * min_max
     delz[delz > clip_min_max] = clip_min_max
     delz[delz < -clip_min_max] = -clip_min_max
-    # Step 2 : map the original data from -0.1 to +0.1 to range from 0 to 255
-    mapped_delz = numpy.array((delz + min_max)/ (0.5 * min_max) * 256,
-            dtype = numpy.uint8)
-    
-    # Step 3 : prepare a mask:: 1 means use the data and 0 means ignore the
-    # data here within the disk
+
+    # Step 5 : map the original data from -0.1 to +0.1 to range from 0 to 255
+    mapped_delz = numpy.uint8((delz + min_max)/ (2.0 * min_max) * 256)
+
+    # Implementing the skimage.filter.mean so as to apply mean filter on a
+    # masked array and then applying a gaussian filter to smooth the image
+
+    # step 6: prepare a mask:: Mask value 1: use the data and 0: ignore the data here within the disk
     mask_delz = numpy.uint8(mapped_delz <>128)
     
-    #Step 4: apply the mean filter to compute values for the masked pixels 
-    disk_size = 4
+    #Step 7 : apply the mean filter to compute values for the masked pixels
+    # Apply the filter in Z not in X.
+    disk_size = 15
+    row_disk = numpy.ones((disk_size,1))
     filt_delz = skimage.filter.rank.mean(mapped_delz,
-            skimage.morphology.disk(disk_size),
-            mask = mask_delz,
-            ) 
-    # Step 5: mapping back the values from 0 to 255 to its original values of
+                #skimage.morphology.disk(disk_size),
+                row_disk,
+                mask = mask_delz,
+                )
+
+    # Step 8: setting the zeros in the filt_delz to 128
+    filt_delz[filt_delz ==0] = 128
+
+    # Step 9: mapping back the values from 0 to 255 to its original values of
     # -0.1 to 0.1
-    filtered_delz = (filt_delz / 256.0) * (0.5 * min_max) - min_max 
+    filtered_delz = (filt_delz / 256.0) * (2.0 * min_max) - min_max
     
-    # Step 6: Replacing the elements that were already right in the beginning
+    # Step 10: Replacing the elements that were already right in the beginning
     filled_delz = (1-mask_delz) * filtered_delz + mask_delz * delz
     
-    # Step 7 : applying the Gaussian filter to do a spatial smoothing of the image
+    # Step 11 : applying the Gaussian filter to do a spatial smoothing of the image
+    #apply the gaussian smoothing along both X and Z
     smooth_filt_delz = skimage.filter.gaussian_filter(filled_delz, 
             [p['sigma'],p['sigma']])
-    return p['i'], smooth_filt_delz
-    
-    """
-    old code below 
-    """
 
-    # fill in missing values
-    filt_delz = ndimage.gaussian_filter(delz, (p['sigma'],p['sigma']))
-    #i = abs(delz) > 1e-8
-    filt_delz = C*delz+ (1-C)*filt_delz
-    return filt_delz
-    # smooth
-    #filt_delz = ndimage.gaussian_filter(filt_delz, 7)
-    
-    # spatial smoothing along x and z axis
-    #smooth_filt_delz=ndimage.uniform_filter(filt_delz,size=(filtersize_c,filtersize_r))
-    smooth_filt_delz = filt_delz
-    return smooth_filt_delz
+    return p['i'], smooth_filt_delz
+
 
 def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,skip_col=1,
             startF=0,stopF=0,diff_frames=1,cache=True):
@@ -372,8 +378,6 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     dz_filename,dz_id,dt,dz,dx=create_nc_file(video_id,skip_frames,skip_row,skip_col,min_tol,\
             sigma,filter_size,startF,stopF,diff_frames,dz_id = dz_id)
 
-    
-
 
     # count: start from the second frame. count is the variable that tracks the
     # current frame
@@ -386,25 +390,6 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     # Set path to the two images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
     # path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-    
-   
-    """ C = getTol(image1, mintol = mintol)
-    delz = compute_dz_image(image1, image2, dz) 
-    delz = numpy.nan_to_num(delz) * C
-    #from scipy.ndimage import gaussian_filter, correlate
-    #delz_filtered = gaussian_filter(delz,[10,10])
-    #delz = C* delz + (1-C) * delz_filtered
-    #dz_array = generate_dz_array(delz,dz_array)
-    append2ncfile(dz_filename,delz)
-    vmax = 0.01
-    
-    old ploting code
-    fig = pylab.figure()
-    ax = fig.add_subplot(111)
-    img = pylab.imshow(delz, interpolation='nearest', vmin=-vmax, vmax=vmax,
-                    animated=False, label='delz', aspect='auto')
-    pylab.colorbar()
-    pylab.show(block=False) """
 
     from scipy.ndimage import gaussian_filter
     from numpy import ma
@@ -443,18 +428,24 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     nw = 1.33
     gamma = 0.0001878 # See eqn 2.8 in Sutherland1999
 
-    #const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
+    # const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
+    # Has been recalculated for our experiment
     dN2dz = -1.0/(Lw*gamma) * 1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls)
-    # diff__frames needs to be computed for dN2t
+    print "dN2dz" , dN2dz
+
+    # need to adjust dN2dz if diff_frames is valid and also compute dt
     if diff_frames is not None:
         path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
         t=numpy.loadtxt(path2time)
         dt = numpy.mean(numpy.diff(t[:,1]))
         dN2dz = dN2dz / (dt*diff_frames)
+    print "dN2dz" , dN2dz
 
+    # progress bar
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets)
 
+    # multiprocessing the task of writing data into nc file
     lock = multiprocessing.Lock()
     def cb(r):
         with lock:
@@ -468,9 +459,10 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
             nc.close()
 
     tasks = []
+    #counter for the while loop
     i = 0
 
-    # submit tasks to perform
+    # submit tasks to perform in the while loop and this is in parallel
     while os.path.exists(filename2) & (count <=stopF):
         if diff_frames is not None:
             ref_frame = count - diff_frames
@@ -568,7 +560,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     ZZ = nc.variables['row'][:]
     CC = nc.variables['column'][:]
 
-    # TRIAL :: apply uniform filter in the time axis with the filter size of 6 (about
+    # step 12 of Schlieren :: apply uniform filter in the time axis with the filter size of 6 (about
     # 1second). This should smoothen the dz along time.
     col_count=0
     start=0
