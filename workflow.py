@@ -152,7 +152,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 300,        # startFrame
-            stopF = 500,         # stopFrame ..
+            stopF = 550,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -346,14 +346,14 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-    #        movieVideo, 
+            #movieVideo,
              movieDz,
              #movieAxi,
              #plotEnergyFlux, 
              #plotFilteredLR,
              #tableExperimentParameters,
             #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
+            plotAxiVerticalTimeSeries,
             #filter_LR
             ]
 
@@ -365,8 +365,8 @@ if __name__ == "__main__":
     #        plotAxiHorizontalTimeSeries,
             #plotAxiVerticalTimeSeries,
     #        plotEnergyFlux, 
-            getParameters,
-            tableExperimentParameters,
+            #getParameters,
+            #tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 
