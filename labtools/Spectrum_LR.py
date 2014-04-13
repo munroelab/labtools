@@ -143,7 +143,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     C = np.arange(0, win_l, win_l / Ncol, dtype=float)
-    R = np.arange(0,win_h, win_h/Ncol,dtype=float)
+    R = np.arange(0,win_h, win_h/Nrow,dtype=float)
 
     print "spectrumLR c.shape", C.shape
     print "column.shape", COLUMN.shape
@@ -153,6 +153,117 @@ def create_nc_file(a_xi_id, fw_id=None):
     db.commit()
     nc.close()
     return fw_filename, fw_id
+
+def create_nc_file_dzHT(dz_id, fw_id=None):
+    """
+        Given an Axi_id, create the waves.nc file that will store the
+        Hilbert transform result.
+
+        The fw_id will be chosen as the next available id the supplied
+        fw_id is None.
+
+
+    Need to compute HT for the first time.
+        Need to create the path for the right and left wave fields and create the empty nc file
+    """
+
+    db = labdb.LabDB()
+    # Get experiment ID
+
+    sql = """ SELECT video_id,expt_id FROM dz WHERE dz_id = %d """ % dz_id
+    rows = db.execute(sql)
+    video_id = rows[0][0]
+    expt_id = rows[0][1]
+    print " experiment ID : ", expt_id, "Video ID :", video_id
+
+    # get the window length and window height
+    sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_l = rows[0][0] * 1.0
+
+    sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
+    rows = db.execute(sql)
+    win_h = rows[0][0] * 1.0
+
+    # Create the directory in which to store the nc file
+    if fw_id is None:
+        sql = """INSERT INTO filtered_waves (dz_id,video_id)\
+                VALUES (%d,%d)""" % (dz_id, video_id)
+        print sql
+        db.execute(sql)
+        sql = """SELECT LAST_INSERT_ID()"""
+        rows = db.execute(sql)
+        fw_id = rows[0][0]
+    else:
+        sql = "SELECT dz_id FROM filtered_waves WHERE fw_id = %s" % fw_id
+        previous_dz_id, = db.execute_one(sql)
+        if previous_dz_id != dz_id:
+            print "fw_id, dz_id, mismatch!"
+            return None
+
+    fw_path = "/Volumes/HD4/filtered_waves/%d" % fw_id
+    if not os.path.exists(fw_path):
+        os.mkdir(fw_path)
+    fw_filename = os.path.join(fw_path, "waves.nc")
+
+    # open the axi nc file and set the nrow and Ncol for setting the limits for
+    # the new created file
+
+    dzncfile = netCDF4.Dataset(
+        '/Volumes/HD4/dz/%d/dz.nc' % dz_id,
+        'r')
+    Nrow = dzncfile.variables['row'].size
+    Ncol = dzncfile.variables['column'].size
+    Ntime = dzncfile.variables['time'].size
+
+    nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
+
+    # the final processed data is a compound data type consisting of the real and imaginary
+    # parts
+    complex64 = np.dtype([('real',np.float32), ('imag', np.float32)])
+    complex64_t = nc.createCompoundType(complex64, 'complex64')
+
+    # chunk the data intelligently
+    valSize = complex64.itemsize
+    chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
+
+
+    # Create Dimension
+    row_dim = nc.createDimension('row', Nrow)
+    col_dim = nc.createDimension('column', Ncol)
+    t_dim = nc.createDimension('time', Ntime)
+
+    #the dimensions are also variables
+    ROW = nc.createVariable('row', np.float32, ('row'))
+    COLUMN = nc.createVariable('column', np.float32, ('column'))
+    TIME = nc.createVariable('time', np.float32, ('time'))
+
+    # declare the 3D data variable
+    raw = nc.createVariable('raw_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
+    left_w = nc.createVariable('left_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
+    right_w = nc.createVariable('right_array', complex64_t, ('time', 'row',
+        'column'),chunksizes = chunksizes)
+
+    print nc.dimensions.keys()
+    print "L", left_w.shape, left_w.dtype
+    print "R", right_w.shape, right_w.dtype
+
+    # the length and height dimensions are variables containing the length and
+    # height of each pixel in cm
+    C = np.arange(0, win_l,win_l/Ncol,dtype=float)
+    R = np.arange(0,win_h,win_h/Nrow,dtype=float)
+
+    print "spectrumLR c.shape", R.shape
+    print "column.shape", ROW.shape
+    COLUMN[:] = C
+    ROW[:]= R
+
+    db.commit()
+    nc.close()
+    return fw_filename, fw_id
+
 
 
 #def task_hilbert_func(a_xi_id,t_start,t_end,r_start,r_end,c_start,c_end,t_step,r_step,c_step,maxmin):
@@ -1351,8 +1462,219 @@ def task_hilbert_NEWfunc(a_xi_id,cache=True):
     return fw_id
 
 
-    # old code
 
+def task_DzHilbertTransform(dz_id,cache=True):
+    """
+        Given an dz_id, computes Hilbert transform to filter out
+        Leftward and Rightward propagating waves.
+
+        Results stored as  'left_array' and 'right_array' in a waves.nc file
+    """
+
+    db = labdb.LabDB()
+
+    #check if the file already exists
+    sql = """ SELECT fw_id FROM filtered_waves WHERE dz_id = %d""" % dz_id
+    rows = db.execute(sql)
+    if len(rows) > 0:
+
+        fw_id = rows[0][0]
+
+        print "filterLR id already exists in database"
+        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        print fw_filename
+        #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
+        #plt.show()
+        if os.path.exists(fw_filename) and cache:
+            print "returning cached data"
+            return fw_id
+        else:
+            # delete waves.nc file if exists
+            if os.path.exists(fw_filename):
+                os.unlink(fw_filename)
+
+            # create a new wave.nc file with the same fw_id
+            fw_filename, fw_id = create_nc_file_dzHT(dz_id, fw_id=fw_id)
+    else:
+        # create the nc file for the first time for storing the filtered data
+        fw_filename, fw_id = create_nc_file_dzHT(dz_id)
+
+    print "computing filterLR"
+
+    #set the path to the data
+    path = "/Volumes/HD4/dz/%d" % dz_id
+    filename = path + "/dz.nc"
+
+    # check for existance of dz_nc
+    if not os.path.exists(filename):
+        print "Error: dz_nc", filename, "not found"
+        raise
+
+    # open the axi dataset and get the no of rows and col
+    dz_nc = netCDF4.Dataset(filename, 'r')
+
+    print "DZ ## filename: ", filename
+    #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
+
+    # variables
+    t = dz_nc.variables['time'][:]
+    z = dz_nc.variables['row'][:]
+    x = dz_nc.variables['column'][:]
+    #print "Axi, time", t
+
+    # DEBUG MESSAGES
+    print "x & z shape", x.shape, z.shape
+
+    # determine lengths of x, z, t
+    nz = len(z)
+    nx = len(x)
+    nt = len(t)
+    print "length of X, T, Z:  ", nx, nt, nz
+
+    # assume data is sampled evenly
+    dx = np.mean(np.diff(x))
+    dt = np.mean(np.diff(t))
+    dz = np.mean(np.diff(z))
+    print "dx,dz,dt :: ", dx, dz, dt
+
+    # Open the nc file for writing data
+    nc = netCDF4.Dataset(fw_filename, 'a')
+    raw = nc.variables['raw_array']
+    left = nc.variables['left_array']
+    right = nc.variables['right_array']
+    ft = nc.variables['time']
+
+    # data stored into the nc file
+    ft[:] = np.mgrid[t[0]:t[-1]:nt * 1.0j]
+    #print ft
+
+    # print information about dz dataset
+    #    print "variables  of the nc file :", nc.variables.keys()
+    #    print "left_w shape : " , left.shape
+    #    print "right_w shape : " , right.shape
+    #    print "t  shape : " , ft.shape
+
+
+    # STEP 1: FFT in t ######
+
+    # create ncfile to store Hilbert transform of U
+    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
+
+    # since at HT of U is complex, we need complex data types
+    complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
+    complex64_t = nc_ht.createCompoundType(complex64, 'complex64')
+
+    # copy grid from U ncfile
+    x_dim = nc_ht.createDimension('x', nx)
+    z_dim = nc_ht.createDimension('z', nz)
+    t_dim = nc_ht.createDimension('t', nt)
+
+    x = nc_ht.createVariable('x', np.float32, ('x'))
+    z = nc_ht.createVariable('z', np.float32, ('z'))
+    t = nc_ht.createVariable('t', np.float32, ('t'))
+    x[:] = nc.variables['column'][:]
+    z[:] = nc.variables['row'][:]
+    t[:] = nc.variables['time'][:]
+
+
+    valSize = complex64.itemsize
+    chunksizes = chunk_shape_3D( ( nt, nz, nx),
+                                  valSize=valSize )
+    Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'z', 'x'),
+                               chunksizes=chunksizes)
+
+    print "Temporal filtering"
+    print
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
+    # loop over all z
+    for i in range(nz):
+        pbar.update(i)
+
+        A = dz_nc.variables['dz_array']
+        datain = A[:, i, :]
+
+        # take FFT in time
+        U_spectrum = np.fft.fft(datain, axis=0)
+        # only keep positive frequencies
+        #   could extend this to a band pass filter
+
+
+        # explicitly set all non-positive frequencies to zero
+        U_spectrum[nt/2:, :] = 0
+        # take inverse FFT and multiply by 2
+        datac = 2 * np.fft.ifft(U_spectrum, axis=0)
+        # convert to a compound datatype
+        dataout = np.empty(datain.shape, complex64)
+        dataout['real'] = datac.real
+        dataout['imag'] = datac.imag
+
+        # store in netcdf4 file
+
+        Uht[:, i, :] = dataout
+    pbar.finish()
+
+    #need to close the axi array nc file
+    nc_ht.close()
+    #need to close the LR waves nc file as well
+    #nc.close()
+    print "done step 1"
+
+    ## STEP 2
+    ### extract out only rightward and leftward propagating portions of Uht
+    nc_ht = netCDF4.Dataset('HT.nc','r')
+    print nc_ht.variables.keys()
+    Uht = nc_ht.variables['Uht']
+    nt, nz, nx = Uht.shape
+
+    print "Spatial filtering"
+    widgets = [progressbar.Percentage(), ' '
+        , progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
+    # loop over all t
+    for n in range(nt):
+        pbar.update(n)
+
+        # grab frame
+        datain = Uht[n, :, :]
+
+        # form complex array
+        datac = np.empty(datain.shape, np.complex64)
+        datac.real = datain['real']
+        datac.imag = datain['imag']
+
+        # fft
+        datac_spectrum = np.fft.fft2(datac, axes=(0,1))
+
+        # make a copy
+        datac_R_spectrum = datac_spectrum.copy()
+        datac_L_spectrum = datac_spectrum # note: no copy here
+
+        # only include right ward propagating (kx > 0)
+        datac_R_spectrum[:, :nx/2] = 0
+
+        # only include left ward propagating (kx < 0)
+        datac_L_spectrum[:,nx/2:] = 0
+
+        # inverse FFT
+        datac_R = np.fft.ifft2(datac_R_spectrum, axes=(0,1))
+        datac_L = np.fft.ifft2(datac_L_spectrum, axes=(0,1))
+
+        # convert to compound datatype and save
+        dataout1 = np.empty(datain.shape, complex64)
+        dataout1['real'] = datac_R.real
+        dataout1['imag'] = datac_R.imag
+        right[n, :, :] = dataout1
+
+        dataout = np.empty(datain.shape, complex64)
+        dataout['real'] = datac_L.real
+        dataout['imag'] = datac_L.imag
+        left[n, :, :] = dataout
+
+    pbar.finish()
+    nc.close()
+    print "FW_ID ## ", fw_id
+    return fw_id
 
 def test_ht_filter():
     # we assume we have a three dimensional data set in x, z, t of some array,
@@ -1919,6 +2241,8 @@ if __name__ == "__main__":
     #test()
     #testing_HT()
     #UI()
-    test_ht_filter()
-    test_plot_real()
-    test_plot_amp_phase()
+    #test_ht_filter()
+    #test_plot_real()
+    #test_plot_amp_phase()
+    fw_id = task_DzHilbertTransform(338,True)
+    print fw_id

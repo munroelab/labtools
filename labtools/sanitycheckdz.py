@@ -8,8 +8,9 @@ import SyntheticSchlieren as SS
 import skimage.morphology, skimage.filter
 from scipy import ndimage
 # take a look at a time series of any single vertical column of the video
-im = Image.open('/Users/prajvala/Documents/Project_labtools/labtools/plots/vtsVID764.png')
-im = numpy.array(im)
+im = Image.open('/Users/prajvala/Documents/Project_labtools/labtools/plots/htsVID460.png')
+im = numpy.array(im).T
+print im.shape
 plt.figure(1)
 ax = plt.subplot(2,2,1)
 plt.imshow(im,
@@ -19,13 +20,13 @@ plt.colorbar()
 
 # constants used in computing Synthetic Schlieren
 min_tol = 7  # small mintol means you have more regions that are returned by getTOL function
-sigma = 11
+sigma = 9
 filter_size=10
-video_id = 764
+video_id = 460
 dz = 58.0/964
 nz, nt = im.shape
 disk_size = 4 # it will make a 9 by 9 array with a circular disk of 1's
-plot_maxmin = 0.05
+plot_maxmin = 0.01
 
 # getTOL returns a matrix that helps us capture only the motion that is monotonic in time.
 # we only want to capture the motions of the black and white lines as that represents propagating internal waves.
@@ -48,7 +49,7 @@ for i in range(1,nt):
     temp1 = SS.compute_dz_image(array1,
                                 array2,
                                 dz)
-    delz[:,i] = temp1.reshape((964,))
+    delz[:,i] = temp1.reshape((1292,))
 # take a look at delz with nan's
 #plt.figure()
 plt.subplot(2,2,3, sharex=ax, sharey=ax)
@@ -87,7 +88,7 @@ plt.colorbar()
 # masked array and then applying a gaussian filter to smooth the image
 
 # step 1: clip the large values
-min_max = 0.05 # 0.05 cm dz per pixel shift is plenty!
+min_max = 0.025 # 0.05 cm dz per pixel shift is plenty!
 clip_min_max = 0.95 * min_max # actual clipping value is 0.0475
 delz[delz > clip_min_max] = clip_min_max # clipping the very large values
 delz[delz < -clip_min_max] = -clip_min_max # clipping off the very small values
@@ -156,7 +157,7 @@ filtered_delz = (filtmapped_delz / 256.0) * (2.0 * min_max) - min_max
 # take a look at the remapped delz
 plt.figure()
 ax = plt.subplot(2,2,1)
-plt.imshow(filtered_delz, vmin = -.05,vmax = 0.05,interpolation='nearest')
+plt.imshow(filtered_delz, vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest')
 plt.title('remapped_delz' )
 plt.colorbar()
 
@@ -164,7 +165,7 @@ plt.colorbar()
 filled_delz = (1-mask_delz) * filtered_delz + mask_delz * delz
 # take a look at the filled delz
 plt.subplot(2,2,2,sharex = ax ,sharey = ax)
-plt.imshow(filled_delz, vmin = -.05,vmax = 0.05,interpolation='nearest')
+plt.imshow(filled_delz, vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest')
 plt.title('filled_delz' )
 plt.colorbar()
 
@@ -174,7 +175,7 @@ smooth_filt_delz = skimage.filter.gaussian_filter(filled_delz,
 # take a look at the filled delz
 plt.subplot(2,2,3,sharex = ax,sharey = ax)
 plt.imshow(smooth_filt_delz,
-          vmin = -.05,vmax = 0.05,interpolation='nearest'
+          vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest'
           )
 plt.title('smoothed filled_delz')
 plt.colorbar()
@@ -183,10 +184,63 @@ final_dz = ndimage.uniform_filter(smooth_filt_delz,
                                     )
 plt.subplot(2,2,4,sharex = ax,sharey = ax)
 plt.imshow(final_dz,
-          vmin = -.05,vmax = 0.05,interpolation='nearest'
+          vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest'
           )
 plt.title(' final_dz')
 plt.colorbar()
 
 
+import numpy as np
+### applying HT for this column
+
+
+datain = final_dz[:, :]
+
+# take FFT in time
+U_spectrum = np.fft.fft(datain, axis=1)
+
+# only keep positive frequencies
+#   could extend this to a band pass filter
+
+# explicitly set all non-positive frequencies to zero
+U_spectrum[:, nt/2:] = 0
+
+# take inverse FFT and multiply by 2
+datac = 2 * np.fft.ifft(U_spectrum, axis=1)
+
+
+datain = datac[:, :]
+
+# fft
+datac_spectrum = np.fft.fft(datain, axis=0)
+
+# make a copy
+datac_R_spectrum = datac_spectrum.copy()
+datac_L_spectrum = datac_spectrum # note: no copy here
+
+# only include right ward propagating (kx > 0)
+datac_R_spectrum[:nz/2, :] = 0
+
+# only include left ward propagating (kx < 0)
+datac_L_spectrum[nz/2:, :] = 0
+
+# inverse FFT
+datac_R = np.fft.ifft(datac_R_spectrum, axis=0)
+datac_L = np.fft.ifft(datac_L_spectrum, axis=0)
+
+plt.figure()
+ax = plt.subplot(3,1,1)
+plt.imshow(final_dz,vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest',aspect='auto')
+plt.title(' final_dz')
+plt.colorbar()
+
+plt.subplot(3,1,2,sharex = ax , sharey=ax)
+plt.imshow(datac_R.real,vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest',aspect='auto')
+plt.title('upward')
+plt.colorbar()
+
+plt.subplot(3,1,3,sharex = ax , sharey=ax)
+plt.imshow(datac_L.real,vmin = -plot_maxmin,vmax = plot_maxmin,interpolation='nearest',aspect='auto')
+plt.title('downward')
+plt.colorbar()
 plt.show()
