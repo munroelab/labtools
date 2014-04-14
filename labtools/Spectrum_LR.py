@@ -18,10 +18,16 @@ import netCDF4
 import pylab
 import copy
 import labdb
+import tempfile
 import time
 import progressbar
 from matplotlib import animation
 from chunk_shape_3D import chunk_shape_3D
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 
 def create_nc_file(a_xi_id, fw_id=None):
@@ -116,7 +122,6 @@ def create_nc_file(a_xi_id, fw_id=None):
     # chunk the data intelligently
     valSize = complex64.itemsize
     chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
-   
     
     # Create Dimension
     row_dim = nc.createDimension('row', Nrow)
@@ -1295,17 +1300,6 @@ def task_hilbert_NEWfunc(dz_id, cache=True):
     print "dx,dz,dt :: ", dx, dz, dt
 
 
-    # USE nccopy to rechunk Axi
-
-    """
-    chunked_filename = 'chunked_axi.nc'
-    os.system('nccopy -c time/%d,row/%d,column/%d %s %s' % (nt, 1, nx, filename, chunked_filename))
-    axi_nc = netCDF4.Dataset(chunked_filename, 'r')
-    print "CHUNKED AXI NC FILE information: ", axi_nc.variables.keys()
-     #get information about the copied nc file to see if its chunked 
-    print "ncdump %s" % chunked_filename
-    os.system('ncdump -h -s %s' %  chunked_filename )
-    """
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
     # kx = np.fft.fftshift(kx)
@@ -1463,7 +1457,7 @@ def task_hilbert_NEWfunc(dz_id, cache=True):
 
 
 
-def task_DzHilbertTransform(dz_id,cache=True):
+def task_DzHilbertTransform(dz_id, cache=True):
     """
     Given an dz_id, computes Hilbert transform to filter out
     Leftward and Rightward propagating waves.
@@ -1474,7 +1468,7 @@ def task_DzHilbertTransform(dz_id,cache=True):
     db = labdb.LabDB()
 
     #check if the file already exists
-    sql = """ SELECT fw_id FROM filtered_waves WHERE dz_id = %d""" % dz_id
+    sql = "SELECT fw_id FROM filtered_waves WHERE dz_id = %d" % dz_id
     rows = db.execute(sql)
     if len(rows) > 0:
 
@@ -1499,7 +1493,7 @@ def task_DzHilbertTransform(dz_id,cache=True):
         # create the nc file for the first time for storing the filtered data
         fw_filename, fw_id = create_nc_file_dzHT(dz_id)
 
-    print "computing filterLR"
+    logger.info('filterLR')
 
     #set the path to the data
     path = "/Volumes/HD4/dz/%d" % dz_id
@@ -1507,14 +1501,12 @@ def task_DzHilbertTransform(dz_id,cache=True):
 
     # check for existance of dz_nc
     if not os.path.exists(filename):
-        print "Error: dz_nc", filename, "not found"
-        raise
+        raise Exception('{} not found'.format(filename))
 
     # open the axi dataset and get the no of rows and col
     dz_nc = netCDF4.Dataset(filename, 'r')
 
-    print "DZ ## filename: ", filename
-    #a,b,c,d,e,f=t_start,t_end,r_start,r_end,c_start,c_end
+    logger.debug('dz filename {}'.format(filename))
 
     # variables
     t = dz_nc.variables['time'][:]
@@ -1529,13 +1521,13 @@ def task_DzHilbertTransform(dz_id,cache=True):
     nt = len(t)
     nz = len(z)
     nx = len(x)
-    print "length of X, T, Z:  ", nx, nt, nz
+    print "length of T, Z, X:  ", nt, nz, nx
 
     # assume data is sampled evenly
-    dx = np.mean(np.diff(x))
     dt = np.mean(np.diff(t))
     dz = np.mean(np.diff(z))
-    print "dx,dz,dt :: ", dx, dz, dt
+    dx = np.mean(np.diff(x))
+    print "dt,dz,dx :: ", dt, dz, dx
 
     # Open the nc file for writing data
     nc = netCDF4.Dataset(fw_filename, 'a')
@@ -1546,19 +1538,17 @@ def task_DzHilbertTransform(dz_id,cache=True):
 
     # data stored into the nc file
     ft[:] = np.mgrid[t[0]:t[-1]:nt * 1.0j]
-    #print ft
-
-    # print information about dz dataset
-    #    print "variables  of the nc file :", nc.variables.keys()
-    #    print "left_w shape : " , left.shape
-    #    print "right_w shape : " , right.shape
-    #    print "t  shape : " , ft.shape
 
 
     # STEP 1: FFT in t ######
 
     # create ncfile to store Hilbert transform of U
-    nc_ht = netCDF4.Dataset('HT.nc', 'w', format='NETCDF4')
+
+    temp = tempfile.NamedTemporaryFile(suffix='.nc', delete=False)
+    temp_ht_filename = temp.name
+    temp.close()
+
+    nc_ht = netCDF4.Dataset(temp_ht_filename, 'w', format='NETCDF4')
 
     # since at HT of U is complex, we need complex data types
     complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
@@ -1576,29 +1566,31 @@ def task_DzHilbertTransform(dz_id,cache=True):
     z[:] = nc.variables['row'][:]
     t[:] = nc.variables['time'][:]
 
-
     valSize = complex64.itemsize
     chunksizes = chunk_shape_3D( ( nt, nz, nx),
                                   valSize=valSize )
     Uht = nc_ht.createVariable('Uht', complex64_t, ('t', 'z', 'x'),
                                chunksizes=chunksizes)
+    chunk_nt, chunk_nz, chunk_nx = chunksizes
+    # TODO: chunk shape of Uht may not be the same as Dz; float vs complex
 
     print "Temporal filtering"
-    print
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nz).start()
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=(nz//chunk_nz)).start()
+
     # loop over all z
-    for i in range(nz):
+    for i in range(nz//chunk_nz):
         pbar.update(i)
 
         A = dz_nc.variables['dz_array']
-        datain = A[:, i, :]
+        datain = A[:,
+                   i*chunk_nz:(i+1)*chunk_nz,
+                   :]
 
         # take FFT in time
         U_spectrum = np.fft.fft(datain, axis=0)
         # only keep positive frequencies
         #   could extend this to a band pass filter
-
 
         # explicitly set all non-positive frequencies to zero
         U_spectrum[nt/2:, :] = 0
@@ -1610,8 +1602,10 @@ def task_DzHilbertTransform(dz_id,cache=True):
         dataout['imag'] = datac.imag
 
         # store in netcdf4 file
+        Uht[:, 
+            i*chunk_nz:(i+1)*chunk_nz,
+            :] = dataout
 
-        Uht[:, i, :] = dataout
     pbar.finish()
 
     #need to close the axi array nc file
@@ -1622,10 +1616,11 @@ def task_DzHilbertTransform(dz_id,cache=True):
 
     ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
-    nc_ht = netCDF4.Dataset('HT.nc','r')
+    nc_ht = netCDF4.Dataset(temp_ht_filename, 'r')
     print nc_ht.variables.keys()
     Uht = nc_ht.variables['Uht']
     nt, nz, nx = Uht.shape
+    print chunksizes
 
     print "Spatial filtering"
     widgets = [progressbar.Percentage(), ' '
@@ -1672,7 +1667,12 @@ def task_DzHilbertTransform(dz_id,cache=True):
         left[n, :, :] = dataout
 
     pbar.finish()
+
+    nc_ht.close()
     nc.close()
+
+    os.unlink(temp_ht_filename)
+    
     print "FW_ID ## ", fw_id
     return fw_id
 
