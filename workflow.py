@@ -1,7 +1,8 @@
 """
 This workflow processes all experiments
 
-- produces plots of EnergyFlux vs Time for each experiment
+Each step in the workflow processes data from a particular experiment.
+    Experiments are identified by experiment_id
 
 """
 
@@ -12,6 +13,10 @@ import pickle
 import datetime
 import time
 import collections
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
@@ -37,6 +42,8 @@ cacheValue = False
 @split(None, workingdir + '*.expt_id')
 def forEachExperiment(infiles, outfiles):
     
+    logger.info('Determining set of experiments')
+
     # select experiments
     db = labdb.LabDB()
 
@@ -138,6 +145,9 @@ def determineSchlierenParameters(infile, outfile):
         add_inputs(r'\1.schlierenParameters'),
         '.dz_id')
 def computeDz(infiles, outfile):
+
+    logger.info('Performing Synthetic Schlieren')
+
     videoIdFile = infiles[0]
     schlierenParametersFile = infiles[1]
 
@@ -151,8 +161,8 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
-            startF = 500,        # startFrame
-            stopF = 1500,         # stopFrame ..
+            startF = 700,        # startFrame
+            stopF = 800,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -173,11 +183,11 @@ def computeAxi(infile, outfile):
     pickle.dump(Axi_id, open(outfile, 'w'))
 
 
-@transform(computeAxi, suffix('.Axi_id'), '.fw_id')
+@transform(computeDz, suffix('.dz_id'), '.fw_id')
 def filter_LR(infile, outfile):
-    Axi_id = pickle.load(open(infile))
+    dz_id = pickle.load(open(infile))
 
-    fw_id = Spectrum_LR.task_hilbert_NEWfunc(Axi_id,cache =cacheValue )
+    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
 
     pickle.dump(fw_id, open(outfile, 'w'))
 
@@ -347,20 +357,20 @@ if __name__ == "__main__":
 
     finalTasks = [
             #movieVideo,
-             movieDz,
+     #        movieDz,
              #movieAxi,
-             #plotEnergyFlux, 
-             #plotFilteredLR,
-             #tableExperimentParameters,
-            #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
-            #filter_LR
+    #         plotEnergyFlux, 
+    #         plotFilteredLR,
+             tableExperimentParameters,
+    #        plotAxiHorizontalTimeSeries,
+    #        plotAxiVerticalTimeSeries,
+            filter_LR
             ]
 
     forcedTasks = [
             forEachExperiment,
-            determineSchlierenParameters,
-             computeDz,
+    #        determineSchlierenParameters,
+    #         computeDz,
              #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,

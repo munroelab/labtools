@@ -1220,12 +1220,12 @@ def UI():
     #        args.c_start,args.c_end,args.t_step,args.r_step,args.c_step,args.maxmin) 
     task_hilbert_func(args.a_xi_id, args.maxmin, args.plot_column)
 
-def task_hilbert_NEWfunc(a_xi_id,cache=True):
+def task_hilbert_NEWfunc(dz_id, cache=True):
     """
-        Given an Axi_id, computes Hilbert transform to filter out
-        Leftward and Rightward propagating waves.
+    Given an Axi_id, computes Hilbert transform to filter out
+    Leftward and Rightward propagating waves.
 
-        Results stored as  'left_array' and 'right_array' in a waves.nc file
+    Results stored as  'left_array' and 'right_array' in a waves.nc file
     """
 
     db = labdb.LabDB()
@@ -1465,10 +1465,10 @@ def task_hilbert_NEWfunc(a_xi_id,cache=True):
 
 def task_DzHilbertTransform(dz_id,cache=True):
     """
-        Given an dz_id, computes Hilbert transform to filter out
-        Leftward and Rightward propagating waves.
+    Given an dz_id, computes Hilbert transform to filter out
+    Leftward and Rightward propagating waves.
 
-        Results stored as  'left_array' and 'right_array' in a waves.nc file
+    Results stored as  'left_array' and 'right_array' in a waves.nc file
     """
 
     db = labdb.LabDB()
@@ -1526,9 +1526,9 @@ def task_DzHilbertTransform(dz_id,cache=True):
     print "x & z shape", x.shape, z.shape
 
     # determine lengths of x, z, t
+    nt = len(t)
     nz = len(z)
     nx = len(x)
-    nt = len(t)
     print "length of X, T, Z:  ", nx, nt, nz
 
     # assume data is sampled evenly

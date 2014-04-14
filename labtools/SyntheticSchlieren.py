@@ -15,14 +15,19 @@ import labdb
 import gc
 import netCDF4
 from scipy import ndimage
+from scipy.ndimage import gaussian_filter
+from numpy import ma
 import progressbar
 import multiprocessing
 import socket
 import warnings
+import tempfile
+import logging
 from chunk_shape_3D import chunk_shape_3D
 
 import skimage.morphology, skimage.filter 
 
+logger = logging.getLogger(__name__)
 
 # to eliminate DivideByZero warnings
 warnings.filterwarnings("ignore")
@@ -110,22 +115,32 @@ def compute_dz_image(im1, im2, dz = 1.0):
     ans = -dz * A/E * (B/D + C/F)
     return ans
 
-def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_size,
-        startF,stopF,diff_frames,dz_id=None ):
 
+def create_nc_file(video_id, 
+                   skip_frames, 
+                   skip_row, skip_col,
+                   mintol,
+                   sigma,
+                   filter_size,
+                   startF,
+                   stopF,
+                   diff_frames,
+                   dz_id=None):
     """ 
-        Given a video id it creates a dz nc file
-        return dz_filename,dz_id,dt,dz,dx
-        Need to compute dz for the first time.
-        Need to create the path for the dz file and create the empty nc file
+    Given a video id create a dz nc file
+    return dz_filename,dz_id,dt,dz,dx
+    Need to compute dz for the first time.
+    Need to create the path for the dz file and create the empty nc file
     """
-    print "creating dz nc file to store the final data in.."
-    db = labdb.LabDB()
+
+    logger.debug('creating dz nc file to store the final data in..')
+
     # Get experiment ID
-    sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
+    db = labdb.LabDB()
+    sql = "SELECT expt_id FROM video_experiments WHERE video_id =  %d" % video_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
+    logger.debug('experiment ID: %d' % expt_id)
 
     # get the window length and window height
     sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
@@ -136,9 +151,10 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
     
-    print "lenght" , win_l, "\nheight", win_h
+    print "length" , win_l, "\nheight", win_h
     print  "video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
     print  video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
+
     print "dz_ID ###", dz_id
     if dz_id is None:
         if diff_frames is None:
@@ -170,8 +186,10 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     if not os.path.exists(dz_path):
         # Create the directory in which to store the nc file
         os.mkdir(dz_path)
+
     dz_filename = os.path.join(dz_path, "dz.nc")
     print "dz_ filename: ",dz_filename
+
     # Declare the nc file for the first time 
     if os.path.exists(dz_filename):
         # ensure you delete the nc file if it exists so as to create new nc file
@@ -185,60 +203,61 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     print "no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
 
     # create the nc file and set the dimensions of z and x axis.
-    nc = netCDF4.Dataset(dz_filename,'w',format = 'NETCDF4')
-    row_dim = nc.createDimension('row',Nrow)
-    col_dim = nc.createDimension('column',Ncol)
-    t_dim = nc.createDimension('time',Ntime)
+    nc = netCDF4.Dataset(dz_filename, 'w', format = 'NETCDF4')
+    row_dim = nc.createDimension('row', Nrow)
+    col_dim = nc.createDimension('column', Ncol)
+    t_dim = nc.createDimension('time', Ntime)
 
-    # chunk the data intelligently
-    valSize = numpy.float32().itemsize
-    chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
-    print "chunksizes",chunksizes
-    #the dimensions are also variables
+    # the dimensions are also variables
     ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  ROW.shape,ROW.dtype
     COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',numpy.float32,('time'))
-    print TIME.shape, TIME.dtype
-    
-    # declare the 3D data variable 
-    DZ = nc.createVariable('dz_array',numpy.float32,('time','row','column'),chunksizes = chunksizes)
-    print nc.dimensions.keys() , DZ.shape,DZ.dtype
-    
+
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
-    R =numpy.arange(0,win_h,win_h/Nrow,dtype=float)
-    C =numpy.arange(0,win_l,win_l/Ncol,dtype=float)
+    R = numpy.arange(0, win_h, win_h/Nrow, dtype=float)
+    C = numpy.arange(0, win_l, win_l/Ncol, dtype=float)
+
     path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     t=numpy.loadtxt(path2time)
     dt = numpy.mean(numpy.diff(t[:,1]))
     
     # compute dt,dz,dx
-    dt = dt*skip_frames
+    dt = dt * skip_frames
     dz = win_h / Nrow
     dx = win_l / Ncol
-    #print "timestep: " ,dt
-    #print "dz : ", dz
-    #print "dx : ",dx 
 
     ROW[:] = R
     COLUMN[:] = C
+    # TODO: Why isn't TIME filled in here?
 
+    # chunk the data intelligently
+    valSize = numpy.float32().itemsize
+    chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
+    logger.debug('chunksizes = {}'.format(chunksizes))
+
+    # declare the 3D data variable 
+    DZ = nc.createVariable('dz_array', numpy.float32, 
+                 ('time','row','column'),
+                 chunksizes = chunksizes)
+    
     db.commit()
     nc.close()
-    return dz_filename,dz_id,dt,dz,dx,chunksizes
+
+    return dz_filename, dz_id, dt, dz, dx, chunksizes
 
 def create_temp_nc_file(dz_filename):
     print "creating the temporary nc file for storing dz array.."
     """
-        creating a temporary dz file so as to avoid reading and writing from the same nc file
-        while filtering in time. The path to the temp dz file is ::
-        /Users/prajvala/Documents/Project_labtools/labtools/labtools/dz.nc
+    creating a temporary dz file so as to avoid reading and writing from the same nc file
+    while filtering in time. 
 
-        The function returns temp_dz_filename
-
+    The function returns temp_dz_filename
     """
+
+    # TODO: There is a code duplication between this create_nc function
+    # the the original create_nc function
+
     #open the dz nc file
     dz_nc = netCDF4.Dataset(dz_filename, 'r')
 
@@ -246,18 +265,6 @@ def create_temp_nc_file(dz_filename):
     T = dz_nc.variables['time'][:]
     Z = dz_nc.variables['row'][:]
     X = dz_nc.variables['column'][:]
-
-
-    temp_dz_path = "/Users/prajvala/Documents/Project_labtools/labtools/labtools"
-    temp_dz_filename = os.path.join(temp_dz_path, "dz.nc")
-
-    print "temp_dz_ filename: ",temp_dz_filename
-
-    # Declare the nc file for the first time
-    if os.path.exists(temp_dz_filename):
-        # ensure you delete the nc file if it exists so as to create new nc file
-        os.unlink(temp_dz_filename)
-
     # find the number for rows and column of the frames and Ntime for temp dz field
     Nrow = Z.size
     Ncol = X.size
@@ -265,35 +272,48 @@ def create_temp_nc_file(dz_filename):
 
     print "TEMP DZ FILE ### \n no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
 
+    # get a new, unique filename for the temp dz file
+    temp_file = tempfile.NamedTemporaryFile(suffix='.nc',
+                                            delete=False)
+    temp_dz_filename = temp_file.name
+    temp_file.close()
+
+    logger.debug('temp_dz_filename: %s' % temp_dz_filename)
+
     # create the nc file and set the dimensions of z and x axis.
     nc = netCDF4.Dataset(temp_dz_filename,'w',format = 'NETCDF4')
-    row_dim = nc.createDimension('row',Nrow)
-    col_dim = nc.createDimension('column',Ncol)
-    t_dim = nc.createDimension('time',Ntime)
+    row_dim = nc.createDimension('row', Nrow)
+    col_dim = nc.createDimension('column', Ncol)
+    t_dim = nc.createDimension('time', Ntime)
+
+    #the dimensions are also variables
+    ROW = nc.createVariable('row', numpy.float32,('row'))
+    COLUMN = nc.createVariable('column', numpy.float32,('column'))
+    TIME = nc.createVariable('time', numpy.float32,('time'))
 
     # chunk the data intelligently
     valSize = numpy.float32().itemsize
     chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
     print "chunksizes",chunksizes
-    #the dimensions are also variables
-    ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  ROW.shape,ROW.dtype
-    COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print COLUMN.shape, COLUMN.dtype
-    TIME = nc.createVariable('time',numpy.float32,('time'))
-    print TIME.shape, TIME.dtype
 
     # declare the 3D data variable
-    DZ = nc.createVariable('temp_dz_array',numpy.float32,('time','row','column'),chunksizes = chunksizes)
-    print nc.dimensions.keys() , DZ.shape,DZ.dtype
+    # TODO: why the name change for this variable?
+    DZ = nc.createVariable('temp_dz_array', 
+            numpy.float32,
+            ('time','row','column'),
+            chunksizes = chunksizes)
 
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     ROW[:] = Z[:]
     COLUMN[:] = X[:]
+    # TODO:
+    # TIME[:] = ???
 
     nc.close()
+
     dz_nc.close()
+
     return temp_dz_filename
 
 def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_size,startF,stopF,diff_frames):
@@ -440,12 +460,12 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     if (dz_id is not None) and cache:
         return dz_id
     
-    # Call the function that will create the dz nc file to write data to
-    dz_filename,dz_id,dt,dz,dx,chunksize =create_nc_file(video_id,skip_frames,skip_row,skip_col,min_tol,\
+    # Create the dz nc file to write data to
+    dz_filename,dz_id,dt,dz,dx,chunkshape =create_nc_file(video_id,skip_frames,skip_row,skip_col,min_tol,\
             sigma,filter_size,startF,stopF,diff_frames,dz_id = dz_id)
 
 
-    #call the function that will create the temporary dz file.
+    # Create a temporary dz file.
     temp_dz_filename = create_temp_nc_file(dz_filename)
 
     # count: start from the second frame. count is the variable that tracks the
@@ -455,13 +475,8 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     else:
         count=startF+diff_frames
 
-
     # Set path to the two images
     path = "/Volumes/HD3/video_data/%d/frame%05d.png"
-    # path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-
-    from scipy.ndimage import gaussian_filter
-    from numpy import ma
 
     hostname = socket.gethostname()
     cpu_count = multiprocessing.cpu_count()
@@ -469,6 +484,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
         PROCESSES = cpu_count
     else:
         PROCESSES = cpu_count / 2
+    PROCESSES = 8
 
     # Create pool
     pool = multiprocessing.Pool(PROCESSES)
@@ -500,15 +516,15 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     # const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
     # Has been recalculated for our experiment
     dN2dz = -1.0/(Lw*gamma) * 1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls)
-    print "dN2dz" , dN2dz
 
-    # need to adjust dN2dz if diff_frames is valid and also compute dt
+    # if diff_frames is given, we are computing dN2dt
     if diff_frames is not None:
         path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-        t=numpy.loadtxt(path2time)
+        t = numpy.loadtxt(path2time)
         dt = numpy.mean(numpy.diff(t[:,1]))
         dN2dz = dN2dz / (dt*diff_frames)
-    print "dN2dz" , dN2dz
+
+    logger.debug('dN2dz = {:f}'.format(dN2dz))
 
     # progress bar
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
@@ -521,9 +537,9 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
             i, dz = r
             pbar.update(i)
 
-            nc=netCDF4.Dataset(temp_dz_filename,'a')
+            nc = netCDF4.Dataset(temp_dz_filename, 'a')
             temp_dz = nc.variables['temp_dz_array']
-            temp_dz[i,:,:] = dN2dz * dz
+            temp_dz[i, :, :] = dN2dz * dz
             nc.close()
 
     tasks = []
@@ -555,10 +571,17 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
         pool.apply_async(schlieren_lines, (dict(p),), callback=cb)
         i += 1
 
+    if i == 0:
+        raise Exception('No pairs of image files found')
+
+
     # submit all tasks to worker pool
     pbar.maxval = i
+
+    logger.debug('Schlieren - frame by frame')
     pbar.start()
 
+    # wait for all schlieren task to complete
     pool.close()
     pool.join()
 
@@ -571,20 +594,18 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     # define time axis for the nc time variable
     tl = temp_dz.shape[0]
-    print "tempncfile: no of timesteps:", tl
-    print "temp_dz::" ,temp_dz.shape
     t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
     Tm[:] = t_array
     nc.close()
 
     # The last Step of Synthetic Schlieren... Uniform filtering in time
     # open the temp dz nc file
-    nc = netCDF4.Dataset(temp_dz_filename,'r')
+    nc = netCDF4.Dataset(temp_dz_filename, 'r')
     temp_dz_array = nc.variables['temp_dz_array']
     T = nc.variables['time'][:]
 
     # open the dz nc file for writing in the data
-    dz_nc=netCDF4.Dataset(dz_filename,'a')
+    dz_nc = netCDF4.Dataset(dz_filename, 'a')
     DZarray = dz_nc.variables['dz_array']
     ZZ = dz_nc.variables['row'][:]
     CC = dz_nc.variables['column'][:]
@@ -592,41 +613,68 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     #set the time axis for the dz array.
     TT[:] = T[:]
 
-    t_chunk,r_chunk,c_chunk = chunksize
+    t_chunk,r_chunk,c_chunk = chunkshape
+
     print "chunk t,z,x :", t_chunk,r_chunk,c_chunk
+
     print "CC size, zz size" , CC.size, ZZ.size
     col_count= CC.size-1
     row_count= ZZ.size-1
+
     # step 12 of Schlieren :: apply uniform filter in the time axis with the filter size of 6 (about
     # 1second). This should smoothen the dz along time.
 
-    print "### starting computing dz ###"
+    logger.debug('Schlieren - chunk by chunk')
+    # (i, j) should index the ith and jth chunk
+    logger.debug('size = {}'.format(temp_dz_array.shape))
+    logger.debug('chunkshape = {}'.format(chunkshape) )
+    nt, nz, nx = temp_dz_array.shape
+    chunk_nt, chunk_nz, chunk_nx = chunkshape
+
+    chunk_nz = chunk_nz * 2
+    #chunk_nx = chunk_nx * 8
+
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=col_count).start()
-    for j in range(0,col_count,c_chunk):
+    pbar = progressbar.ProgressBar(widgets=widgets, 
+            maxval= (nz // chunk_nz)).start()
+
+    for j in range(nz // chunk_nz):
+
         pbar.update(j)
-        for i in range(0,row_count,r_chunk):
-            temp = temp_dz_array[:,i:i+r_chunk,j:j+c_chunk]
-            #print "1"
-            temp_filt = ndimage.uniform_filter(temp,size = (6,1,1))
-            #print "2"
-            DZarray[:,i:i+r_chunk,j:j+c_chunk] = temp_filt
-            #print "3"
+        temp = temp_dz_array[:, 
+                  j*chunk_nz:(j+1)*chunk_nz,
+                  :]
+
+        # TODO: why (6, 1, 1)?
+        temp_filt = ndimage.uniform_filter(temp,size = (6,1,1))
+
+        DZarray[:, 
+                j*chunk_nz:(j+1)*chunk_nz,
+                :] = temp_filt
+
+        #for i in range(nx // chunk_nx):
+#
+#            pbar.update(j * (nx//chunk_nx) + i)
+#
+#            temp = temp_dz_array[:, 
+#                                 j*chunk_nz:(j+1)*chunk_nz,
+#                                 i*chunk_nx:(i+1)*chunk_nx]
+#
+#            # TODO: why (6, 1, 1)?
+#            temp_filt = ndimage.uniform_filter(temp,size = (6,1,1))
+#
+#            DZarray[:, 
+#                    j*chunk_nz:(j+1)*chunk_nz,
+#                    i*chunk_nx:(i+1)*chunk_nx] = temp_filt
+
     pbar.finish()
-
-
-    # looping through the chunksizes
-
-    #for col_count in range(CC.size):
-    #    pbar.update(col_count)
-    #    print "looping: ", col_count
-    #    temp1 = DZarray[:,:,col_count]
-    #    DZarray[:,:,col_count] = ndimage.uniform_filter(temp1,size = (6,1))
-
-
 
     dz_nc.close()
     nc.close()
+
+    # remove temp dz file
+    os.unlink(temp_dz_filename)
+
     return dz_id
 
 def test():
