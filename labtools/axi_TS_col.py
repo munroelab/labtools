@@ -62,7 +62,7 @@ def compute_energy_flux(a_xi_id,column,max_min,plotname = "axiVerticalTimeSeries
     plt.imshow(data[:,:],extent=[t[0],t[-1],z[-1],z[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
     plt.xlabel('Time (seconds)')
     plt.ylabel('Depth (cm)')
-    plt.title('Vertical Displacement Amplitude of Video ID %d' % (video_id) )
+    plt.title('A_Xi (Video ID %d) \n %.2f cm away from the WG' % (video_id, 84+x[column]) )
     plt.colorbar()
     plt.savefig(plotname + "_%dcol.pdf"% column )
 

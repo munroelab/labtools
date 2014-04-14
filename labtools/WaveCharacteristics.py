@@ -5,7 +5,7 @@
 # related by the deltaN2_id fields.
 #
 
-
+from chunk_shape_3D import chunk_shape_3D
 import playncfile
 import matplotlib
 import argparse 
@@ -71,8 +71,8 @@ def createncfile(dz_id,t,x,z,
     # changing time to underfined as the variable is set to being contiguous
     # despite setting contiguous=False which is also the default setting
     #print "time axis  length",lenT     # debug info
-    #t_dim = nc.createDimension('time',lenT)
-    t_dim = nc.createDimension('time', None)
+    t_dim = nc.createDimension('time',lenT)
+    #t_dim = nc.createDimension('time', None)
 
     # Dimensions are also variable
     ROW = nc.createVariable('row',numpy.float32,('row'),contiguous=False)
@@ -81,10 +81,14 @@ def createncfile(dz_id,t,x,z,
     print COLUMN.shape, COLUMN.dtype
     TIME = nc.createVariable('time',numpy.float32,('time'),contiguous=False)
     print TIME.shape, TIME.dtype
+    
+    # chunk the data intelligently
+    valSize = numpy.float32().itemsize
+    chunksizes = chunk_shape_3D( ( lenT, Nrow, Ncol), valSize=valSize )
 
     # declare the 3D data variable 
     a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'),
-            contiguous=False)
+            chunksizes = chunksizes)
     print nc.dimensions.keys() ,a_xi.shape,a_xi.dtype
 
     # assign the values
@@ -189,30 +193,12 @@ def compute_a_xi(dz_id, cache=True):
     rows = db.execute(sql)
     win_l = rows[0][0]
     win_l=win_l*1.0
-#    print "length" , win_l
-
-    Ls = 13.5 # distance from front of screen to back of tank
-    Lb = 0.9 # thickness of barrier
-    Ld = 14.9 # width of rear channel
-    Lp = 2.4 # thickness of back and front walls
-    Lw = 29.5 # width of experimental region of tank
-    # index of refraction
-    na = 1.00
-    np = 1.49
-    nb = 1.49
-    nw = 1.33
-    gamma = 0.0001878 # See eqn 2.8 in Sutherland1999
-    
-    #const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
-    dN2dz = -1.0/(Lw*gamma) * 1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls)
-    
-#    print "constant2:",const2
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=dz.shape[0]).start()
     for num in range(dz.shape[0]):
         pbar.update(num)
-        var1 = dN2t_to_axi * dN2dz*dz[num,:,:]/dt
+        var1 = dN2t_to_axi * dz[num,:,:]
         append2ncfile(a_xi,var1,num)
     pbar.finish()
 
