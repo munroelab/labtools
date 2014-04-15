@@ -33,7 +33,7 @@ workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = False
+cacheValue = True
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -161,8 +161,8 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
-            startF = 700,        # startFrame
-            stopF = 800,         # stopFrame ..
+            startF = 500,        # startFrame
+            stopF = 1500,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -350,7 +350,7 @@ if __name__ == "__main__":
             ]
 
     forcedTasks = [
-            forEachExperiment,
+    #        forEachExperiment,
     #        determineSchlierenParameters,
     #         computeDz,
              #computeAxi,

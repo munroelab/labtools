@@ -20,6 +20,7 @@ import labdb
 import tempfile
 import time
 import progressbar
+import multiprocessing
 from matplotlib import animation
 from chunk_shape_3D import chunk_shape_3D
 
@@ -908,74 +909,101 @@ def task_DzHilbertTransform(dz_id, cache=True):
     #need to close the axi array nc file
     nc_ht.close()
     #need to close the LR waves nc file as well
-    #nc.close()
+    nc.close()
+
     print "done step 1"
 
     ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
-    nc_ht = netCDF4.Dataset(temp_ht_filename, 'r')
-    print nc_ht.variables.keys()
-    Uht = nc_ht.variables['Uht']
-    nt, nz, nx = Uht.shape
-    print chunksizes
+    #nc_ht = netCDF4.Dataset(temp_ht_filename, 'r')
+    #print nc_ht.variables.keys()
+    #Uht = nc_ht.variables['Uht']
+    #nt, nz, nx = Uht.shape
+    #print chunksizes
 
-    print "Spatial filtering"
-    widgets = [progressbar.Percentage(), ' '
-        , progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()
-    # loop over all t
-    for n in range(nt):
-        pbar.update(n)
+    logger.debug('Spatial filter - frame by frame')
 
-        logger.debug('load step')
-        # grab frame
-        datain = Uht[n, :, :]
+    # Create pool
+    manager = multiprocessing.Manager()
+    lock = manager.Lock()
+    pool = multiprocessing.Pool(processes=8)
 
-        logger.debug('compute step')
-        # form complex array
-        datac = np.empty(datain.shape, np.complex64)
-        datac.real = datain['real']
-        datac.imag = datain['imag']
+    # submit tasks to perform in parallel
+    results = [ pool.apply_async(spatial_filter, 
+                            (n, lock, temp_ht_filename, fw_filename,),)
+        for n in range(nt)]
+    pool.close()
 
-        # fft
-        datac_spectrum = np.fft.fft2(datac, axes=(0,1))
+    # progress bar
+    widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt)
 
-        # make a copy
-        datac_R_spectrum = datac_spectrum.copy()
-        datac_L_spectrum = datac_spectrum # note: no copy here
+    pbar.start()
 
-        # only include right ward propagating (kx > 0)
-        datac_R_spectrum[:, :nx/2] = 0
+    # wait for all tasks to complete
 
-        # only include left ward propagating (kx < 0)
-        datac_L_spectrum[:,nx/2:] = 0
+    for i, r in enumerate(results):
+        pbar.update(i)
+        r.get()
 
-        # inverse FFT
-        datac_R = np.fft.ifft2(datac_R_spectrum, axes=(0,1))
-        datac_L = np.fft.ifft2(datac_L_spectrum, axes=(0,1))
-
-        logger.debug('save step')
-
-        # convert to compound datatype and save
-        dataout1 = np.empty(datain.shape, complex64)
-        dataout1['real'] = datac_R.real
-        dataout1['imag'] = datac_R.imag
-        right[n, :, :] = dataout1
-
-        dataout = np.empty(datain.shape, complex64)
-        dataout['real'] = datac_L.real
-        dataout['imag'] = datac_L.imag
-        left[n, :, :] = dataout
+    pool.join()
 
     pbar.finish()
-
-    nc_ht.close()
-    nc.close()
 
     os.unlink(temp_ht_filename)
     
     print "FW_ID ## ", fw_id
     return fw_id
+
+def spatial_filter(n, lock, temp_ht_filename, fw_filename):
+    
+    # grab frame
+    nc = netCDF4.Dataset(temp_ht_filename, 'r')
+    Uht = nc.variables['Uht']
+    datain = Uht[n, :, :]
+    nc.close()
+
+    # form complex array
+    nz, nx = datain.shape
+    datac = np.empty((nz, nx), np.complex64)
+    datac.real = datain['real']
+    datac.imag = datain['imag']
+
+    # fft
+    datac_spectrum = np.fft.fft2(datac, axes=(0,1))
+
+    # make a copy
+    datac_R_spectrum = datac_spectrum.copy()
+    datac_L_spectrum = datac_spectrum # note: no copy here
+
+    # only include right ward propagating (kx > 0)
+    datac_R_spectrum[:, :nx/2] = 0
+
+    # only include left ward propagating (kx < 0)
+    datac_L_spectrum[:, nx/2:] = 0
+
+    # inverse FFT
+    datac_R = np.fft.ifft2(datac_R_spectrum, axes=(0,1))
+    datac_L = np.fft.ifft2(datac_L_spectrum, axes=(0,1))
+
+    with lock:
+        nc = netCDF4.Dataset(fw_filename, 'a')
+        left = nc.variables['left_array']
+        right = nc.variables['right_array']
+
+        # convert to compound datatype and save
+        complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
+        dataout = np.empty(datain.shape, complex64)
+
+        dataout['real'] = datac_R.real
+        dataout['imag'] = datac_R.imag
+        right[n, :, :] = dataout
+
+        dataout['real'] = datac_L.real
+        dataout['imag'] = datac_L.imag
+        left[n, :, :] = dataout
+
+        nc.close()
 
 if __name__ == "__main__":
     pass
