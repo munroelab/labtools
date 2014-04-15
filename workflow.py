@@ -28,6 +28,7 @@ from labtools import axi_TS_col
 from labtools import createncfilefromimages
 from labtools import labdb
 from labtools import predictions_wave
+from labtools import plots
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -106,7 +107,7 @@ def createVideoNcFile(infile, outfile):
     # an nc_id containing the the videonc?
     # currently, the video_id is used as the id
 
-    createncfilefromimages.compute_videoncfile(video_id)
+    #createncfilefromimages.compute_videoncfile(video_id)
 
     pickle.dump(video_id, open(outfile, 'w'))
 
@@ -170,6 +171,23 @@ def computeDz(infiles, outfile):
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
+
+@transform(computeDz, 
+           formatter('.dz_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotDz.pdf')
+def plotDz(infile, outfile):
+    print "infile:", infile
+    print "outfile:", outfile
+
+    dz_id = pickle.load(open(infile))
+
+    plots.plot_slice('dz',  # var
+                dz_id, # id of nc file
+                'vts', 300,
+                maxmin = 0.05,  # min_max value
+                plotName=outfile,
+               )
+
 @transform(computeDz, suffix('.dz_id'), '.movieDz')
 def movieDz(infile, outfile):
     dz_id = pickle.load(open(infile))
@@ -195,6 +213,22 @@ def filter_LR(infile, outfile):
     fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
 
     pickle.dump(fw_id, open(outfile, 'w'))
+
+@transform(filter_LR, 
+           formatter('.fw_id'), 
+           [('{subpath[0][1]}/plots/{basename[0]}.LR.right.pdf','right'),
+            ('{subpath[0][1]}/plots/{basename[0]}.LR.left.pdf', 'left'),]
+           )
+def plotLR(infile, outfile):
+    nc_id = pickle.load(open(infile))
+
+    for i in range(2):
+        plots.plot_slice(outfile[i][1],  # var
+                    nc_id, # id of nc file
+                    'vts', 300,
+                    maxmin = 0.05,  # min_max value
+                    plotName=outfile[i][0],
+                   )
 
 @transform(filter_LR, suffix('.fw_id'), '.Axi_id')
 def computeAxi(infile, outfile):
@@ -322,9 +356,7 @@ def plotFilteredLR(infile, outfile):
     plotName = os.path.basename(outfile) + '.pdf'
     plotName = os.path.join(plotdir, plotName)
 
-    Spectrum_LR.plot_data(fw_id,
-            #plotName = plotName,
-            )
+    #Spectrum_LR.plot_data(fw_id, #plotName = plotName,)
 
     #pickle.dump('outfile', open(outfile, 'w'))
 
@@ -338,18 +370,22 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
+            plotLR,
+            plotDz,
             #movieVideo,
-     #        movieDz,
+    #         movieDz,
              #movieAxi,
     #         plotEnergyFlux, 
     #         plotFilteredLR,
-             tableExperimentParameters,
+    #         tableExperimentParameters,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
-            filter_LR
+    #        filter_LR
             ]
 
     forcedTasks = [
+   #         plotDz,
+            plotLR,
     #        forEachExperiment,
     #        determineSchlierenParameters,
     #         computeDz,
