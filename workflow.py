@@ -162,8 +162,8 @@ def computeDz(infiles, outfile):
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
-            startF = 500,        # startFrame
-            stopF = 1500,         # stopFrame ..
+            startF = 0,        # startFrame
+            stopF = 10,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -207,14 +207,14 @@ def movieDz(infile, outfile):
     pickle.dump(movieName, open(outfile, 'w'))
 
 @transform(computeDz, suffix('.dz_id'), '.fw_id')
-def filter_LR(infile, outfile):
+def filterLR(infile, outfile):
     dz_id = pickle.load(open(infile))
 
     fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
 
     pickle.dump(fw_id, open(outfile, 'w'))
 
-@transform(filter_LR, 
+@transform(filterLR, 
            formatter('.fw_id'), 
            [('{subpath[0][1]}/plots/{basename[0]}.LR.right.pdf','right'),
             ('{subpath[0][1]}/plots/{basename[0]}.LR.left.pdf', 'left'),]
@@ -230,7 +230,7 @@ def plotLR(infile, outfile):
                     plotName=outfile[i][0],
                    )
 
-@transform(filter_LR, suffix('.fw_id'), '.Axi_id')
+@transform(filterLR, suffix('.fw_id'), '.Axi_id')
 def computeAxi(infile, outfile):
     dz_id = pickle.load(open(infile))
     
@@ -349,7 +349,7 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     pickle.dump(plotName, open(outfile, 'w'))
 
 
-@transform([filter_LR], suffix('.fw_id'), '.plotFilteredLR')
+@transform([filterLR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
     fw_id = pickle.load(open(infile))
     
@@ -380,12 +380,12 @@ if __name__ == "__main__":
     #         tableExperimentParameters,
     #        plotAxiHorizontalTimeSeries,
     #        plotAxiVerticalTimeSeries,
-    #        filter_LR
             ]
 
     forcedTasks = [
    #         plotDz,
-            plotLR,
+            #plotLR,
+            filterLR,
     #        forEachExperiment,
     #        determineSchlierenParameters,
     #         computeDz,

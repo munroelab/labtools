@@ -826,7 +826,6 @@ def task_DzHilbertTransform(dz_id, cache=True):
     dt = np.mean(np.diff(t))
     dz = np.mean(np.diff(z))
     dx = np.mean(np.diff(x))
-    print "dt,dz,dx :: ", dt, dz, dx
 
     # Open the nc file for writing data
     nc = netCDF4.Dataset(fw_filename, 'a')
@@ -842,9 +841,10 @@ def task_DzHilbertTransform(dz_id, cache=True):
 
     # create ncfile to store Hilbert transform of U
 
-    temp = tempfile.NamedTemporaryFile(suffix='.nc', delete=False)
-    temp_ht_filename = temp.name
-    temp.close()
+    #temp = tempfile.NamedTemporaryFile(suffix='.nc', delete=False)
+    #temp_ht_filename = temp.name
+    #temp.close()
+    temp_ht_filename = 'HT.nc'
 
     nc_ht = netCDF4.Dataset(temp_ht_filename, 'w', format='NETCDF4')
 
@@ -872,7 +872,7 @@ def task_DzHilbertTransform(dz_id, cache=True):
     chunk_nt, chunk_nz, chunk_nx = chunksizes
     # TODO: chunk shape of Uht may not be the same as Dz; float vs complex
 
-    print "Temporal filtering"
+    logger.debug('Temporal filtering')
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=(nz//chunk_nz)).start()
 
@@ -894,6 +894,7 @@ def task_DzHilbertTransform(dz_id, cache=True):
         U_spectrum[nt/2:, :] = 0
         # take inverse FFT and multiply by 2
         datac = 2 * np.fft.ifft(U_spectrum, axis=0)
+
         # convert to a compound datatype
         dataout = np.empty(datain.shape, complex64)
         dataout['real'] = datac.real
@@ -910,8 +911,6 @@ def task_DzHilbertTransform(dz_id, cache=True):
     nc_ht.close()
     #need to close the LR waves nc file as well
     nc.close()
-
-    print "done step 1"
 
     ## STEP 2
     ### extract out only rightward and leftward propagating portions of Uht
@@ -950,7 +949,7 @@ def task_DzHilbertTransform(dz_id, cache=True):
 
     pbar.finish()
 
-    os.unlink(temp_ht_filename)
+    #os.unlink(temp_ht_filename)
     
     print "FW_ID ## ", fw_id
     return fw_id
@@ -968,6 +967,9 @@ def spatial_filter(n, lock, temp_ht_filename, fw_filename):
     datac = np.empty((nz, nx), np.complex64)
     datac.real = datain['real']
     datac.imag = datain['imag']
+
+    # zero out 'infinite values'
+    datac[abs(datac) > 100] = 0.0
 
     # fft
     datac_spectrum = np.fft.fft2(datac, axes=(0,1))

@@ -7,8 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import netCDF4
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 import labdb
+
 
 def plot_slice(ncvarname, nc_id, 
         slice_type,
@@ -60,12 +64,12 @@ def plot_slice(ncvarname, nc_id,
         xlabel = 'x (cm)'
         ylabel = 'z (cm)'
     elif slice_type == 'vts':
-        field = array[n,:,:]
+        field = array[:,:,n].T
         extent=[t[0],t[-1],z[-1],z[0]]
         xlabel = 't (s)'
         ylabel = 'z (cm)'
     elif slice_type == 'hts':
-        field = array[:,:,n], 
+        field = array[:,n,:], 
         extent=[x[0],x[-1],t[0],t[-1]],
         xlabel = 'x (cm)'
         ylabel = 't (s)'
@@ -79,10 +83,10 @@ def plot_slice(ncvarname, nc_id,
         datac.real = field['real']
         datac.imag = field['imag']
 
-        field = np.angle(datac)
+        #field = np.angle(datac)
         field = datac.real
-        field = datac.imag
-        field = np.abs(datac)
+        #field = datac.imag
+        #field = np.abs(datac)
 
     if maxmin is None:
         # estimate a good min/max value
