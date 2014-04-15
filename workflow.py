@@ -52,7 +52,7 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (845)
+               AND ve.expt_id IN (833)
              LIMIT 3
              """
     rows = db.execute(sql)
@@ -170,28 +170,6 @@ def computeDz(infiles, outfile):
             )
 
     pickle.dump(dz_id, open(outfile, 'w'))
-
-@transform(computeDz, suffix('.dz_id'), '.Axi_id')
-def computeAxi(infile, outfile):
-    dz_id = pickle.load(open(infile))
-    
-    Axi_id = WaveCharacteristics.compute_a_xi(
-            dz_id,
-            cache=cacheValue,
-            )
-
-    pickle.dump(Axi_id, open(outfile, 'w'))
-
-
-@transform(computeDz, suffix('.dz_id'), '.fw_id')
-def filter_LR(infile, outfile):
-    dz_id = pickle.load(open(infile))
-
-    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
-
-    pickle.dump(fw_id, open(outfile, 'w'))
-
-
 @transform(computeDz, suffix('.dz_id'), '.movieDz')
 def movieDz(infile, outfile):
     dz_id = pickle.load(open(infile))
@@ -210,19 +188,25 @@ def movieDz(infile, outfile):
                      )
     pickle.dump(movieName, open(outfile, 'w'))
 
+@transform(computeDz, suffix('.dz_id'), '.fw_id')
+def filter_LR(infile, outfile):
+    dz_id = pickle.load(open(infile))
 
-@transform(computeAxi, suffix('.Axi_id'), '.fw_id')
-def filterAxiLR(infile, outfile):
-    Axi_id = pickle.load(open(infile))
+    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
+
+    pickle.dump(fw_id, open(outfile, 'w'))
+
+@transform(filter_LR, suffix('.fw_id'), '.Axi_id')
+def computeAxi(infile, outfile):
+    dz_id = pickle.load(open(infile))
     
-    fw_id = Spectrum_LR.task_hilbert_func(
-            Axi_id,
-            2, #maxMin
-            100, # plotColumn
+    Axi_id = WaveCharacteristics.compute_a_xi(
+            dz_id,
             cache=cacheValue,
             )
 
-    pickle.dump(fw_id, open(outfile, 'w'))
+    pickle.dump(Axi_id, open(outfile, 'w'))
+
 
 @transform(computeAxi, suffix('.Axi_id'), '.movieAxi')
 def movieAxi(infile, outfile):
@@ -244,7 +228,6 @@ def movieAxi(infile, outfile):
 @transform(forEachExperiment, suffix('.expt_id'), '.exptParameters')
 def getParameters(infile, outfile):
     expt_id = pickle.load(open(infile))
-
 
     # look up parameters for the given expt_id
     video_id, N, omega, kz, theta = Energy_flux.get_info(expt_id)
@@ -279,7 +262,6 @@ def tableExperimentParameters(infiles, outfile):
         for key, value in params.iteritems():
             f.write(key + ":\t" + str(value) + "\n")
         f.write("\n")
-
 
 
 #@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
@@ -333,7 +315,7 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     pickle.dump(plotName, open(outfile, 'w'))
 
 
-@transform([filterAxiLR], suffix('.fw_id'), '.plotFilteredLR')
+@transform([filter_LR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
     fw_id = pickle.load(open(infile))
     
