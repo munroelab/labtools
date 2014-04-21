@@ -61,13 +61,13 @@ def movie(var, id,
     n= start_frame
 
     def animate(i, pbar):
-        pbar.update(i)
+        #pbar.update(i)
 
         plt.title('Frame number :: %d, time :: %.2f s, Field: %s'% (
             i+n, t[i+n], var))
 
         #im.set_array(a(i))
-        im.set_array( array[i+n,:,:] )
+        im.set_array(array[i+n,:,:])
 
         return im 
 
@@ -110,10 +110,9 @@ def movie(var, id,
             movieName = '%s_%d.mp4' % (var,id)
 
         anim.save(movieName, 
-                 # dpi=150,
+                  dpi=150,
                   fps=6,
-                 # extra_args=['-vcodec','libx264'],
-                  )
+                  extra_args=['-vcodec','libx264'])
 
     pbar.finish()
 

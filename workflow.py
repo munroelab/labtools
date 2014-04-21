@@ -34,7 +34,7 @@ workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = True
+cacheValue = False
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -53,8 +53,8 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (833)
-             LIMIT 3
+               AND ve.expt_id IN (777)
+             LIMIT 2
              """
     rows = db.execute(sql)
 
@@ -157,13 +157,13 @@ def computeDz(infiles, outfile):
 
     dz_id = SyntheticSchlieren.compute_dz( 
             video_id,
-            7, # minTol
+            10, # minTol
             p['sigma'],
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 10,         # stopFrame ..
+            stopF = 100,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -184,7 +184,7 @@ def plotDz(infile, outfile):
     plots.plot_slice('dz',  # var
                 dz_id, # id of nc file
                 'vts', 300,
-                maxmin = 0.05,  # min_max value
+                maxmin = 0.02,  # min_max value
                 plotName=outfile,
                )
 
@@ -226,7 +226,7 @@ def plotLR(infile, outfile):
         plots.plot_slice(outfile[i][1],  # var
                     nc_id, # id of nc file
                     'vts', 300,
-                    maxmin = 0.05,  # min_max value
+                    maxmin = 0.02,  # min_max value
                     plotName=outfile[i][0],
                    )
 
@@ -370,25 +370,26 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-            plotLR,
             plotDz,
+            plotLR,
             #movieVideo,
-    #         movieDz,
+             #movieDz,
              #movieAxi,
-    #         plotEnergyFlux, 
-    #         plotFilteredLR,
-    #         tableExperimentParameters,
-    #        plotAxiHorizontalTimeSeries,
-    #        plotAxiVerticalTimeSeries,
+             #plotEnergyFlux, 
+             #plotFilteredLR,
+             #tableExperimentParameters,
+            #plotAxiHorizontalTimeSeries,
+            #plotAxiVerticalTimeSeries,
+            #filter_LR
             ]
 
     forcedTasks = [
-   #         plotDz,
-            #plotLR,
-            filterLR,
-    #        forEachExperiment,
-    #        determineSchlierenParameters,
-    #         computeDz,
+            plotDz,
+            plotLR,
+            #filterLR,
+            forEachExperiment,
+            determineSchlierenParameters,
+             #computeDz,
              #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,

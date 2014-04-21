@@ -586,7 +586,7 @@ def plot_data(fw_id):
     im_L = plt.imshow(datain['real'],
                           #extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='upper',
-                          vmin =-1, vmax=1)
+                          vmin =-.00001, vmax=.00001)
     plt.colorbar()
     plt.title('Left')
 
@@ -598,7 +598,7 @@ def plot_data(fw_id):
     im_R = plt.imshow(datain['real'],
                           #extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='upper',
-                          vmin =-1, vmax=1)
+                          vmin =-.01, vmax=.01)
     plt.colorbar()
     plt.title('Right')
 
@@ -969,7 +969,7 @@ def spatial_filter(n, lock, temp_ht_filename, fw_filename):
     datac.imag = datain['imag']
 
     # zero out 'infinite values'
-    datac[abs(datac) > 100] = 0.0
+    datac[abs(datac) > 100] = 0.777
 
     # fft
     datac_spectrum = np.fft.fft2(datac, axes=(0,1))
@@ -979,13 +979,14 @@ def spatial_filter(n, lock, temp_ht_filename, fw_filename):
     datac_L_spectrum = datac_spectrum # note: no copy here
 
     # only include right ward propagating (kx > 0)
-    datac_R_spectrum[:, :nx/2] = 0
+    datac_R_spectrum[:, nx/2:] = 0
+    datac_R_spectrum[:,0]=0
 
     # only include left ward propagating (kx < 0)
-    datac_L_spectrum[:, nx/2:] = 0
-
+    datac_L_spectrum[:, :nx/2] = 0
     # inverse FFT
     datac_R = np.fft.ifft2(datac_R_spectrum, axes=(0,1))
+
     datac_L = np.fft.ifft2(datac_L_spectrum, axes=(0,1))
 
     with lock:

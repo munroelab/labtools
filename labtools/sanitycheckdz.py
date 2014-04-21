@@ -8,8 +8,8 @@ import SyntheticSchlieren as SS
 import skimage.morphology, skimage.filter
 from scipy import ndimage
 # take a look at a time series of any single vertical column of the video
-im = Image.open('/Users/prajvala/Documents/Project_labtools/labtools/plots/htsVID460.png')
-im = numpy.array(im).T
+im = Image.open('/Users/prajvala/Documents/Project_labtools/labtools/plots/vtsVID653.png')
+im = numpy.array(im)
 print im.shape
 plt.figure(1)
 ax = plt.subplot(2,2,1)
@@ -22,7 +22,7 @@ plt.colorbar()
 min_tol = 7  # small mintol means you have more regions that are returned by getTOL function
 sigma = 9
 filter_size=10
-video_id = 460
+video_id = 653
 dz = 58.0/964
 nz, nt = im.shape
 disk_size = 4 # it will make a 9 by 9 array with a circular disk of 1's
@@ -49,7 +49,7 @@ for i in range(1,nt):
     temp1 = SS.compute_dz_image(array1,
                                 array2,
                                 dz)
-    delz[:,i] = temp1.reshape((1292,))
+    delz[:,i] = temp1.reshape((964,))
 # take a look at delz with nan's
 #plt.figure()
 plt.subplot(2,2,3, sharex=ax, sharey=ax)
