@@ -1,7 +1,8 @@
 """
 This workflow processes all experiments
 
-- produces plots of EnergyFlux vs Time for each experiment
+Each step in the workflow processes data from a particular experiment.
+    Experiments are identified by experiment_id
 
 """
 
@@ -12,6 +13,10 @@ import pickle
 import datetime
 import time
 import collections
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
@@ -23,12 +28,13 @@ from labtools import axi_TS_col
 from labtools import createncfilefromimages
 from labtools import labdb
 from labtools import predictions_wave
+from labtools import plots
 
 workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = False
+cacheValue = True
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -37,6 +43,8 @@ cacheValue = False
 @split(None, workingdir + '*.expt_id')
 def forEachExperiment(infiles, outfiles):
     
+    logger.info('Determining set of experiments')
+
     # select experiments
     db = labdb.LabDB()
 
@@ -45,7 +53,7 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (845)
+               AND ve.expt_id IN (833)
              LIMIT 3
              """
     rows = db.execute(sql)
@@ -99,7 +107,7 @@ def createVideoNcFile(infile, outfile):
     # an nc_id containing the the videonc?
     # currently, the video_id is used as the id
 
-    createncfilefromimages.compute_videoncfile(video_id)
+    #createncfilefromimages.compute_videoncfile(video_id)
 
     pickle.dump(video_id, open(outfile, 'w'))
 
@@ -128,8 +136,8 @@ def determineSchlierenParameters(infile, outfile):
    
     # sigma depends on background image line thickness
     p = {}
-    p['sigma'] = 8 # constant for now
-    p['filterSize'] = 40 # 190 pixel is about 10 cm in space.
+    p['sigma'] = 11 # constant for now
+    p['filterSize'] = 40 # 190 pixel is about 10 cm in space. # it is not used
 
     pickle.dump(p, open(outfile, 'w'))
 
@@ -138,6 +146,9 @@ def determineSchlierenParameters(infile, outfile):
         add_inputs(r'\1.schlierenParameters'),
         '.dz_id')
 def computeDz(infiles, outfile):
+
+    logger.info('Performing Synthetic Schlieren')
+
     videoIdFile = infiles[0]
     schlierenParametersFile = infiles[1]
 
@@ -146,13 +157,13 @@ def computeDz(infiles, outfile):
 
     dz_id = SyntheticSchlieren.compute_dz( 
             video_id,
-            10, # minTol
+            7, # minTol
             p['sigma'],
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 1000,         # stopFrame ..
+            stopF = 10,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -161,26 +172,21 @@ def computeDz(infiles, outfile):
 
     pickle.dump(dz_id, open(outfile, 'w'))
 
-@transform(computeDz, suffix('.dz_id'), '.Axi_id')
-def computeAxi(infile, outfile):
+@transform(computeDz, 
+           formatter('.dz_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotDz.pdf')
+def plotDz(infile, outfile):
+    print "infile:", infile
+    print "outfile:", outfile
+
     dz_id = pickle.load(open(infile))
-    
-    Axi_id = WaveCharacteristics.compute_a_xi(
-            dz_id,
-            cache=cacheValue,
-            )
 
-    pickle.dump(Axi_id, open(outfile, 'w'))
-
-
-@transform(computeAxi, suffix('.Axi_id'), '.fw_id')
-def filter_LR(infile, outfile):
-    Axi_id = pickle.load(open(infile))
-
-    fw_id = Spectrum_LR.task_hilbert_NEWfunc(Axi_id,cache =cacheValue )
-
-    pickle.dump(fw_id, open(outfile, 'w'))
-
+    plots.plot_slice('dz',  # var
+                dz_id, # id of nc file
+                'vts', 300,
+                maxmin = 0.05,  # min_max value
+                plotName=outfile,
+               )
 
 @transform(computeDz, suffix('.dz_id'), '.movieDz')
 def movieDz(infile, outfile):
@@ -194,25 +200,47 @@ def movieDz(infile, outfile):
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.03,  # min_max value
+                      0.5,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
     pickle.dump(movieName, open(outfile, 'w'))
 
+@transform(computeDz, suffix('.dz_id'), '.fw_id')
+def filterLR(infile, outfile):
+    dz_id = pickle.load(open(infile))
 
-@transform(computeAxi, suffix('.Axi_id'), '.fw_id')
-def filterAxiLR(infile, outfile):
-    Axi_id = pickle.load(open(infile))
+    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
+
+    pickle.dump(fw_id, open(outfile, 'w'))
+
+@transform(filterLR, 
+           formatter('.fw_id'), 
+           [('{subpath[0][1]}/plots/{basename[0]}.LR.right.pdf','right'),
+            ('{subpath[0][1]}/plots/{basename[0]}.LR.left.pdf', 'left'),]
+           )
+def plotLR(infile, outfile):
+    nc_id = pickle.load(open(infile))
+
+    for i in range(2):
+        plots.plot_slice(outfile[i][1],  # var
+                    nc_id, # id of nc file
+                    'vts', 300,
+                    maxmin = 0.05,  # min_max value
+                    plotName=outfile[i][0],
+                   )
+
+@transform(filterLR, suffix('.fw_id'), '.Axi_id')
+def computeAxi(infile, outfile):
+    dz_id = pickle.load(open(infile))
     
-    fw_id = Spectrum_LR.task_hilbert_func(
-            Axi_id,
-            2, #maxMin
-            100, # plotColumn
+    Axi_id = WaveCharacteristics.compute_a_xi(
+            dz_id,
             cache=cacheValue,
             )
 
-    pickle.dump(fw_id, open(outfile, 'w'))
+    pickle.dump(Axi_id, open(outfile, 'w'))
+
 
 @transform(computeAxi, suffix('.Axi_id'), '.movieAxi')
 def movieAxi(infile, outfile):
@@ -234,7 +262,6 @@ def movieAxi(infile, outfile):
 @transform(forEachExperiment, suffix('.expt_id'), '.exptParameters')
 def getParameters(infile, outfile):
     expt_id = pickle.load(open(infile))
-
 
     # look up parameters for the given expt_id
     video_id, N, omega, kz, theta = Energy_flux.get_info(expt_id)
@@ -269,7 +296,6 @@ def tableExperimentParameters(infiles, outfile):
         for key, value in params.iteritems():
             f.write(key + ":\t" + str(value) + "\n")
         f.write("\n")
-
 
 
 #@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
@@ -316,23 +342,21 @@ def plotAxiVerticalTimeSeries(infile, outfile):
     axi_TS_col.compute_energy_flux(
             Axi_id,
             600,  # column number
-            1,      # maxmin
+            4,      # maxmin
             plotname = plotName,
             )
 
     pickle.dump(plotName, open(outfile, 'w'))
 
 
-@transform([filterAxiLR], suffix('.fw_id'), '.plotFilteredLR')
+@transform([filterLR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
     fw_id = pickle.load(open(infile))
     
     plotName = os.path.basename(outfile) + '.pdf'
     plotName = os.path.join(plotdir, plotName)
 
-    Spectrum_LR.plot_data(fw_id,
-            #plotName = plotName,
-            )
+    #Spectrum_LR.plot_data(fw_id, #plotName = plotName,)
 
     #pickle.dump('outfile', open(outfile, 'w'))
 
@@ -346,27 +370,32 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-    #        movieVideo, 
-             #movieDz,
+            plotLR,
+            plotDz,
+            #movieVideo,
+    #         movieDz,
              #movieAxi,
-             #plotEnergyFlux, 
-             #plotFilteredLR,
-             #tableExperimentParameters,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
-            #filter_LR
+    #         plotEnergyFlux, 
+    #         plotFilteredLR,
+    #         tableExperimentParameters,
+    #        plotAxiHorizontalTimeSeries,
+    #        plotAxiVerticalTimeSeries,
             ]
 
     forcedTasks = [
-            forEachExperiment,
-             #computeDz,
+   #         plotDz,
+            #plotLR,
+            filterLR,
+    #        forEachExperiment,
+    #        determineSchlierenParameters,
+    #         computeDz,
              #computeAxi,
     #        filterAxiLR,
     #        plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
+            #plotAxiVerticalTimeSeries,
     #        plotEnergyFlux, 
-            getParameters,
-            tableExperimentParameters,
+            #getParameters,
+            #tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 
