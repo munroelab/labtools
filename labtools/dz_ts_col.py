@@ -25,7 +25,7 @@ def get_MSFD(dz_id):
     return mintol,sigma,filter_size,diff_frames,video_id
 
 
-def compute_dz_timeseries(dz_id,column,max_min): 
+def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf'):
     # Check if the database already exists
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d""" % dz_id
     rows = db.execute(sql)
@@ -78,6 +78,7 @@ def compute_dz_timeseries(dz_id,column,max_min):
     #plt.imshow(im4,vmax=0.0003,vmin=-0.0003)
 
     plt.colorbar()
+    plt.savefig(plot_name + 'col%d.pdf' %column)
 
 def get_info(expt_id):
     
