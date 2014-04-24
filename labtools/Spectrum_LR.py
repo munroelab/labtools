@@ -78,7 +78,7 @@ def create_nc_file(a_xi_id, fw_id=None):
             print "fw_id, a_xi_id, mismatch!"
             return None
 
-    fw_path = "/Volumes/HD4/filtered_waves/%d" % fw_id
+    fw_path = "/data/filtered_waves/%d" % fw_id
     if not os.path.exists(fw_path):
         os.mkdir(fw_path)
     fw_filename = os.path.join(fw_path, "waves.nc")
@@ -87,7 +87,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     # the new created file
 
     axincfile = netCDF4.Dataset(
-        '/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc' % a_xi_id,
+        '/data/vertical_displacement_amplitude/%d/a_xi.nc' % a_xi_id,
         'r')
     Nrow = axincfile.variables['row'].size
     Ncol = axincfile.variables['column'].size
@@ -204,7 +204,7 @@ def create_nc_file_dzHT(dz_id, fw_id=None):
             print "fw_id, dz_id, mismatch!"
             return None
 
-    fw_path = "/Volumes/HD4/filtered_waves/%d" % fw_id
+    fw_path = "/data/filtered_waves/%d" % fw_id
     if not os.path.exists(fw_path):
         os.mkdir(fw_path)
     fw_filename = os.path.join(fw_path, "waves.nc")
@@ -213,7 +213,7 @@ def create_nc_file_dzHT(dz_id, fw_id=None):
     # the new created file
 
     dzncfile = netCDF4.Dataset(
-        '/Volumes/HD4/dz/%d/dz.nc' % dz_id,
+        '/data/dz/%d/dz.nc' % dz_id,
         'r')
     Nrow = dzncfile.variables['row'].size
     Ncol = dzncfile.variables['column'].size
@@ -268,25 +268,29 @@ def create_nc_file_dzHT(dz_id, fw_id=None):
     return fw_filename, fw_id
 
 
-def plotFilteredLR(fw_id,
-                   plotName=None
+def plotFilteredLR(fw_id,max_min,plotcolumn,
+                   plotName=None,rowS=0,rowE=964
 ):
     """
+    create timeseries of left and right waves and store the plot as a pdf
     """
 
     db = labdb.LabDB()
 
     #check if the file already exists
-    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
 
     if not os.path.exists(fw_filename):
         print "waves.nc not found"
         return
 
+
     # Open the nc file for writing data
     nc = netCDF4.Dataset(fw_filename, 'r')
-    left = nc.variables['left_array']
-    right = nc.variables['right_array']
+    left = nc.variables['left_array'][:, rowS:rowE, plotcolumn]
+    right = nc.variables['right_array'][:, rowS:rowE, plotcolumn]
+    z = nc.variables['row'][rowS:rowE]
+    t = nc.variables['time']
 
     if plotName is None:
         #generate a unique path for storing plots
@@ -295,27 +299,29 @@ def plotFilteredLR(fw_id,
             os.mkdir(path)
         fname = os.path.join(path, "plot.pdf")
     else:
-        fname = plotName
+        fname = plotName+".pdf"
 
-    vmax = 0.02
-    plotcolumn = 300
+
     plt.figure()
     plt.clf()
     plt.subplot(2, 1, 1)
-    plt.imshow(left[:, :, plotcolumn], aspect='auto', vmin=-vmax, vmax=vmax)
-    plt.ylabel('z')
-    plt.title('Left')
+    plt.imshow(left['real'].T,extent=[t[0],t[-1],z[-1],z[0]],
+               aspect='auto', vmin=-max_min, vmax=max_min,
+               interpolation='nearest')
+    plt.ylabel('Depth (cm)')
+    #plt.xlabel('Time (s)')
+    plt.figtext(.13,.91,'a )')
+    #plt.title('Left')
     plt.colorbar()
     plt.subplot(2, 1, 2)
-    plt.imshow(right[:, :, plotcolumn], aspect='auto', vmin=-vmax,
-               vmax=vmax)
-    plt.title('Right')
+    plt.imshow(right['real'].T, extent=[t[0],t[-1],z[-1],z[0]],
+               aspect='auto', vmin=-max_min,
+               vmax=max_min,interpolation='nearest')
+    #plt.title('Right')
     plt.colorbar()
-    plt.ylabel('z')
-    plt.xlabel('t')
-
-    plt.xlabel('t')
-
+    plt.ylabel('Depth (cm)')
+    plt.xlabel('Time (s)')
+    plt.figtext(.13,.475,'b )')
     nc.close()
 
     plt.savefig(fname)
@@ -436,7 +442,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
 
     # get the path to the nc file
     # Open &  Load the nc file
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d" % a_xi_id
     filename = path + "/a_xi.nc"
     nc = netCDF4.Dataset(filename)
 
@@ -564,7 +570,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
 
 def plot_data(fw_id):
 
-    fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(fw_filename, 'r')
     raw = nc.variables['raw_array']
     left = nc.variables['left_array']
@@ -629,7 +635,7 @@ def plot_fft(kx, kz, omega, F):
     print " kz shape", kz.shape
     print " omega shape", omega.shape
 
-    path = "/Volumes/HD4/deltaN2/%d" % deltaN2_id
+    path = "/data/deltaN2/%d" % deltaN2_id
     filename = path + "/deltaN2.nc"
     nc = netCDF4.Dataset(filename)
     deltaN2 = nc.variables['deltaN2_array']
@@ -774,7 +780,7 @@ def task_DzHilbertTransform(dz_id, cache=True):
         fw_id = rows[0][0]
 
         print "filterLR id already exists in database"
-        fw_filename = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
+        fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
         print fw_filename
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
@@ -795,7 +801,7 @@ def task_DzHilbertTransform(dz_id, cache=True):
     logger.info('filterLR')
 
     #set the path to the data
-    path = "/Volumes/HD4/dz/%d" % dz_id
+    path = "/data/dz/%d" % dz_id
     filename = path + "/dz.nc"
 
     # check for existance of dz_nc

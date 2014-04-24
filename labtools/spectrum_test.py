@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import schlieren
 
-def xzt_fft(f, x, z, t):
+def fxzt_fft(f, x, z, t):
     """
     Given the three-dimensional array f(x,z,t) gridded onto x, z, t
     compute the Fourier transform F.
@@ -48,6 +48,36 @@ def xzt_fft(f, x, z, t):
     omega = 2*np.pi*np.fft.fftshift(omega)
 
     return F, kx, kz, omega
+
+def xzt_fft( x, z, t):
+    """
+    Given the three-dimensional array f(x,z,t) gridded onto x, z, t
+    compute the Fourier transform F.
+
+    Returns F, X, Z, T where F is the Fourier transform and
+    X, Z, T are the frequency axes
+    """
+
+    # determine lengths of x, z, t
+    nx = len(x)
+    nz = len(z)
+    nt = len(t)
+
+
+    # assume data is sampled evenly
+    dx = x[1] - x[0]
+    dz = z[1] - z[0]
+    dt = t[1] - t[0]
+
+    # determine frequency axes
+    kx = np.fft.fftfreq(nx, dx)
+    kx = 2*np.pi*np.fft.fftshift(kx)
+    kz = np.fft.fftfreq(nz, dz)
+    kz = 2*np.pi*np.fft.fftshift(kz)
+    omega = np.fft.fftfreq(nt, dt)
+    omega = 2*np.pi*np.fft.fftshift(omega)
+
+    return kx, kz, omega
 
 def estimate_dominant_frequency_fft(F, kx, kz, omega):
     """
@@ -108,10 +138,9 @@ def get_arrays_XZT(dz_array,win_L,win_H,path2time):
     #return x,z,t,X,Z,T
     return x,z,t
 
-def plot_fft(kx,kz,omega,x,z,t):
+def plot_fft(kx,kz,omega,x,z,t,plot_name = 'XZT_FFT.pdf'):
     #plot kx_, kz_, omega_
-    plt.figure(2)
-    plt.subplot(1,3,1)
+
     dx = x[1]-x[0]
     dz = z[1]-z[0]
     dt = t[1]-t[0]
@@ -121,7 +150,8 @@ def plot_fft(kx,kz,omega,x,z,t):
     zmax = z[-1]
     tmin = t[0]
     tmax = t[-1]
-    
+    plt.figure(figsize=(12,10))
+    plt.subplot(3,1,1)
     plt.imshow(abs(kx).T, interpolation='nearest',
                extent=[zmin, zmax, tmin, tmax],
                vmin = 0, vmax = np.pi/dx,
@@ -130,7 +160,7 @@ def plot_fft(kx,kz,omega,x,z,t):
     plt.ylabel('t')
     plt.colorbar()
 
-    plt.subplot(1,3,2)
+    plt.subplot(3,1,2)
     plt.imshow(abs(kz).T, interpolation='nearest',
                extent=[xmin, xmax, tmin, tmax],
                vmin = 0, vmax = np.pi/dz,
@@ -139,7 +169,7 @@ def plot_fft(kx,kz,omega,x,z,t):
     plt.ylabel('t')
     plt.colorbar()
 
-    plt.subplot(1,3,3)
+    plt.subplot(3,1,3)
     plt.imshow(abs(omega).T, interpolation='nearest',
                extent=[xmin, xmax, zmin, zmax],
               vmin = 0, vmax = np.pi/dt,
@@ -147,7 +177,8 @@ def plot_fft(kx,kz,omega,x,z,t):
     plt.xlabel('x')
     plt.ylabel('z')
     plt.colorbar()
-    plt.show()
+    plt.savefig(plot_name+'.pdf')
+    #plt.show()
 
 def test():
     """
@@ -225,6 +256,7 @@ def fft_test_code():
 
     kx,kz,omega = estimate_dominant_frequency(dz_array,x,z,t)
     plot_fft(kx,kz,omega,x,z,t)
+    plt.show()
 
 if __name__ == "__main__":
     test()

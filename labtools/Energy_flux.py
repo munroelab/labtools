@@ -37,7 +37,7 @@ def compute_energy_flux_raw(
         return
 
     
-    axi_path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    axi_path = "/data/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     if not os.path.exists(axi_path):
         print axi_path, 'not found'
         return
@@ -152,7 +152,7 @@ def compute_energy_flux(
         return
 
     
-    fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
+    fw_path = "/data/filtered_waves/%d/waves.nc" % rows[0][0]
     if not os.path.exists(fw_path):
         print fw_path, 'not found'
         return
@@ -324,11 +324,8 @@ def moving_average(arr, N):
     return avg
 
 
-
-
-
 # old compute function for the axi datasets upto 119
-def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3):
+def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.pdf',plotname2= 'EF_fft.pdf'):
     """ this function computes the energy flux from a_xi.nc file and displays it"""
     # Open the a_xi.nc file and load the variables
     # Check if the database already exists
@@ -345,16 +342,14 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3):
     # get experiment ID
     #sql = """SELECT expt_id FROM deltaN2 WHERE id = (SELECT deltaN2_id FROM\
     #        vertical_displacement_amplitude WHERE a_xi_id = %d )  """ % a_xi_id
-    sql = """select expt_id from dz where dz_id = (select dz_id from dn2t where\
-            id= (select dn2t_id from vertical_displacement_amplitude where a_xi_id=%d))""" % a_xi_id
-    
+    sql = """SELECT expt_id FROM dz WHERE dz_id = (SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id = %d)""" % a_xi_id
     rows=db.execute(sql)
     expt_id = rows[0][0]
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     # Open the nc file and load the variables.
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
     print " variables: " ,nc.variables.keys()
     #a_xi = nc.variables['a_xi_array'][:,120:900,:]
@@ -433,17 +428,16 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3):
     title1 = "energy flux at %f cm away from the wavemaker" % (x[col1]+50)
     title2 = "energy flux at %f cm away from the wavemaker" % (x[col2]+50)
     title3 = "energy flux at %f cm away from the wavemaker" % (x[col3]+50)
-    plt.figure(1,figsize=(15,12))
+    plt.figure(figsize=(12,10))
     plotting_functions.plot_3plts(EF1,EF2,EF3,t,title1,title2,title3,'time','E')
-    
-    title1 = "FFT of energy flux at %f cm away from the wavemaker" % (x[col1]+50)
-    
+    plt.savefig(plotname1+'.pdf')
 
+    title1 = "FFT of energy flux at %f cm away from the wavemaker" % (x[col1]+50)
     title2 = "FFT of energy flux at %f cm away from the wavemaker" % (x[col2]+50)
     title3 = "FFT of energy flux at %f cm away from the wavemaker" % (x[col3]+50)
-    plt.figure(2,figsize=(15,12))
+    plt.figure(figsize=(12,10))
     plotting_functions.plot_3plts(abs(F1),abs(F2),abs(F3),freq,title1,title2,title3,'freq','abs(fft(EF))')
-    
+    plt.savefig(plotname2+'.pdf')
     #plt.show()
     #plotting_functions.plot_ts(EF1,t,1,title)
     #EF = (a_xi[:,:,500])**2 * const

@@ -22,7 +22,7 @@ def get_MSF(id):
     print " mintol:" ,mintol, "sigma:" ,sigma, "filter_size:",filter_size
     return mintol,sigma,filter_size
 
-def compute_energy_flux(a_xi_id,column,max_min,plotname = "axiVerticalTimeSeries"): 
+def compute_energy_flux(a_xi_id,column,max_min,plotname = "AxiVTS",rowS=0,rowE=963):
     # Check if the database already exists
     sql = """SELECT expt_id FROM dz WHERE dz_id = (SELECT dz_id from \
             vertical_displacement_amplitude WHERE a_xi_id = %d)""" % a_xi_id
@@ -38,14 +38,14 @@ def compute_energy_flux(a_xi_id,column,max_min,plotname = "axiVerticalTimeSeries
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     # Open the nc file and load the variables.
-    path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
+    path = "/data/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
     print " variables: " ,nc.variables.keys()
     a_xi_arr = nc.variables['a_xi_array']
     print " a_xi array.shape ", a_xi_arr.shape
     #t0=10
     t = nc.variables['time'][:]
-    z = nc.variables['row']
+    z = nc.variables['row'][rowS:rowE]
     x = nc.variables['column']
 
     # Calculate kx and  energy flux
@@ -54,15 +54,16 @@ def compute_energy_flux(a_xi_id,column,max_min,plotname = "axiVerticalTimeSeries
     const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
     print "kx:",kx
     print "const:",const
-    dat = a_xi_arr[:,:,column]
+    #LOAD THE DATA
+    dat = a_xi_arr[:,rowS:rowE,column]
     data = dat.T
     print "data.T.shape", data.shape
-    plt.figure(figsize=(15,10))
+    plt.figure()
     #plt.contourf(t,z,data.T[::-1],levels=level)
     plt.imshow(data[:,:],extent=[t[0],t[-1],z[-1],z[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
-    plt.xlabel('Time (seconds)')
+    plt.xlabel('Time (s)')
     plt.ylabel('Depth (cm)')
-    plt.title('A_Xi (Video ID %d) \n %.2f cm away from the WG' % (video_id, 84+x[column]) )
+    #plt.title('A_Xi (Video ID %d) \n %.2f cm away from the WG' % (video_id, 84+x[column]) )
     plt.colorbar()
     plt.savefig(plotname + "_%dcol.pdf"% column )
 

@@ -181,18 +181,8 @@ def compute_a_xi(dz_id, cache=True):
     axi_time = axi_nc.variables['time']
     axi_time[:] = t[:]
 
-    # Calculate kx 
-    rho0 = 0.998
-    kx = (omega * kz)/(N*N - omega*omega)**0.5
+
     dN2t_to_axi = -1.0 /( omega* N * N * kz)
-#    print "constant1 :" ,const1
-    
-    # calculate constants needed for getting dn2t from dz
-    
-    sql = """SELECT length FROM video WHERE video_id = %d  """ % vid_id
-    rows = db.execute(sql)
-    win_l = rows[0][0]
-    win_l=win_l*1.0
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=dz.shape[0]).start()

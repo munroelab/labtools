@@ -182,7 +182,7 @@ def create_nc_file(video_id,
                     print "video id/startF/stopF mismatch!"
                     return None
 
-    dz_path = "/Volumes/HD4/dz/%d" % dz_id
+    dz_path = "/data/dz/%d" % dz_id
     if not os.path.exists(dz_path):
         # Create the directory in which to store the nc file
         os.mkdir(dz_path)
@@ -338,7 +338,7 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         dz_id = rows[0][0]
         print "Loading cached dz %d..." % dz_id
         # load the array from the disk
-        dz_path = "/Volumes/HD4/dz/%d" % dz_id
+        dz_path = "/data/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
         
         #dz_array = numpy.load(dz_filename)

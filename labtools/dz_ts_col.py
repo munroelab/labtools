@@ -25,7 +25,7 @@ def get_MSFD(dz_id):
     return mintol,sigma,filter_size,diff_frames,video_id
 
 
-def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf'):
+def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf',rowS=0,rowE=963):
     # Check if the database already exists
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d""" % dz_id
     rows = db.execute(sql)
@@ -54,28 +54,18 @@ def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf'):
     
     t = nc.variables['time'][:] 
     
-    z = nc.variables['row']
+    z = nc.variables['row'][rowS:rowE]
     x = nc.variables['column']
-    mintol,sigma,filter_size,diff_frames,v_id=get_MSFD(dz_id)
-    dat = dz_arr[:,:,column]
+
+    #load the data
+    dat = dz_arr[:,rowS:rowE,column]
     data=dat.T
     print "data.T.shape", data.shape
-    plt.figure(figsize=(20,11))
+    plt.figure()
     #plt.contourf(t,z,data.T[::-1],levels=level)
     plt.imshow(data[:,:],extent=[t[0],t[-1],z[-1],z[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
-    plt.xlabel('Time (seconds)')
+    plt.xlabel('Time (s)')
     plt.ylabel('Depth (cm)')
-    plt.title('Video ID: %d, Diff_frames: %d \n dz of a column of pixels %.2f cm away\
-            from the wave generator' % (video_id,diff_frames, x[column]+110.0) )
-    #im1=dz_arr[203,:,:]
-    #plt.figure(2)
-    #plt.imshow(im1,vmax=0.005,vmin=-0.005)
-    #plt.figure(3)
-    #plt.imshow(im2,vmax=0.0003,vmin=-0.0003)
-    #plt.figure(4)
-    #plt.imshow(im3,vmax=0.0003,vmin=-0.0003)
-    #plt.figure(5)
-    #plt.imshow(im4,vmax=0.0003,vmin=-0.0003)
 
     plt.colorbar()
     plt.savefig(plot_name + 'col%d.pdf' %column)
