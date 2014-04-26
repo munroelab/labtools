@@ -29,12 +29,13 @@ from labtools import createncfilefromimages
 from labtools import labdb
 from labtools import predictions_wave
 from labtools import plots
+from labtools import stratification_plot
 
 workingdir = "workflow/"
 moviedir = "movies/"
 plotdir = "plots/"
 tabledir = "tables/"
-cacheValue = False
+cacheValue = True
 
 @follows(mkdir(workingdir))
 @follows(mkdir(moviedir))
@@ -53,7 +54,7 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (777)
+               AND ve.expt_id IN (764)
              LIMIT 2
              """
     rows = db.execute(sql)
@@ -90,6 +91,30 @@ def determineVideoId(infile, outfile):
     #   might need to change this step in a split
 
     pickle.dump(video_id, open(outfile, 'w'))
+
+@transform(forEachExperiment, suffix('.expt_id'), '.stratParams')
+def determineStratParams(infile, outfile):
+
+    expt_id = pickle.load(open(infile))
+
+    # select strat_id and zoffset given expt_id
+    db = labdb.LabDB()
+    sql = """ SELECT stratification.zoffset, stratification.strat_id \
+    FROM stratification INNER JOIN stratification_experiments \
+    WHERE stratification_experiments.expt_id = %d AND \
+    stratification.strat_id = stratification_experiments.strat_id """ % expt_id
+    rows = db.execute(sql)
+    z_offset = rows[0][0]
+    strat_id = rows[0][1]
+    print "z_OFF : ",  z_offset
+    print "strat_id : " , strat_id
+
+    # assumption: there is only one stratification per experiment
+    strat = collections.OrderedDict([ ('strat_id' , strat_id),
+                ('z_offset' , z_offset),
+                ])
+
+    pickle.dump(strat, open(outfile, 'w'))
 
 @transform(determineVideoId, suffix('.video_id'), '.videonc')
 def createVideoNcFile(infile, outfile):
@@ -163,7 +188,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 100,         # stopFrame ..
+            stopF = 1200,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -184,7 +209,7 @@ def plotDz(infile, outfile):
     plots.plot_slice('dz',  # var
                 dz_id, # id of nc file
                 'vts', 300,
-                maxmin = 0.02,  # min_max value
+                maxmin = 0.05,  # min_max value
                 plotName=outfile,
                )
 
@@ -226,11 +251,11 @@ def plotLR(infile, outfile):
         plots.plot_slice(outfile[i][1],  # var
                     nc_id, # id of nc file
                     'vts', 300,
-                    maxmin = 0.02,  # min_max value
+                    maxmin = 0.05,  # min_max value
                     plotName=outfile[i][0],
                    )
 
-@transform(filterLR, suffix('.fw_id'), '.Axi_id')
+@transform(computeDz, suffix('.dz_id'), '.Axi_id')
 def computeAxi(infile, outfile):
     dz_id = pickle.load(open(infile))
     
@@ -252,7 +277,7 @@ def movieAxi(infile, outfile):
     # make the movie
     movieplayer.movie('Axi',  # var
                       Axi_id, # id of nc file
-                      2,  # min_max value
+                      4,  # min_max value
                       saveFig=True,
                       movieName= movieName
                      )
@@ -282,6 +307,16 @@ def getParameters(infile, outfile):
     
     pickle.dump(params, open(outfile, 'w'))
 
+@transform(determineStratParams, suffix('.stratParams') ,
+           '.plotStratification')
+def plotStratification(infile, outfile):
+    s = pickle.load(open(infile))
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+    print "making strat plot.."
+    stratification_plot.plot_stratification(s['strat_id'],s['z_offset'],plot_name = plotName)
+    pickle.dump(plotName, open(outfile, 'w'))
+
 @merge(getParameters, tabledir + 'tableExperimentParameters.txt')
 def tableExperimentParameters(infiles, outfile):
 
@@ -308,9 +343,9 @@ def plotEnergyFlux(infile, outfile):
 
     Energy_flux.compute_energy_flux_raw(
             Axi_id,
-            400,  # rowStart
-            500,  # rowEnd
-            300,      # column
+            550,  # rowStart
+            800,  # rowEnd
+            800,      # column
             plotname = plotName,
             )
 
@@ -326,7 +361,7 @@ def plotAxiHorizontalTimeSeries(infile, outfile):
     axi_TS_row.compute_energy_flux(
             Axi_id,
             700,  # row number
-            1,      # maxmin
+            4,      # maxmin
             plotname = plotName,
             )
 
@@ -356,9 +391,9 @@ def plotFilteredLR(infile, outfile):
     plotName = os.path.basename(outfile) + '.pdf'
     plotName = os.path.join(plotdir, plotName)
 
-    #Spectrum_LR.plot_data(fw_id, #plotName = plotName,)
+    Spectrum_LR.plot_data(fw_id, plotName = plotName,)
 
-    #pickle.dump('outfile', open(outfile, 'w'))
+    pickle.dump('outfile', open(outfile, 'w'))
 
 if __name__ == "__main__":
 
@@ -370,31 +405,33 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
+            plotStratification,
             plotDz,
             plotLR,
             #movieVideo,
              #movieDz,
              #movieAxi,
-             #plotEnergyFlux, 
-             #plotFilteredLR,
-             #tableExperimentParameters,
-            #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
-            #filter_LR
+             plotEnergyFlux,
+             plotFilteredLR,
+             tableExperimentParameters,
+            plotAxiHorizontalTimeSeries,
+            plotAxiVerticalTimeSeries,
+            filterLR
             ]
 
     forcedTasks = [
-            plotDz,
-            plotLR,
-            #filterLR,
             forEachExperiment,
-            determineSchlierenParameters,
+            plotStratification,
+            #plotDz,
+            #plotLR,
+            #filterLR,
+            #determineSchlierenParameters,
              #computeDz,
              #computeAxi,
-    #        filterAxiLR,
-    #        plotAxiHorizontalTimeSeries,
+            #filterAxiLR,
+            #plotAxiHorizontalTimeSeries,
             #plotAxiVerticalTimeSeries,
-    #        plotEnergyFlux, 
+            #plotEnergyFlux,
             #getParameters,
             #tableExperimentParameters,
             ]

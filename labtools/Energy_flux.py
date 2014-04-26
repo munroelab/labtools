@@ -27,7 +27,7 @@ def compute_energy_flux_raw(
 
     """
     db = labdb.LabDB()
-    
+    print "inside function****************************"
     #check if the file already exists
     sql = """ SELECT a_xi_id FROM vertical_displacement_amplitude WHERE a_xi_id = %d""" % a_xi_id
     rows=db.execute(sql)
@@ -78,11 +78,15 @@ def compute_energy_flux_raw(
     
     # Calculate kx and  energy flux
     rho0 = 0.998
-    kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
-    const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
-    print "kx:",kx
-    print "const:",const
-    
+    #kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
+    #const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
+    #print "kx:",kx
+    #print "const:",const
+    # implementing new corrections ---
+    const = rho0* (omega/N_frequency)**2 * (1.0- (omega/N_frequency)**2 )**0.5 * N_frequency**3 / (2 * kz)
+    print "const:" ,const
+
+
     EF1 = (numpy.mean(raw_squared,1)) * const
     print "EF arrays shape:: ", EF1.shape
     # get dt and length of the timeseries
@@ -114,19 +118,15 @@ def compute_energy_flux_raw(
     print EF1.shape,avg1.shape
     #  plotting outouts
     title1 = "Energy Flux at %d cm from left edge of window  " %fx
-    fig1 = plt.figure(1,figsize=(15,12))
-    fig1.clf()
-    fig1.patch.set_facecolor('white')
-    plotting_functions.sharexy_plot_ts(EF1,avg1,ft,title1,"time","Energy_flux")
+    #plotting_functions.sharexy_plot_ts(EF1,avg1,ft,title1,"time","Energy_flux")
+    plotting_functions.plot_ts(avg1,ft,title1,"time","Energy_flux at depth %f to %f" % (fz[0] , fz[-1]))
     plt.savefig(plotname + "_ef.pdf")
 
     
     title1 = "FFT of energy flux at %d cm of the raw data" % fx
-    fig2=plt.figure(2,figsize=(15,12))
-    fig2.clf()
-    fig2.patch.set_facecolor('white')
     plotting_functions.plot_ts(abs(F1),freq,title1,"frequency","A")
     plt.savefig(plotname + "_fft.pdf")
+
 
 
 def compute_energy_flux(
@@ -303,28 +303,16 @@ def moving_average(arr, N):
         along the first dimension of arr
     """
 
-    return numpy.convolve(arr, numpy.ones((N,))/N)[N-1:]
+    C = numpy.convolve(arr, numpy.ones((N,))/N, 'valid')
+    PadLeft = N // 2
+    PadRight = N - 1 - PadLeft
 
-    print "input arr shape",arr.shape
-
-    sum_arr=[]
-    sum_arr.append(arr)
-    i=1
-    while (i < window):
-
-        sum_arr.append(numpy.pad(arr[:-i], (i,0),'constant',constant_values=(0,)))
-        i+=1
-        print i, sum_arr
-
-    sum_arr = numpy.array(sum_arr)
-
-    print "shape",sum_arr.shape
-    avg= numpy.sum(sum_arr,0)/window
-    print "average shape: ", avg.shape
-    return avg
+    return numpy.hstack( [ numpy.zeros((PadLeft,)), C, numpy.zeros((PadRight,)) ] )
 
 
-# old compute function for the axi datasets upto 119
+
+
+# old compute function for the axi datasets upto9
 def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.pdf',plotname2= 'EF_fft.pdf'):
     """ this function computes the energy flux from a_xi.nc file and displays it"""
     # Open the a_xi.nc file and load the variables
@@ -509,7 +497,7 @@ def UI():
     parser.add_argument("col1",type = int, help = " pixel number of the column \
             whose time series we want to see")
     args = parser.parse_args()
-    compute_energy_flux(args.a_xi_id,args.row_s,args.row_e,args.col1)
+    compute_energy_flux_raw(args.a_xi_id,args.row_s,args.row_e,args.col1)
     plt.show()
 
 

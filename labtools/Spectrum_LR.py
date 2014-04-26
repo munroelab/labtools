@@ -568,7 +568,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     return
 
 
-def plot_data(fw_id):
+def plot_data(fw_id,plotName = None):
 
     fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(fw_filename, 'r')
@@ -592,7 +592,7 @@ def plot_data(fw_id):
     im_L = plt.imshow(datain['real'],
                           #extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='upper',
-                          vmin =-.00001, vmax=.00001)
+                          vmin =-.05, vmax=.05)
     plt.colorbar()
     plt.title('Left')
 
@@ -604,9 +604,12 @@ def plot_data(fw_id):
     im_R = plt.imshow(datain['real'],
                           #extent=(x[0], x[-1], z[0], z[-1]),
                           aspect='auto', origin='upper',
-                          vmin =-.01, vmax=.01)
+                          vmin =-.05, vmax=.05)
     plt.colorbar()
     plt.title('Right')
+    if plotName is not None:
+        plt.savefig(plotName)
+        return
 
     def updatefig(n, *args):
 

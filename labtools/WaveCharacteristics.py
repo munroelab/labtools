@@ -181,14 +181,17 @@ def compute_a_xi(dz_id, cache=True):
     axi_time = axi_nc.variables['time']
     axi_time[:] = t[:]
 
-
-    dN2t_to_axi = -1.0 /( omega* N * N * kz)
+    # implementing the new correction... AXI refers to Afa... a change that should be
+    # implemented across the database and the library labtools
+    #dN2t_to_axi = -1.0 /( omega* N * N * kz)
+    dN2t_to_axi = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
+    print "dN2t_to_axi::", dN2t_to_axi
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=dz.shape[0]).start()
     for num in range(dz.shape[0]):
         pbar.update(num)
-        var1 = dN2t_to_axi * dz[num,:,:]
+        var1 = dN2t_to_axi * dz[num,:,:]/ (N**3)  # The var dz is dn2t which should be non dimensionalized in SyntheticSchlieren.py
         append2ncfile(a_xi,var1,num)
     pbar.finish()
 
