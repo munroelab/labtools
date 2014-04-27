@@ -23,7 +23,8 @@ import progressbar
 import multiprocessing
 from matplotlib import animation
 from chunk_shape_3D import chunk_shape_3D
-
+from labtools import Energy_flux
+from labtools import  plotting_functions
 import logging
 logger = logging.getLogger(__name__)
 
@@ -565,6 +566,174 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
 
     plot_data(kx, omega, F, F_R, F_L, K, O)
     nc.close()
+    return
+
+def moving_average_2Darray(arr, N):
+    """
+        Computes the moving average of arr over a window length 'window'
+        along the first dimension of arr
+    """
+    conv = np.apply_along_axis(lambda m: np.convolve(m,np.ones((N,))/N,'valid'), axis=1,arr=arr)
+    PadLeft = N // 2
+    PadRight = N - 1 - PadLeft
+    arr_ma = np.hstack( [ np.zeros((conv.shape[0],PadLeft)), conv, np.zeros((conv.shape[0],PadRight)) ] )
+
+    print "array size in moving average along one axis function" ,arr.shape, conv.shape,arr_ma.shape
+    return arr_ma
+
+
+def filtered_waves_VTS(fw_id,
+                      plotcol,
+                      max_min,
+                      plotName = None,
+                      rowS=0,
+                      rowE=963,
+                      ):
+
+    db = labdb.LabDB()
+    # get the dz_id of the raw dz data
+    sql = """ SELECT dz_id FROM filtered_waves WHERE fw_id = %d """ % fw_id
+    rows = db.execute(sql)
+    dz_id = rows[0][0]
+    print "dz_id :: " ,dz_id
+
+    # load the dz data of the filtered waves to view the input data before hilbert transforming them
+    dz_filename = "/data/dz/%d/dz.nc" % dz_id
+    dz_nc = netCDF4.Dataset(dz_filename,'r')
+    raw = dz_nc.variables['dz_array'][:,rowS:rowE,plotcol]
+    t=dz_nc.variables['time']
+    print "dz time:", t.shape
+    # load the filtered waves data corresponding to the dz_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
+    nc = netCDF4.Dataset(fw_filename, 'r')
+    left = nc.variables['left_array'][:,rowS:rowE,plotcol]
+    right = nc.variables['right_array'][:,rowS:rowE,plotcol]
+    t = nc.variables['time'][:]
+    print "fw_time: ", t.shape
+    x = nc.variables['column'][:]
+    z = nc.variables['row'][:][rowS:rowE]
+
+    # constants needed to convert dz into energy flux
+    # call get_info function from Energy_flux program :: to get info
+    sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+
+    vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
+    dN2t_to_afa = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
+    print "dN2t_to_afa::", dN2t_to_afa
+    rho0 = 0.998
+    kx = (omega * kz)/(N**2 - omega**2)**0.5
+    const = (0.5/kx) * rho0 * (N**3) * np.cos(theta*np.pi/180) * (np.sin(theta*np.pi/180))**2
+
+    #get the window size for computing the moving average
+    dt = np.mean(np.diff(t[:]))
+    window = 2*np.pi/(omega*dt)
+    window = np.int16(window)
+    print "window:", window
+
+
+    raw_ma= moving_average_2Darray(raw.T,window) * const * dN2t_to_afa
+    raw_EF = raw_ma**2
+    raw_VAEF = np.mean(raw_EF,0)
+    left_ma = moving_average_2Darray(left['real'].T,window) * const * dN2t_to_afa
+    left_EF = left_ma**2
+    left_VAEF = np.mean(left_EF,0)
+    right_ma = moving_average_2Darray(right['real'].T,window) * const * dN2t_to_afa
+    right_EF = right_ma**2
+    right_VAEF = np.mean(right_EF,0)
+
+    print "movarr size", raw_ma.shape,left_ma.shape,right_ma.shape,raw_EF.shape, left_EF.shape
+    print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
+
+
+    # plotting all the timeseries
+
+    plt.figure(figsize=(15,12))
+    # raw field
+    plt.subplot(3,1,1)
+    plt.imshow(raw[:,:].T,
+               extent=[t[0],t[-1],z[-1],z[0]],
+               vmax=max_min,vmin=-max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.title('raw dz')
+    plt.ylabel('depth (cm)')
+    plt.colorbar()
+
+    # L field
+    # L field real
+    plt.subplot(3, 1, 2)
+    plt.imshow(left['real'].T,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-max_min, vmax=max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.ylabel('depth (cm)')
+    plt.title('Left')
+
+    # R field
+    # R field real
+    plt.subplot(3, 1, 3)
+    plt.imshow(right['real'].T,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-max_min, vmax=max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.title('Right')
+    plt.ylabel('depth (cm)')
+    plt.xlabel('Time (s)')
+
+    plt.savefig(plotName+"DZ.pdf")
+
+    plt.figure(figsize=(15,12))
+    # raw field
+    plt.subplot(3,1,1)
+    plt.imshow(raw_EF,
+               extent=[t[0],t[-1],z[-1],z[0]],
+               vmax=5,vmin=-5,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.title('raw dz')
+    plt.ylabel('depth (cm)')
+    plt.colorbar()
+
+    # L field
+    # L field real
+    plt.subplot(3, 1, 2)
+    plt.imshow(left_EF,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-5, vmax=5,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.ylabel('depth (cm)')
+    plt.title('Left')
+
+    # R field
+    # R field real
+    plt.subplot(3, 1, 3)
+    plt.imshow(right_EF,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-5, vmax=5,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.title('Right')
+    plt.ylabel('depth (cm)')
+    plt.xlabel('Time (s)')
+
+    plt.savefig(plotName+"EF.pdf")
+
+    title1 = "energy flux at %d cm of the raw data" % x[plotcol]
+    title3 = "energy flux at %d cm of the leftward propagating wave "  % x[plotcol]
+    title2 = "energy flux at %d cm of the rightward propagating wave"  % x[plotcol]
+    plt.figure(figsize=(15,12))
+    plotting_functions.sharexy_plot_3plts(raw_VAEF,left_VAEF,right_VAEF,t[:],title1,title2,title3,'time','vertically averaged energy flux')
+    plt.savefig(plotName + "_VertAvgdEF.pdf")
+
     return
 
 

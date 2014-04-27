@@ -188,7 +188,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 1200,         # stopFrame ..
+            stopF = 200,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -238,6 +238,25 @@ def filterLR(infile, outfile):
     fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
 
     pickle.dump(fw_id, open(outfile, 'w'))
+
+@transform(filterLR, suffix('.fw_id'), '.plotWavesVerticalTimeSeriesRawLeftRight')
+def plotWavesVerticalTimeSeries(infile, outfile):
+    fw_id = pickle.load(open(infile))
+
+    plotName = os.path.basename(outfile) + '.pdf'
+    plotName = os.path.join(plotdir, plotName)
+
+    Spectrum_LR.filtered_waves_VTS(
+            fw_id,
+            600,  # column number
+            .05,      # maxmin
+            plotName = plotName,
+            rowS=0,
+            rowE=963
+            )
+
+    pickle.dump(plotName, open(outfile, 'w'))
+
 
 @transform(filterLR, 
            formatter('.fw_id'), 
@@ -416,24 +435,27 @@ if __name__ == "__main__":
              tableExperimentParameters,
             plotAxiHorizontalTimeSeries,
             plotAxiVerticalTimeSeries,
-            filterLR
+            filterLR,
+            plotWavesVerticalTimeSeries,
             ]
 
     forcedTasks = [
             forEachExperiment,
             plotStratification,
+            plotWavesVerticalTimeSeries,
+
             #plotDz,
             #plotLR,
             #filterLR,
-            #determineSchlierenParameters,
-             #computeDz,
-             #computeAxi,
+            determineSchlierenParameters,
+            #computeDz,
+            #computeAxi,
             #filterAxiLR,
             #plotAxiHorizontalTimeSeries,
             #plotAxiVerticalTimeSeries,
-            #plotEnergyFlux,
-            #getParameters,
-            #tableExperimentParameters,
+            plotEnergyFlux,
+            getParameters,
+            tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 

@@ -83,7 +83,7 @@ def compute_energy_flux_raw(
     #print "kx:",kx
     #print "const:",const
     # implementing new corrections ---
-    const = rho0* (omega/N_frequency)**2 * (1.0- (omega/N_frequency)**2 )**0.5 * N_frequency**3 / (2 * kz)
+    const = rho0* (omega/N_frequency)**2 * (1.0- (omega/N_frequency)**2 )**0.5 * N_frequency**3 / (kz)
     print "const:" ,const
 
 
@@ -115,6 +115,7 @@ def compute_energy_flux_raw(
     print "window:", window
 
     avg1 = moving_average(EF1,window)
+    print "debug: " , avg1.shape,ft.shape
     print EF1.shape,avg1.shape
     #  plotting outouts
     title1 = "Energy Flux at %d cm from left edge of window  " %fx
@@ -130,11 +131,11 @@ def compute_energy_flux_raw(
 
 
 def compute_energy_flux(
-        a_xi_id,
+        fw_id,
         row_s,
         row_e,
         col1,
-        plotname="energyflux"):
+        plotname="EnergyFluxPlot_RawLeftRight"):
     """
         Given an Axi_id, calculate the vertically averaged energy flux
 
@@ -144,34 +145,33 @@ def compute_energy_flux(
     db = labdb.LabDB()
     
     #check if the file already exists
-    sql = """ SELECT fw_id FROM filtered_waves WHERE a_xi_id = %d""" %a_xi_id
+    sql = """ SELECT dz_id FROM filtered_waves WHERE fw_id = %d""" % fw_id
     rows=db.execute(sql)
-    
+    dz_id = rows[0][0]
+
     if len(rows) == 0:
         print "fw_id has not been computed"
         return
 
-    
-    fw_path = "/data/filtered_waves/%d/waves.nc" % rows[0][0]
+    dz_path = "/data/dz/%d/dz.nc" %dz_id
+    fw_path = "/data/filtered_waves/%d/waves.nc" % fw_id
     if not os.path.exists(fw_path):
         print fw_path, 'not found'
         return
     
     # Get experiment ID
-    
-    sql = """ SELECT  dz.expt_id FROM dz INNER JOIN \
-            vertical_displacement_amplitude ON (dz.dz_id = \
-            vertical_displacement_amplitude.dz_id AND \
-            vertical_displacement_amplitude.a_xi_id = %d) """ %a_xi_id
+    sql = """ SELECT expt_id FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
-    print rows 
     expt_id = rows[0][0]
     print " experiment ID : ", expt_id
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     print "Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta
-    # Open the nc file for reading data
+
+    #open the dz data to plot the get the raw energy flux
+
+    # Open the filtered waves nc file for reading data
     nc = netCDF4.Dataset(fw_path,'r')
     raw = nc.variables['raw_array']
     left = nc.variables['left_array']
@@ -246,7 +246,6 @@ def compute_energy_flux(
     
     # get the moving average
     window = 2*numpy.pi/(omega*dt)
-    print "window:", window
     window = numpy.int16(window)
     print "window:", window
 

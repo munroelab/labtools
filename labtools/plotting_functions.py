@@ -74,4 +74,3 @@ def plot_3plts(ts1,ts2,ts3,taxis,title1,title2,title3,xlab,ylab):
     plt.plot(taxis[:],ts3)
     return
 
-

@@ -154,8 +154,7 @@ def compute_a_xi(dz_id, cache=True):
     print "variables  of the nc file :", nc.variables.keys()
     print "dz shape : " , dz.shape
     
-    # call get_info function from Energy_flux program :: to get info!
-    
+    # call get_info function from Energy_flux program :: to get info
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
@@ -184,7 +183,7 @@ def compute_a_xi(dz_id, cache=True):
     # implementing the new correction... AXI refers to Afa... a change that should be
     # implemented across the database and the library labtools
     #dN2t_to_axi = -1.0 /( omega* N * N * kz)
-    dN2t_to_axi = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
+    dN2t_to_axi = 1.0/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
     print "dN2t_to_axi::", dN2t_to_axi
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]

@@ -45,7 +45,8 @@ def plot_slice(ncvarname, nc_id,
     arr = nc.variables.keys()
     array = nc.variables[ncvar]
 
-    # really?
+    # arr = [u'row',u'column',u'time',u'a_xi_array']
+
     t = nc.variables[arr[2]]
     z = nc.variables[arr[0]]
     x = nc.variables[arr[1]]
