@@ -612,7 +612,7 @@ def filtered_waves_VTS(fw_id,
     print "fw_time: ", t.shape
     x = nc.variables['column'][:]
     z = nc.variables['row'][:][rowS:rowE]
-
+    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
     # constants needed to convert dz into energy flux
     # call get_info function from Energy_flux program :: to get info
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
@@ -625,7 +625,9 @@ def filtered_waves_VTS(fw_id,
     rho0 = 0.998
     kx = (omega * kz)/(N**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N**3) * np.cos(theta*np.pi/180) * (np.sin(theta*np.pi/180))**2
-
+    dn2t_to_ef = rho0 * (1-(omega/N)**2)**(3/2) / (kz**3 * N**3 * (omega/N)**2)
+    print "dn2t_to_ef ::",dn2t_to_ef
+    print "const:: ",const
     #get the window size for computing the moving average
     dt = np.mean(np.diff(t[:]))
     window = 2*np.pi/(omega*dt)
@@ -693,7 +695,7 @@ def filtered_waves_VTS(fw_id,
     plt.subplot(3,1,1)
     plt.imshow(raw_EF,
                extent=[t[0],t[-1],z[-1],z[0]],
-               vmax=5,vmin=-5,
+               vmax=20,vmin=-20,
                aspect='auto',interpolation= 'nearest',
                )
     plt.title('raw dz')
@@ -705,7 +707,7 @@ def filtered_waves_VTS(fw_id,
     plt.subplot(3, 1, 2)
     plt.imshow(left_EF,
                extent=(t[0], t[-1], z[-1], z[0]),
-               vmin =-5, vmax=5,
+               vmin =-20, vmax=20,
                aspect='auto',interpolation= 'nearest',
                )
     plt.colorbar()
@@ -717,7 +719,7 @@ def filtered_waves_VTS(fw_id,
     plt.subplot(3, 1, 3)
     plt.imshow(right_EF,
                extent=(t[0], t[-1], z[-1], z[0]),
-               vmin =-5, vmax=5,
+               vmin =-20, vmax=20 ,
                aspect='auto',interpolation= 'nearest',
                )
     plt.colorbar()

@@ -22,6 +22,7 @@ from labtools import SyntheticSchlieren
 from labtools import WaveCharacteristics
 from labtools import Spectrum_LR
 from labtools import Energy_flux
+from labtools import Spectrum_Analysis
 from labtools import movieplayer
 from labtools import axi_TS_row
 from labtools import axi_TS_col
@@ -54,9 +55,9 @@ def forEachExperiment(infiles, outfiles):
     sql = """SELECT ve.expt_id 
              FROM video as v INNER JOIN video_experiments AS ve ON v.video_id = ve.video_id
              WHERE height IS NOT NULL and length IS NOT NULL
-               AND ve.expt_id IN (764)
-             LIMIT 2
-             """
+               AND ve.expt_id IN (764)""" # 584,593,760,763,779)
+             #LIMIT 1
+             #"""
     rows = db.execute(sql)
 
     for expt_id, in rows:
@@ -188,7 +189,7 @@ def computeDz(infiles, outfile):
             #skip_row = 2, # number of rows to jump ... z
             skip_col = 1 , # number of columns to jump .. x
             startF = 0,        # startFrame
-            stopF = 200,         # stopFrame ..
+            stopF = 1200,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -251,8 +252,8 @@ def plotWavesVerticalTimeSeries(infile, outfile):
             600,  # column number
             .05,      # maxmin
             plotName = plotName,
-            rowS=0,
-            rowE=963
+            rowS=270,
+            rowE=850
             )
 
     pickle.dump(plotName, open(outfile, 'w'))
@@ -402,6 +403,61 @@ def plotAxiVerticalTimeSeries(infile, outfile):
 
     pickle.dump(plotName, open(outfile, 'w'))
 
+@transform([computeDz], suffix('.dz_id'), '.FFT_raw')
+def FFT_raw(infile, outfile):
+    dz_id = pickle.load(open(infile))
+
+    #timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep, max_kx, max_kz,max_omega = Spectrum_Analysis.xzt_fft(fw_id,rowS=250,rowE=800)
+
+    ncfile = '/data/dz/%d/dz.nc' % dz_id
+    ncvar = 'dz_array'
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=250,rowE=800)
+
+    pickle.dump(result, open(outfile, 'w'))
+
+@transform([filterLR], suffix('.fw_id'), '.FFT_left')
+def FFT_left(infile, outfile):
+    fw_id = pickle.load(open(infile))
+
+    ncfile = '/data/filtered_waves/%d/waves.nc' % fw_id
+    ncvar = 'left_array'
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=250,rowE=800)
+
+    pickle.dump(result, open(outfile, 'w'))
+
+@transform([filterLR], suffix('.fw_id'), '.FFT_right')
+def FFT_right(infile, outfile):
+    fw_id = pickle.load(open(infile))
+
+    ncfile = '/data/filtered_waves/%d/waves.nc' % fw_id
+    ncvar = 'right_array'
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=250,rowE=800)
+
+    pickle.dump(result, open(outfile, 'w'))
+
+@collate([FFT_raw, FFT_left, FFT_right], regex(r"(\d+).FFT_.+"), r"\1.FFT_plots")
+def FFT_plots(infiles, outfile):
+    print infiles
+
+    kx,kz,omega,l_max_kx, l_max_kz,l_max_omega = pickle.load(open(infiles[0]))
+    kx,kz,omega,raw_max_kx, raw_max_kz,raw_max_omega = pickle.load(open(infiles[1]))
+    kx,kz,omega,r_max_kx, r_max_kz,r_max_omega = pickle.load(open(infiles[2]))
+
+    plotName = os.path.basename(outfile) + '3dFFT_max_kx.pdf'
+    plotName = os.path.join(plotdir, plotName)
+    Spectrum_Analysis.plot_3Dfft_dominant_frequency(kz,omega,raw_max_kx,l_max_kx,r_max_kx,"kz","omega","K_X",plotName)
+    print plotName
+
+    plotName = os.path.basename(outfile) + '3dFFT_max_kz.pdf'
+    plotName = os.path.join(plotdir, plotName)
+    Spectrum_Analysis.plot_3Dfft_dominant_frequency(kx,omega,raw_max_kz,l_max_kz,r_max_kz,"kx","omega","K_Z",plotName)
+    print plotName
+
+    plotName = os.path.basename(outfile) + '3dFFT_max_omega.pdf'
+    plotName = os.path.join(plotdir, plotName)
+    Spectrum_Analysis.plot_3Dfft_dominant_frequency(kx,kz,raw_max_omega,l_max_omega,r_max_omega,"kx","kz","OMEGA",plotName)
+    print plotName
+
 
 @transform([filterLR], suffix('.fw_id'), '.plotFilteredLR')
 def plotFilteredLR(infile, outfile):
@@ -424,38 +480,41 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-            plotStratification,
-            plotDz,
-            plotLR,
-            #movieVideo,
-             #movieDz,
-             #movieAxi,
-             plotEnergyFlux,
-             plotFilteredLR,
-             tableExperimentParameters,
-            plotAxiHorizontalTimeSeries,
-            plotAxiVerticalTimeSeries,
-            filterLR,
-            plotWavesVerticalTimeSeries,
+                FFT_plots,
+          #  plotStratification,
+
+          #  plotDz,
+          #  plotLR,
+        # movieVideo,
+          #   movieDz,
+           #  movieAxi,
+            # plotEnergyFlux,
+            # plotFilteredLR,
+            # tableExperimentParameters,
+       # plotAxiHorizontalTimeSeries,
+        #    plotAxiVerticalTimeSeries,
+        #    filterLR,
+        #    plotWavesVerticalTimeSeries,
             ]
 
     forcedTasks = [
             forEachExperiment,
-            plotStratification,
-            plotWavesVerticalTimeSeries,
-
-            #plotDz,
-            #plotLR,
-            #filterLR,
-            determineSchlierenParameters,
-            #computeDz,
-            #computeAxi,
-            #filterAxiLR,
-            #plotAxiHorizontalTimeSeries,
-            #plotAxiVerticalTimeSeries,
-            plotEnergyFlux,
-            getParameters,
-            tableExperimentParameters,
+            FFT_left,
+            FFT_raw,
+            FFT_right,
+           # plotStratification,
+           # plotWavesVerticalTimeSeries,
+           # plotDz,
+           # plotLR,
+           # filterLR,
+           # determineSchlierenParameters,
+           # computeDz,
+           # computeAxi,
+           # plotAxiHorizontalTimeSeries,
+           # plotAxiVerticalTimeSeries,
+           # plotEnergyFlux,
+           # getParameters,
+           # tableExperimentParameters,
             ]
 
     pipeline_printout_graph( open('workflow.pdf', 'w'), 
@@ -463,11 +522,11 @@ if __name__ == "__main__":
         finalTasks,
         forcedtorun_tasks = forcedTasks,
         
-        no_key_legend=True)
+        no_key_legend=False)
 
     pipeline_run(finalTasks,
             forcedTasks,
-            verbose=2, 
+            verbose=2,
         #    multiprocess=4, 
             one_second_per_job=True)
 

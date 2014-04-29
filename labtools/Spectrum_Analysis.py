@@ -8,7 +8,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import netCDF4
-def xzt_fft(dz_id):
+def xzt_fft(ncfile, ncvar,
+            timeS=0,timeE=None,
+            rowS =0 ,rowE = 963,
+            colS =0 ,colE = 1291 ):
     """
     Given the three-dimensional array f(x,z,t) gridded onto x, z, t
     compute the Fourier transform F.
@@ -16,24 +19,38 @@ def xzt_fft(dz_id):
     Returns F, X, Z, T where F is the Fourier transform and 
     X, Z, T are the frequency axes
     """
-
+    tstep=10
+    zstep=10
+    xstep=10
     # get the path to the nc file
     # Open &  Load the nc file
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
-    dz_filename = dz_path+ "/dz.nc"
-    nc = netCDF4.Dataset(dz_filename)
-    dz_array = nc.variables['dz_array']
-    dz_array = dz_array[100:600,300:800,600:1000] 
-    dz_array = np.float16(dz_array)
+    nc = netCDF4.Dataset(ncfile)
     t = nc.variables['time']
-    t = t[100:300]
-    t = np.float16(t)
-    x = nc.variables['column']
-    x = x[600:1000]
-    x = np.float16(x)
-    z = nc.variables['row']
-    z = z[300:800]
-    z = np.float16(z)
+    if timeE is None:
+        timeE = t.shape[0]-1
+    t = t[timeS:timeE:tstep]
+    x = nc.variables['column'][colS:colE:xstep]
+    z = nc.variables['row'][rowS:rowE:zstep]
+
+    A = nc.variables[ncvar]
+    print "A shape is ", A.shape
+    complex64_t = np.dtype([('real', '<f4'), ('imag', '<f4')])
+    if A.dtype == complex64_t:
+        nt = (timeE - timeS) // tstep
+        nz = (rowE - rowS) // zstep
+        nx = (colE - colS) // xstep
+
+        dz_array = np.empty( (nt, nz, nx), dtype=np.complex128)
+
+        for nn, n in enumerate(range(timeS+timeE, timeE, tstep)):
+            frame = A[n, rowS:rowE, colS:colE][:,::zstep, ::xstep]
+            dz_array[n, :, :].real = frame['real']
+            dz_array[n, :, :].imag = frame['imag']
+
+
+    else:
+        dz_array = A[timeS:timeE:tstep,rowS:rowE:zstep,colS:colE:xstep]
+
 #    plt.imshow(dz_array[1,150:800,:],extent=[x[0],x[-1],z[0],z[-1]])
     print "DZ array shape: " ,dz_array.shape
     print "T shape: " ,t.shape
@@ -46,16 +63,17 @@ def xzt_fft(dz_id):
     nt = len(t)
     print "length of X,Z, T:  ", nx,nz,nt
 
-    # assume data is sampled evenly
-    dx = x[1] - x[0]
-    dz = z[1] - z[0]
-    dt = t[1] - t[0]
+    # calculate the step in time , z and x
+    dx = np.mean(np.diff(x))       #x[1] - x[0]
+    dz = np.mean(np.diff(z))    #z[1] - z[0]
+    dt = np.mean(np.diff(t))    #t[1] - t[0]
     print "dx,dz,dt :: " ,dx,dz,dt
+
     # perform FFT alone all three dimensions
     F = np.fft.fftn(dz_array) 
     print "fft of dz _array:: type and size", F.dtype,F.size
     # Normalize and shift so that zero frequency is at the center
-    F = np.fft.fftshift(F)/(nt*nt*nx*nx*nz*nz)
+    F = np.fft.fftshift(F)
 
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
@@ -73,7 +91,7 @@ def xzt_fft(dz_id):
     print "max kz shape: ", max_kz.shape
     print "max omega shape: ", max_omega.shape
     nc.close()
-    return max_kx, max_kz,max_omega
+    return kx,kz,omega, max_kx, max_kz,max_omega
 
 
 def estimate_dominant_frequency_fft(F, kx, kz, omega):
@@ -86,86 +104,141 @@ def estimate_dominant_frequency_fft(F, kx, kz, omega):
     """
     # compute power spectrum
     P = abs(F)
-    print "P:", P.shape
-    # identify the peak in each spectrum for each component
-    index = P.argmax(2)
-    kx_ = kx[index]
+    # print "P:", P.shape
+    # # identify the peak in each spectrum for each component
+    # index = P.argmax(2)
+    # kx_ = kx[index]
+    #
+    # index = P.argmax(1)
+    # kz_ = kz[index]
+    #
+    # index = P.argmax(0)
+    # omega_ = omega[index]
+    kx_ = P.sum(2)
+    kz_ = P.sum(1)
+    omega_ = P.sum(0)
 
-    index = P.argmax(1)
-    kz_ = kz[index]
-
-    index = P.argmax(0)
-    omega_ = omega[index]
 
     return kx_, kz_, omega_
 
 
-def plot_fft(mkx,mkz,momega,dz_id):
+def plot_fft(timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep,mkx,mkz,momega,dz_id):
     # get the path to the nc file
     # Open &  Load the nc file
     print "max kx shape", mkx.shape
     print "max kz shape", mkz.shape
     print "max omega shape", momega.shape
 
-    dz_path = "/Volumes/HD3/dz/%d" % dz_id
+    dz_path = "/data/dz/%d" % dz_id
     dz_filename = dz_path + "/dz.nc"
     nc = netCDF4.Dataset(dz_filename)
-    dz = nc.variables['dz_array']
-  
-    t = nc.variables['time']
-    t = t[100:300]
-    a = nc.variables['column']
-    x = a[600:1000]
-    b = nc.variables['row']
-    z = b[300:800]
-    print "t : " ,t[0],"to " , t[-1]
-    print "x : " ,x[0],"to " , x[-1]
-    print "z : " ,z[0],"to " , z[-1]
+    dz = nc.variables['dz_array'][20,rowS:rowE:zstep,colS:colE:xstep]
+    t = nc.variables['time'][timeS:timeE:tstep]
+    x = nc.variables['column'][colS:colE:xstep]
+    z = nc.variables['row'][rowS:rowE:zstep]
+
+    print dz.shape
+    plt.figure()
+    plt.imshow(dz)
+    plt.colorbar()
 
     #plot kx_, kz_, omega_
+    # determine lengths of x, z, t
+    nx = len(x)
+    nz = len(z)
+    nt = len(t)
+    dx = np.mean(np.diff(x))    # x[1]-x[0]
+    dz = np.mean(np.diff(z))    # z[1]-z[0]
+    dt = np.mean(np.diff(t))    # t[1]-t[0]
+    kx = np.fft.fftfreq(nx, dx)
+    kx = 2*np.pi*np.fft.fftshift(kx)
+    kz = np.fft.fftfreq(nz, dz)
+    kz = 2*np.pi*np.fft.fftshift(kz)
+    omega = np.fft.fftfreq(nt, dt)
+    omega = 2*np.pi*np.fft.fftshift(omega)
+    # plt.figure()
+    # plt.imshow(dz,extent=[x[0],x[-1],z[0],z[-1]])
+    # plt.title('length and depth window')
+    # plt.colorbar()
+
     plt.figure(2)
     plt.subplot(1,3,1)
-    dx = x[1]-x[0]
-    dz = z[1]-z[0]
-    dt = t[1]-t[0]
-    
-    #plt.imshow(dz[500,150:800,500:600].reshape(650,500),extent=[x[0],x[-1],z[0],z[-1]])
-    #plt.title('length and depth window')
-    
     plt.imshow(abs(mkx), interpolation='nearest',
-               extent=[t[0], t[-1],z[0],z[-1]],
-               vmin = 0, vmax = np.pi/dx,
+               extent=[kz[0], kz[-1],omega[-1],omega[0]],
+               #vmin = 0, vmax =np.pi/dx,
                aspect='auto')
-    plt.xlabel('t')
-    plt.ylabel('z')
+    plt.xlabel('kz')
+    plt.ylabel('omega')
     plt.title('kx')
     #plt.colorbar(ticks=[1,3,5,7])
     plt.colorbar()
     plt.subplot(1,3,2)
     plt.imshow(abs(mkz), interpolation='nearest',
-               extent=[t[0], t[-1], x[0], x[-1]],
-               vmin = 0, vmax = np.pi/dz ,
+               extent=[kx[0], kx[-1], omega[-1], omega[0]],
+               #vmin = 0, vmax =np.pi/dz ,
                aspect='auto')
-    plt.xlabel('t')
-    plt.ylabel('x')
+    plt.xlabel('kx')
+    plt.ylabel('omega')
     plt.title('kz')
     #plt.colorbar(ticks=[1,3,5,7,9])
     plt.colorbar()
     
     plt.subplot(1,3,3)
-    plt.imshow(abs(momega).T, interpolation='nearest',
-               extent=[x[0], x[-1], z[0], z[-1]],
-              vmin = 0, vmax = np.pi/dt,
+    plt.imshow(abs(momega), interpolation='nearest',
+               extent=[kx[0], kx[-1], kz[-1], kz[0]],
                aspect='auto')
-    plt.xlabel('x')
-    plt.ylabel('z')
+    plt.xlabel('kx')
+    plt.ylabel('kz')
     plt.title('omega')
     #plt.colorbar(ticks=[1,3,5,7,9])
     plt.colorbar()
     
-    plt.savefig('/Volumes/HD2/users/prajvala/IGW_reflection/results/img1.jpeg')
+    #plt.savefig('/Volumes/HD2/users/prajvala/IGW_reflection/results/img1.jpeg')
     nc.close()
     plt.show()
+
+
+
+
+def plot_3Dfft_dominant_frequency(k_xax,k_yax,raw,left,right,xlab,ylab,title,plotname):
+    # get the path to the nc file
+    # Open &  Load the nc file
+    print "max kx shape", raw.shape,left.shape,right.shape
+
+    plt.figure(figsize=(15,10))
+    plt.subplot(1,3,1)
+    plt.imshow(abs(raw), interpolation='nearest',
+               extent=[k_xax[0], k_xax[-1],k_yax[-1],k_yax[0]],
+               #vmin = 0, vmax =np.pi/dx,
+               aspect='auto')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
+    plt.title(title)
+    #plt.colorbar(ticks=[1,3,5,7])
+    plt.colorbar()
+    plt.subplot(1,3,2)
+    plt.imshow(abs(left), interpolation='nearest',
+               extent=[k_xax[0], k_xax[-1],k_yax[-1],k_yax[0]],
+               #vmin = 0, vmax =np.pi/dz ,
+               aspect='auto')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
+    plt.title(title)
+    #plt.colorbar(ticks=[1,3,5,7,9])
+    plt.colorbar()
+
+    plt.subplot(1,3,3)
+    plt.imshow(abs(right), interpolation='nearest',
+               extent=[k_xax[0], k_xax[-1],k_yax[-1],k_yax[0]],
+               aspect='auto')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
+    plt.title(title)
+    #plt.colorbar(ticks=[1,3,5,7,9])
+    plt.colorbar()
+
+    plt.savefig(plotname)
+
 
 def test():
     """
@@ -238,7 +311,7 @@ def fft_test_code():
     parser = argparse.ArgumentParser()
     parser.add_argument("dz_id",type=int,help="Enter the dz id of the dz.nc file extract the wavenumbers and frequency from.")
     args = parser.parse_args()
-    max_kx,max_kz,max_omega= xzt_fft(args.dz_id) 
+    max_kx,max_kz,max_omega= xzt_fft(args.dz_id)
     plot_fft(max_kx,max_kz,max_omega,args.dz_id)
 
 if __name__ == "__main__":

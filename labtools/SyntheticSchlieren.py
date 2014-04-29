@@ -515,7 +515,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     # const2 = -1.0/(gamma*((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
     # Has been recalculated for our experiment
-    dN2dz = -1.0/(Lw*gamma) * 1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls)
+    dN2dz = (-1.0/(Lw*gamma)) * (1.0/(0.5*Lw+nw/nb*Lb+Ld+nw/nb * Lp + nw/na *Ls))
 
     # if diff_frames is given, we are computing dN2dt
     if diff_frames is not None:
