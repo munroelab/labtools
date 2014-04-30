@@ -204,6 +204,9 @@ def create_nc_file(video_id,
 
     # create the nc file and set the dimensions of z and x axis.
     nc = netCDF4.Dataset(dz_filename, 'w', format = 'NETCDF4')
+
+    nc.calculation_complete = 0
+
     row_dim = nc.createDimension('row', Nrow)
     col_dim = nc.createDimension('column', Ncol)
     t_dim = nc.createDimension('time', Ntime)
@@ -340,7 +343,10 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         # load the array from the disk
         dz_path = "/data/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
-        
+
+        if not os.path.exists(dz_filename):
+            return None
+
         #dz_array = numpy.load(dz_filename)
         #loading the nc file
         print dz_filename
@@ -350,7 +356,14 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         print "variables of nc file -> ", nc.variables.keys()
         # loading the data 
         dz_arr = nc.variables['dz_array']
+        nt, nrows, ncols = dz_arr.shape
+
         print "shape of nc file -> ", dz_arr.shape
+
+        if 'calculation_complete' not in nc.ncattrs() or not nc.calculation_complete:
+            # previous dz_array was not completed computed => redo.
+            return None
+
         return dz_id 
     else:
         return None
@@ -406,7 +419,7 @@ def schlieren_lines(p):
     
     #Step 7 : apply the mean filter to compute values for the masked pixels
     # Apply the filter in Z not in X.
-    disk_size = 15
+    disk_size = 20
     row_disk = numpy.ones((disk_size,1))
     filt_delz = skimage.filter.rank.mean(mapped_delz,
                 #skimage.morphology.disk(disk_size),
@@ -668,6 +681,8 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 #                    i*chunk_nx:(i+1)*chunk_nx] = temp_filt
 
     pbar.finish()
+
+    dz_nc.calculation_complete = 1
 
     dz_nc.close()
     nc.close()

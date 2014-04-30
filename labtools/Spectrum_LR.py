@@ -756,7 +756,7 @@ def plot_data(fw_id,plotName = None):
 
 
     # L field
-    datain = left[0, :, :]
+    datain = left[100, :, :]
 
     # L field real
     plt.subplot(2, 1, 1)
@@ -768,7 +768,7 @@ def plot_data(fw_id,plotName = None):
     plt.title('Left')
 
     # R field
-    datain = right[0, :, :]
+    datain = right[100, :, :]
 
     # R field real
     plt.subplot(2, 1, 2)
