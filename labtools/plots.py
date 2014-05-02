@@ -22,6 +22,8 @@ def plot_slice(ncvarname, nc_id,
     """
     """
  
+    logger.debug('Plotting %s %s %n' % (slice_type, ncvarname, n))
+
     #  variable name : (ncdir, ncfile, ncvar)
     ncfiles = { 'video' : ('videoncfiles', 'video.nc', 'img_array'),
                 'dz' : ('dz', 'dz.nc', 'dz_array'),
@@ -33,7 +35,7 @@ def plot_slice(ncvarname, nc_id,
     ncdir, ncfile, ncvar = ncfiles[ncvarname]
 
     # arrays are stored in 
-    path = "/Volumes/HD4/%s/%d/%s" % ( ncdir, nc_id, ncfile )
+    path = "/data/%s/%d/%s" % ( ncdir, nc_id, ncfile )
 
     if not os.path.exists(path):
         raise Exception("{} not found".format(path))
@@ -106,6 +108,7 @@ def plot_slice(ncvarname, nc_id,
         plotName = '%s_%d.pdf' % (var,id)
 
     if saveFig:
+        logging.debug('Saving %s' % plotName)
         plt.savefig(plotName)
  
 def test_plot_real():

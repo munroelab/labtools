@@ -11,6 +11,7 @@ import pylab
 import numpy
 import time
 import os
+import sys
 import labdb
 import gc
 import netCDF4
@@ -155,8 +156,24 @@ def create_nc_file(video_id,
     print  "video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
     print  video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
 
+    if dz_id is None:
+
+        # CHECK IF there is already a dz_id already exists in the database
+        sql = """SELECT dz_id FROM dz WHERE video_id=%d AND skip_frames=%d \
+            AND skip_row = %d AND skip_col = %d AND mintol=%d AND sigma=%.1f \
+            AND filter_size=%d AND startF=%d AND stopF=%d AND diff_frames=%s""" %\
+            (video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_size,startF,stopF,diff_frames)
+        rows = db.execute(sql)
+        if len(rows) == 1:
+            # there is already a dz_id; reuse it
+            dz_id = rows[0][0]
+        elif len(rows) > 1:
+            print "MULTIPLE dz_id exist in database with same parameters!!!  FIXME!"
+            sys.exit(1)
+
     print "dz_ID ###", dz_id
     if dz_id is None:
+
         if diff_frames is None:
             diff_frames = "NULL"
         sql = """INSERT INTO dz (video_id,skip_frames,skip_row,skip_col,expt_id,mintol,\
@@ -345,6 +362,7 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         dz_filename = dz_path+'/'+'dz.nc'
 
         if not os.path.exists(dz_filename):
+            print "file", dz_filename, "not found."
             return None
 
         #dz_array = numpy.load(dz_filename)
@@ -362,6 +380,7 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
 
         if 'calculation_complete' not in nc.ncattrs() or not nc.calculation_complete:
             # previous dz_array was not completed computed => redo.
+            print "Previous dz_array was not complete -- redo"
             return None
 
         return dz_id 

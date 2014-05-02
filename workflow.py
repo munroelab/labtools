@@ -14,6 +14,8 @@ import datetime
 import time
 import collections
 import logging
+import matplotlib
+matplotlib.use('PDF')
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -35,7 +37,7 @@ from labtools import stratification_plot
 # EDIT list of expt_id's to process:
 # 764,760,759,758,757,766,763,761,762,779
 #expt_ids = [777,764,760,759,758,757,766,763,761,762,779]
-expt_ids = [757,760,761]
+expt_ids = [757]
 
 workingdir = "workflow/"
 moviedir = "movies/"
