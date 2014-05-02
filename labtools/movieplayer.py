@@ -126,7 +126,7 @@ def movie(var, id,
         anim.save(movieName,
              #   fps = speedup * 6.0 / skip_frames,
           #        dpi=150,
-          fps = 10, 
+          fps = 2, 
           extra_args=['-q', '1'],
          # extra_args=['-b:v', '720k'],
           )

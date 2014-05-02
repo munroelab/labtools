@@ -267,21 +267,19 @@ def computeAxi(infile, outfile):
     pickle.dump(Axi_id, open(outfile, 'w'))
 
 
-@transform(computeAxi, suffix('.Axi_id'), '.movieAxi')
+@transform(computeAxi, 
+           formatter(),
+           '{subpath[0][1]}/movies/{basename[0]}.Axi.mp4')
 def movieAxi(infile, outfile):
     Axi_id = pickle.load(open(infile))
-
-    movieName = os.path.basename(outfile) # e.g 123.movieAxi
-    movieName = os.path.join(moviedir, movieName + '.mp4')
 
     # make the movie
     movieplayer.movie('Axi',  # var
                       Axi_id, # id of nc file
                       4,  # min_max value
                       saveFig=True,
-                      movieName= movieName
+                      movieName= outfile
                      )
-    pickle.dump(movieName, open(outfile, 'w'))
 
 
 @transform(startExperiment, suffix('.expt_id'), '.exptParameters')
@@ -447,7 +445,7 @@ if __name__ == "__main__":
                  plotLR,
                 # #movieVideo,
                  movieDz,
-                # #movieAxi,
+                 movieAxi,
                  plotEnergyFlux,
                  plotFilteredLR,
                  tableExperimentParameters,
