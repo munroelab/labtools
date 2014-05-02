@@ -33,7 +33,9 @@ from labtools import plots
 from labtools import stratification_plot
 
 # EDIT list of expt_id's to process:
-expt_ids = [764]
+# 764,760,759,758,757,766,763,761,762,779
+#expt_ids = [777,764,760,759,758,757,766,763,761,762,779]
+expt_ids = [757,760,761]
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -161,14 +163,14 @@ def computeDz(infiles, outfile):
 
     dz_id = SyntheticSchlieren.compute_dz( 
             video_id,
-            8, # minTol
+            7, # minTol
             p['sigma'],
             p['filterSize'],
             #skip_row = 2, # number of rows to jump ... z
             #skip_col = 2 , # number of columns to jump .. x
             #skip_frames= 2, # number of columns to jump .. t
             startF = 0,        # startFrame
-            stopF = 150,         # stopFrame ..
+            #stopF = 2000,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -459,24 +461,24 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-                FFT_plots,
-                plotStratification,
-                plotDz,
-                plotLR,
-                #movieVideo,
-                #movieDz,
-                #movieAxi,
-                plotEnergyFlux,
-                plotFilteredLR,
-                tableExperimentParameters,
-                plotAxiHorizontalTimeSeries,
-                plotAxiVerticalTimeSeries,
-                filterLR,
-                plotWavesVerticalTimeSeries,
+                 tableExperimentParameters,
+                 FFT_plots,
+                 plotStratification,
+                 plotDz,
+                 plotLR,
+                # #movieVideo,
+                # #movieDz,
+                # #movieAxi,
+                 plotEnergyFlux,
+                 plotFilteredLR,
+                 tableExperimentParameters,
+                 plotAxiHorizontalTimeSeries,
+                 plotAxiVerticalTimeSeries,
+                 plotWavesVerticalTimeSeries,
             ]
 
     forcedTasks = [
-         #   forEachExperiment,
+            #startExperiment,
          #   filterLR,
          #   determineSchlierenParameters,
          #   computeDz,
@@ -498,16 +500,16 @@ if __name__ == "__main__":
             ]
 
     pipeline_printout_graph( open('workflow_%s.pdf' % datetime.datetime.now().isoformat(), 'w'),
-        'pdf', 
+        'pdf',
         finalTasks,
        # forcedtorun_tasks = forcedTasks,
-        
+
         no_key_legend=False)
 
     pipeline_run(finalTasks,
           #  forcedTasks,
             verbose=5,
-        #    multiprocess=4, 
+        #    multiprocess=4,
             one_second_per_job=True)
 
     stop_time = datetime.datetime.now()

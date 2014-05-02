@@ -419,7 +419,7 @@ def schlieren_lines(p):
     
     #Step 7 : apply the mean filter to compute values for the masked pixels
     # Apply the filter in Z not in X.
-    disk_size = 20
+    disk_size = 10
     row_disk = numpy.ones((disk_size,1))
     filt_delz = skimage.filter.rank.mean(mapped_delz,
                 #skimage.morphology.disk(disk_size),
@@ -438,7 +438,7 @@ def schlieren_lines(p):
     filled_delz = (1-mask_delz) * filtered_delz + mask_delz * delz
     
     # Step 11 : applying the Gaussian filter to do a spatial smoothing of the image
-    #apply the gaussian smoothing along both X and Z
+    #apply the gaussian smoothing along Z
     smooth_filt_delz = skimage.filter.gaussian_filter(filled_delz, 
             [p['sigma'],1])
 
