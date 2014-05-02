@@ -10,6 +10,10 @@ Movies are sequences in time
 
 import os
 import argparse
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 import netCDF4 as nc
 import numpy as np
@@ -28,6 +32,10 @@ def movie(var, id,
     Given a 'variable name' of a given "id" make a movie
     """
 
+    skip_frames = 6
+
+    logger.debug('Making a movie %s %d' % (var, id))
+
     #  variable name : (ncdir, ncfile, ncvar)
     ncfiles = { 'video' : ('videoncfiles', 'video.nc', 'img_array'),
                 'dz' : ('dz', 'dz.nc', 'dz_array'),
@@ -37,11 +45,13 @@ def movie(var, id,
     ncdir, ncfile, ncvar = ncfiles[var]
 
     # arrays are stored in 
-    path = "/Volumes/HD4/%s/%d/%s" % ( ncdir, id, ncfile )
+    path = "/data/%s/%d/%s" % ( ncdir, id, ncfile )
 
     if not os.path.exists(path):
         print path, "not found"
         return
+
+    logger.debug('Dataset is %s' %  path)
 
     # Load the nc file
     data = nc.Dataset(path, 'r')
@@ -58,18 +68,6 @@ def movie(var, id,
     t = data.variables[arr[2]]
     z = data.variables[arr[0]]
     x = data.variables[arr[1]]
-    n= start_frame
-
-    def animate(i, pbar):
-        #pbar.update(i)
-
-        plt.title('Frame number :: %d, time :: %.2f s, Field: %s'% (
-            i+n, t[i+n], var))
-
-        #im.set_array(a(i))
-        im.set_array(array[i+n,:,:])
-
-        return im 
 
     # Need window length and height 
     win_l = x[-1]
@@ -83,8 +81,9 @@ def movie(var, id,
     plt.xlabel('window length (cm)')
     plt.ylabel('window height (cm)')
     if max_min is None:
-        max_min = abs(array[n,:,:]).max()
-    im=plt.imshow(array[n,:,:], 
+        max_min = abs(array[start_frame,:,:]).max()
+
+    im=plt.imshow(array[start_frame,:,:], 
                   extent=[x[0],x[-1],z[0],z[-1]],
                   vmax=+max_min, vmin=-max_min,
                   interpolation="nearest",
@@ -93,30 +92,47 @@ def movie(var, id,
     plt.colorbar()
     frame_num = stop_frame - start_frame 
 
+    title = plt.title('Frame number :: %d, time :: %.2f s, Field: %s'% (
+            start_frame, t[start_frame], var))
+
+    def animate(i, pbar):
+        pbar.update(i)
+
+        title.set_text('Frame number :: %d, time :: %.2f s, Field: %s'% (
+            skip_frames*i+start_frame, t[skip_frames*i+start_frame], var))
+
+        im.set_array(array[skip_frames*i+start_frame,:,:])
+
+        return im, title
+
+
     # debug
-    print
-    print "Render movie %s, %d  (%d..%d, %dx%d)" % (var, id, 
-            start_frame, stop_frame, len(x), len(z))
+    #print "Render movie %s, %d  (%d..%d, %dx%d)" % (var, id, 
+            #start_frame, stop_frame, len(x), len(z))
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=frame_num).start()
+    pbar = progressbar.ProgressBar(widgets=widgets,
+            maxval=frame_num//skip_frames).start()
 
     anim = animation.FuncAnimation(fig,
-            animate, frames=frame_num, fargs=(pbar,),
-            repeat=False, blit=False)
+            animate, frames=frame_num//skip_frames, fargs=(pbar,),
+            repeat=False, blit=True)
 
     if saveFig:
         if movieName is None:
             movieName = '%s_%d.mp4' % (var,id)
 
-        anim.save(movieName, 
-                  dpi=150,
-                  fps=6,
-                  extra_args=['-vcodec','libx264'])
+        speedup = 4
+        anim.save(movieName,
+             #   fps = speedup * 6.0 / skip_frames,
+          #        dpi=150,
+          fps = 10, 
+          extra_args=['-q', '1'],
+         # extra_args=['-b:v', '720k'],
+          )
 
     pbar.finish()
 
-    plt.close(fig)
 
 
 def UI():

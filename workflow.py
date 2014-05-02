@@ -15,7 +15,7 @@ import time
 import collections
 import logging
 import matplotlib
-matplotlib.use('PDF')
+matplotlib.use('Agg')
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -200,23 +200,19 @@ def plotDz(infile, outfile):
 
 
 
-@transform(computeDz, suffix('.dz_id'), '.movieDz')
+@transform(computeDz, 
+           formatter('.dz_id'),
+           '{subpath[0][1]}/movies/{basename[0]}.dN2t.mp4')
 def movieDz(infile, outfile):
     dz_id = pickle.load(open(infile))
 
-    movieName = os.path.basename(outfile) # e.g 123.movieDz
-    # get time stamp
-    t = time.ctime().rsplit()[3]
-    movieName = os.path.join(moviedir, movieName+ t + '.mp4')
-    
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.5,  # min_max value
+                      0.05,  # min_max value
                       saveFig=True,
-                      movieName= movieName
+                      movieName= outfile
                      )
-    pickle.dump(movieName, open(outfile, 'w'))
 
 @transform(computeDz, suffix('.dz_id'), '.fw_id')
 def filterLR(infile, outfile):
@@ -450,7 +446,7 @@ if __name__ == "__main__":
                  plotDz,
                  plotLR,
                 # #movieVideo,
-                # #movieDz,
+                 movieDz,
                 # #movieAxi,
                  plotEnergyFlux,
                  plotFilteredLR,
