@@ -65,7 +65,8 @@ def compute_energy_flux(a_xi_id,column,max_min,plotname = "AxiVTS",rowS=0,rowE=9
     plt.ylabel('Depth (cm)')
     #plt.title('A_Xi (Video ID %d) \n %.2f cm away from the WG' % (video_id, 84+x[column]) )
     plt.colorbar()
-    plt.savefig(plotname + "_%dcol.pdf"% column )
+
+    plt.savefig(plotname)
 
 def get_info(expt_id):
     

@@ -226,24 +226,20 @@ def filterLR(infile, outfile):
 
     pickle.dump(fw_id, open(outfile, 'w'))
 
-@transform(filterLR, suffix('.fw_id'), '.plotWavesVerticalTimeSeriesRawLeftRight')
+@transform(filterLR,
+           formatter('.fw_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesRawLeftRight.pdf')
 def plotWavesVerticalTimeSeries(infile, outfile):
     fw_id = pickle.load(open(infile))
-
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
 
     Spectrum_LR.filtered_waves_VTS(
             fw_id,
             600,  # column number
             .05,      # maxmin
-            plotName = plotName,
+            plotName = outfile,
             rowS=300,
             rowE=800,
             )
-
-    pickle.dump(plotName, open(outfile, 'w'))
-
 
 @subdivide(filterLR,
            formatter(),
@@ -315,15 +311,12 @@ def getParameters(infile, outfile):
     
     pickle.dump(params, open(outfile, 'w'))
 
-@transform(determineStratParams, suffix('.stratParams') ,
-           '.plotStratification')
+@transform(determineStratParams, 
+           formatter('.stratParams'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotStratification.pdf')
 def plotStratification(infile, outfile):
     s = pickle.load(open(infile))
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
-    print "making strat plot.."
-    stratification_plot.plot_stratification(s['strat_id'],s['z_offset'],plot_name = plotName)
-    pickle.dump(plotName, open(outfile, 'w'))
+    stratification_plot.plot_stratification(s['strat_id'],s['z_offset'],plot_name = outfile)
 
 @merge(getParameters, tabledir + 'tableExperimentParameters.txt')
 def tableExperimentParameters(infiles, outfile):
@@ -342,54 +335,45 @@ def tableExperimentParameters(infiles, outfile):
 
 
 #@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
-@transform([computeAxi], suffix('.Axi_id'), '.plotEnergyFlux')
+@transform([computeAxi], 
+           formatter('.Axi_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotEnergyFlux.pdf')
 def plotEnergyFlux(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
-
     Energy_flux.compute_energy_flux_raw(
             Axi_id,
             500,  # rowStart
             800,  # rowEnd
             600,      # column
-            plotname = plotName,
+            plotname = outfile,
             )
 
-    pickle.dump(plotName, open(outfile, 'w'))
-
-@transform(computeAxi, suffix('.Axi_id'), '.plotAxiHorizontalTimeSeries')
+@transform(computeAxi, 
+           formatter('.Axi_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotAxiHorizontalTimeSeries.pdf')
 def plotAxiHorizontalTimeSeries(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
-
     axi_TS_row.compute_energy_flux(
             Axi_id,
             700,  # row number
             4,      # maxmin
-            plotname = plotName,
+            plotname = outfile,
             )
 
-    pickle.dump(plotName, open(outfile, 'w'))
-
-@transform(computeAxi, suffix('.Axi_id'), '.plotAxiVerticalTimeSeries')
+@transform(computeAxi, 
+       formatter('.Axi_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotAxiHorizontalTimeSeries.pdf')
 def plotAxiVerticalTimeSeries(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
-
     axi_TS_col.compute_energy_flux(
             Axi_id,
             600,  # column number
             4,      # maxmin
-            plotname = plotName,
+            plotname = outfile,
             )
-
-    pickle.dump(plotName, open(outfile, 'w'))
 
 @transform([computeDz], suffix('.dz_id'), '.FFT_raw')
 def FFT_raw(infile, outfile):
@@ -442,16 +426,13 @@ def FFT_plots(infiles, outfiles):
     Spectrum_Analysis.plot_3Dfft_dominant_frequency(kx,kz,raw_max_omega,l_max_omega,r_max_omega,"kx","kz","OMEGA", outfiles[2])
 
 
-@transform([filterLR], suffix('.fw_id'), '.plotFilteredLR')
+@transform([filterLR],
+           formatter('.fw_id'), 
+           '{subpath[0][1]}/plots/{basename[0]}.plotFilterdLR.pdf')
 def plotFilteredLR(infile, outfile):
     fw_id = pickle.load(open(infile))
     
-    plotName = os.path.basename(outfile) + '.pdf'
-    plotName = os.path.join(plotdir, plotName)
-
-    Spectrum_LR.plot_data(fw_id, plotName = plotName,)
-
-    pickle.dump('outfile', open(outfile, 'w'))
+    Spectrum_LR.plot_data(fw_id, plotName = outfile)
 
 if __name__ == "__main__":
 
