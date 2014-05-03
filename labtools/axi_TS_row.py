@@ -61,8 +61,7 @@ def compute_energy_flux(a_xi_id,row_no,max_min,plotname = "axiHorizontalTimeSeri
     plt.title('timeseries (A_xi-Video ID %d) \n At depth: %.1f cm '\
                     % (video_id, z[row_no], ) )
     plt.colorbar()
-    plt.savefig(plotname + "_%drow.pdf" % row_no)
-    return
+    plt.savefig(plotname)
 
 def get_info(expt_id):
     

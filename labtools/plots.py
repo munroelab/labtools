@@ -22,6 +22,8 @@ def plot_slice(ncvarname, nc_id,
     """
     """
  
+    logger.debug('Plotting %s %s %d' % (slice_type, ncvarname, n))
+
     #  variable name : (ncdir, ncfile, ncvar)
     ncfiles = { 'video' : ('videoncfiles', 'video.nc', 'img_array'),
                 'dz' : ('dz', 'dz.nc', 'dz_array'),
@@ -33,10 +35,12 @@ def plot_slice(ncvarname, nc_id,
     ncdir, ncfile, ncvar = ncfiles[ncvarname]
 
     # arrays are stored in 
-    path = "/Volumes/HD4/%s/%d/%s" % ( ncdir, nc_id, ncfile )
+    path = "/data/%s/%d/%s" % ( ncdir, nc_id, ncfile )
 
     if not os.path.exists(path):
         raise Exception("{} not found".format(path))
+
+    logger.debug('Dataset is %s', path)
 
     # Load the nc file
     nc = netCDF4.Dataset(path, 'r')
@@ -55,9 +59,12 @@ def plot_slice(ncvarname, nc_id,
     win_l = x[-1]
     win_h = z[-1]
   
+
     # First set up the figure, the axis, and the plot element we want to animate
     fig = plt.figure()
     ax = plt.axes()
+
+    logger.debug('load slice of data')
 
     if slice_type == 'frame':
         field = array[n,:,:]
@@ -65,7 +72,8 @@ def plot_slice(ncvarname, nc_id,
         xlabel = 'x (cm)'
         ylabel = 'z (cm)'
     elif slice_type == 'vts':
-        field = array[:,:,n].T
+        field = array[:,:,n]
+        field = field.T
         extent=[t[0],t[-1],z[-1],z[0]]
         xlabel = 't (s)'
         ylabel = 'z (cm)'
@@ -80,6 +88,7 @@ def plot_slice(ncvarname, nc_id,
     complex64_t = np.dtype([('real', '<f4'), ('imag', '<f4')])
     if field.dtype == complex64_t:
 
+        logger.debug('convert to complex64')
         datac = np.empty(field.shape, np.complex64)
         datac.real = field['real']
         datac.imag = field['imag']
@@ -106,6 +115,7 @@ def plot_slice(ncvarname, nc_id,
         plotName = '%s_%d.pdf' % (var,id)
 
     if saveFig:
+        logging.debug('Saving %s' % plotName)
         plt.savefig(plotName)
  
 def test_plot_real():

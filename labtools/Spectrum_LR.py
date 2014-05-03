@@ -300,7 +300,7 @@ def plotFilteredLR(fw_id,max_min,plotcolumn,
             os.mkdir(path)
         fname = os.path.join(path, "plot.pdf")
     else:
-        fname = plotName+".pdf"
+        fname = plotName
 
 
     plt.figure()
@@ -688,7 +688,7 @@ def filtered_waves_VTS(fw_id,
     plt.ylabel('depth (cm)')
     plt.xlabel('Time (s)')
 
-    plt.savefig(plotName+"DZ.pdf")
+    plt.savefig(plotName)
 
     plt.figure(figsize=(15,12))
     # raw field
@@ -734,9 +734,8 @@ def filtered_waves_VTS(fw_id,
     title2 = "energy flux at %d cm of the rightward propagating wave"  % x[plotcol]
     plt.figure(figsize=(15,12))
     plotting_functions.sharexy_plot_3plts(raw_VAEF,left_VAEF,right_VAEF,t[:],title1,title2,title3,'time','vertically averaged energy flux')
-    plt.savefig(plotName + "_VertAvgdEF.pdf")
 
-    return
+    plt.savefig(plotName + "_VertAvgdEF.pdf")
 
 
 def plot_data(fw_id,plotName = None):

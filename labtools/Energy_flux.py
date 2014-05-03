@@ -121,7 +121,7 @@ def compute_energy_flux_raw(
     title1 = "Energy Flux at %d cm from left edge of window  " %fx
     #plotting_functions.sharexy_plot_ts(EF1,avg1,ft,title1,"time","Energy_flux")
     plotting_functions.plot_ts(avg1,ft,title1,"time","Energy_flux at depth %f to %f" % (fz[0] , fz[-1]))
-    plt.savefig(plotname + "_ef.pdf")
+    plt.savefig(plotname)
 
     
     title1 = "FFT of energy flux at %d cm of the raw data" % fx
