@@ -175,12 +175,16 @@ def create_nc_file(video_id,
     if dz_id is None:
 
         if diff_frames is None:
-            diff_frames = "NULL"
+            diff_frames_s = "NULL"
+            diff_frames = 0
+        else:
+            diff_frames_s = "%d" % diff_frames
+
         sql = """INSERT INTO dz (video_id,skip_frames,skip_row,skip_col,expt_id,mintol,\
                 sigma,filter_size,startF,stopF,diff_frames)\
                 VALUES (%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%s)""" %\
                 (video_id,skip_frames,skip_row,skip_col,expt_id,\
-                mintol,sigma,filter_size,startF,stopF,diff_frames)
+                mintol,sigma,filter_size,startF,stopF,diff_frames_s)
         print sql
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()"""
@@ -215,7 +219,7 @@ def create_nc_file(video_id,
     # find the number for rows and column of the frames and Ntime for dz field
     Nrow = 964/skip_row
     Ncol = 1292/skip_col
-    Ntime = numpy.int((stopF-startF)/diff_frames)
+    Ntime =  (stopF - startF - 1 ) // skip_frames + 1 - diff_frames
 
     print "no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
 
@@ -247,9 +251,11 @@ def create_nc_file(video_id,
     dz = win_h / Nrow
     dx = win_l / Ncol
 
+    T = numpy.mgrid[0:Ntime*dt:Ntime*1.0j]
+
     ROW[:] = R
     COLUMN[:] = C
-    # TODO: Why isn't TIME filled in here?
+    TIME[:] = T
 
     # chunk the data intelligently
     valSize = numpy.float32().itemsize
@@ -327,8 +333,7 @@ def create_temp_nc_file(dz_filename):
     # height of each pixel in cm
     ROW[:] = Z[:]
     COLUMN[:] = X[:]
-    # TODO:
-    # TIME[:] = ???
+    TIME[:] = T[:]
 
     nc.close()
 
@@ -465,7 +470,7 @@ def schlieren_lines(p):
 
 
 def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,skip_col=1,
-            startF=0,stopF=0,diff_frames=1,cache=True):
+            startF=0,stopF=None,diff_frames=1,cache=True):
     """
     > Given video_id, calculate the dz array. Output is cached on disk.
     > returns the array dz
@@ -480,7 +485,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     #dz_flag = checkifdzexists(video_id,skip_frames)
 
     # get the number of frames if stopF is unspecified
-    if (stopF == 0):
+    if (stopF is None):
         sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
         rows = db.execute(sql)
         stopF = rows[0][0]
@@ -551,9 +556,6 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     # if diff_frames is given, we are computing dN2dt
     if diff_frames is not None:
-        path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-        t = numpy.loadtxt(path2time)
-        dt = numpy.mean(numpy.diff(t[:,1]))
         dN2dz = dN2dz / (dt*diff_frames)
 
     logger.debug('dN2dz = {:f}'.format(dN2dz))
@@ -579,7 +581,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     i = 0
 
     # submit tasks to perform in the while loop and this is in parallel
-    while os.path.exists(filename2) & (count <=stopF):
+    while count < stopF:
         if diff_frames is not None:
             ref_frame = count - diff_frames
         else:
@@ -589,6 +591,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
         filename2 = path % (video_id, count)
 
         if not os.path.exists(filename2):
+            logger.info('%s not found but expected' % filename2)
             break
 
         # add filename1, filename2 to list of tasks
@@ -598,7 +601,6 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
         #tasks.append( (schlieren_lines, (dict(p),)))
 
         count += skip_frames
-        filename2 = path % (video_id, count)
 
         pool.apply_async(schlieren_lines, (dict(p),), callback=cb)
         i += 1
@@ -622,12 +624,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
     # open the temporary nc file to put in the time axis
     nc=netCDF4.Dataset(temp_dz_filename,'a')
     temp_dz = nc.variables['temp_dz_array']
-    Tm=nc.variables['time']
 
-    # define time axis for the nc time variable
-    tl = temp_dz.shape[0]
-    t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    Tm[:] = t_array
     nc.close()
 
     # The last Step of Synthetic Schlieren... Uniform filtering in time

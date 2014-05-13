@@ -10,8 +10,7 @@ import argparse
 import netCDF4
 def xzt_fft(ncfile, ncvar,
             timeS=0,timeE=None,
-            rowS =0 ,rowE = 963,
-            colS =0 ,colE = 1291 ):
+            ):
     """
     Given the three-dimensional array f(x,z,t) gridded onto x, z, t
     compute the Fourier transform F.
@@ -27,29 +26,30 @@ def xzt_fft(ncfile, ncvar,
     nc = netCDF4.Dataset(ncfile)
     t = nc.variables['time']
     if timeE is None:
-        timeE = t.shape[0]-1
+        timeE = t.shape[0]
     t = t[timeS:timeE:tstep]
-    x = nc.variables['column'][colS:colE:xstep]
-    z = nc.variables['row'][rowS:rowE:zstep]
+    x = nc.variables['column'][::xstep]
+    z = nc.variables['row'][::zstep]
 
     A = nc.variables[ncvar]
     print "A shape is ", A.shape
+    print "A type is " ,A.dtype
     complex64_t = np.dtype([('real', '<f4'), ('imag', '<f4')])
-    if A.dtype == complex64_t:
-        nt = (timeE - timeS) // tstep
-        nz = (rowE - rowS) // zstep
-        nx = (colE - colS) // xstep
-
-        dz_array = np.empty( (nt, nz, nx), dtype=np.complex128)
-
-        for nn, n in enumerate(range(timeS+timeE, timeE, tstep)):
-            frame = A[n, rowS:rowE, colS:colE][:,::zstep, ::xstep]
-            dz_array[n, :, :].real = frame['real']
-            dz_array[n, :, :].imag = frame['imag']
 
 
-    else:
-        dz_array = A[timeS:timeE:tstep,rowS:rowE:zstep,colS:colE:xstep]
+    nt = (timeE - timeS -1) // tstep +1
+    a_nt, a_nz , a_nx = A.shape
+    nz = (a_nz-1) //zstep +1
+    nx  = (a_nx-1) //xstep +1
+
+    print nt,nx,nz
+    dz_array = np.empty( (nt, nz, nx), dtype=np.complex64)
+    for nn, n in enumerate(range(timeS, timeE, tstep)):
+            frame2 = A[n, :, :]
+            frame = frame2[::zstep, ::xstep]
+            dz_array[nn, :, :].real = frame['real']
+            dz_array[nn, :, :].imag = frame['imag']
+
 
 #    plt.imshow(dz_array[1,150:800,:],extent=[x[0],x[-1],z[0],z[-1]])
     print "DZ array shape: " ,dz_array.shape
@@ -57,14 +57,8 @@ def xzt_fft(ncfile, ncvar,
     print "X shape: " ,x.shape
     print "Z shape: " ,z.shape
 
-    # determine lengths of x, z, t
-    nx = len(x)
-    nz = len(z)
-    nt = len(t)
-    print "length of X,Z, T:  ", nx,nz,nt
-
     # calculate the step in time , z and x
-    dx = np.mean(np.diff(x))       #x[1] - x[0]
+    dx = np.mean(np.diff(x))    #x[1] - x[0]
     dz = np.mean(np.diff(z))    #z[1] - z[0]
     dt = np.mean(np.diff(t))    #t[1] - t[0]
     print "dx,dz,dt :: " ,dx,dz,dt
@@ -78,15 +72,18 @@ def xzt_fft(ncfile, ncvar,
     # determine frequency axes
     kx = np.fft.fftfreq(nx, dx)
     kx = 2*np.pi*np.fft.fftshift(kx)
+
     kz = np.fft.fftfreq(nz, dz)
     kz = 2*np.pi*np.fft.fftshift(kz)
+
     omega = np.fft.fftfreq(nt, dt)
     omega = 2*np.pi*np.fft.fftshift(omega)
+
     print "kx shape: ", kx.shape
     print "kz shape: ", kz.shape
     print "omega shape: ", omega.shape
 
-    max_kx, max_kz,max_omega= estimate_dominant_frequency_fft(F, kx, kz, omega)
+    max_kx, max_kz,max_omega= estimate_dominant_frequency_fft(F)
     print "max kx shape: ", max_kx.shape
     print "max kz shape: ", max_kz.shape
     print "max omega shape: ", max_omega.shape
@@ -94,7 +91,7 @@ def xzt_fft(ncfile, ncvar,
     return kx,kz,omega, max_kx, max_kz,max_omega
 
 
-def estimate_dominant_frequency_fft(F, kx, kz, omega):
+def estimate_dominant_frequency_fft(F):
     """
     Given the Fourier spectrum F(kx, kz, omega), estimate the 
     dominant frequency along each component.

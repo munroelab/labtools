@@ -37,7 +37,7 @@ from labtools import stratification_plot
 # EDIT list of expt_id's to process:
 # 764,760,759,758,757,766,763,761,762,779
 #expt_ids = [777,764,760,759,758,757,766,763,761,762,779]
-expt_ids = [757]
+expt_ids = [778, 768, 779]
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -149,6 +149,7 @@ def determineSchlierenParameters(infile, outfile):
 
     pickle.dump(p, open(outfile, 'w'))
 
+@jobs_limit(1)
 @transform([determineVideoId, determineSchlierenParameters],
         suffix('.video_id'),
         add_inputs(r'\1.schlierenParameters'),
@@ -172,7 +173,7 @@ def computeDz(infiles, outfile):
             #skip_col = 2 , # number of columns to jump .. x
             #skip_frames= 2, # number of columns to jump .. t
             startF = 0,        # startFrame
-            #stopF = 2000,         # stopFrame ..
+            stopF = 2000,         # stopFrame ..
             #set stopF=0 if you want it to consider all the frames
                     # skipFrame
             #diff_frames=None, # diffFrame set diff_frame to None if you want to compute deltaN2
@@ -193,11 +194,9 @@ def plotDz(infile, outfile):
     plots.plot_slice('dz',  # var
                 dz_id, # id of nc file
                 'vts', 300,
-                maxmin = 0.1,  # min_max value
+                maxmin = 0.02,  # min_max value
                 plotName=outfile,
                )
-
-
 
 
 @transform(computeDz, 
@@ -214,27 +213,26 @@ def movieDz(infile, outfile):
                       movieName= outfile
                      )
 
+@jobs_limit(1)
 @transform(computeDz, suffix('.dz_id'), '.fw_id')
 def filterLR(infile, outfile):
     dz_id = pickle.load(open(infile))
 
-    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue)
+    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue,rowS=320,rowE = 920,colS=60,colE=1260)
 
     pickle.dump(fw_id, open(outfile, 'w'))
 
 @transform(filterLR,
            formatter('.fw_id'), 
-           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesRawLeftRight.pdf')
+           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesRawLeftRight_dn2t.pdf')
 def plotWavesVerticalTimeSeries(infile, outfile):
     fw_id = pickle.load(open(infile))
 
     Spectrum_LR.filtered_waves_VTS(
             fw_id,
             600,  # column number
-            .05,      # maxmin
+            .02,      # maxmin
             plotName = outfile,
-            rowS=300,
-            rowE=800,
             )
 
 @subdivide(filterLR,
@@ -251,7 +249,7 @@ def plotLR(infile, outfiles, extra_arg):
         plots.plot_slice(extra_arg[i],  # var
                     nc_id, # id of nc file
                     'vts', 300,
-                    maxmin = 0.05,  # min_max value
+                    maxmin = 0.01,  # min_max value
                     plotName=outfiles[i],
                    )
 
@@ -331,14 +329,14 @@ def tableExperimentParameters(infiles, outfile):
 #@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
 @transform([computeAxi], 
            formatter('.Axi_id'), 
-           '{subpath[0][1]}/plots/{basename[0]}.plotEnergyFlux.pdf')
+           '{subpath[0][1]}/plots/{basename[0]}.plotEnergyFlux_axi.pdf')
 def plotEnergyFlux(infile, outfile):
     Axi_id = pickle.load(open(infile))
     
     Energy_flux.compute_energy_flux_raw(
             Axi_id,
-            500,  # rowStart
-            800,  # rowEnd
+            350,  # rowStart
+            900,  # rowEnd
             600,      # column
             plotname = outfile,
             )
@@ -369,15 +367,15 @@ def plotAxiVerticalTimeSeries(infile, outfile):
             plotname = outfile,
             )
 
-@transform([computeDz], suffix('.dz_id'), '.FFT_raw')
+@transform([filterLR], suffix('.fw_id'), '.FFT_raw')
 def FFT_raw(infile, outfile):
-    dz_id = pickle.load(open(infile))
+    fw_id = pickle.load(open(infile))
 
     #timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep, max_kx, max_kz,max_omega = Spectrum_Analysis.xzt_fft(fw_id,rowS=250,rowE=800)
 
-    ncfile = '/data/dz/%d/dz.nc' % dz_id
-    ncvar = 'dz_array'
-    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=300,rowE=800)
+    ncfile = '/data/filtered_waves/%d/waves.nc' % fw_id
+    ncvar = 'raw_array'
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar)
 
     pickle.dump(result, open(outfile, 'w'))
 
@@ -387,7 +385,7 @@ def FFT_left(infile, outfile):
 
     ncfile = '/data/filtered_waves/%d/waves.nc' % fw_id
     ncvar = 'left_array'
-    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=300,rowE=800)
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar)
 
     pickle.dump(result, open(outfile, 'w'))
 
@@ -397,7 +395,7 @@ def FFT_right(infile, outfile):
 
     ncfile = '/data/filtered_waves/%d/waves.nc' % fw_id
     ncvar = 'right_array'
-    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar, rowS=300,rowE=800)
+    result = Spectrum_Analysis.xzt_fft(ncfile, ncvar)
 
     pickle.dump(result, open(outfile, 'w'))
 
@@ -410,7 +408,7 @@ def FFT_right(infile, outfile):
 def FFT_plots(infiles, outfiles):
     logging.info('called FFT_plots')
 
-
+    print infiles
     kx,kz,omega,l_max_kx, l_max_kz,l_max_omega = pickle.load(open(infiles[0]))
     kx,kz,omega,raw_max_kx, raw_max_kz,raw_max_omega = pickle.load(open(infiles[1]))
     kx,kz,omega,r_max_kx, r_max_kz,r_max_omega = pickle.load(open(infiles[2]))
@@ -445,7 +443,7 @@ if __name__ == "__main__":
                  plotLR,
                 # #movieVideo,
                  movieDz,
-                 movieAxi,
+                 #movieAxi,
                  plotEnergyFlux,
                  plotFilteredLR,
                  tableExperimentParameters,
@@ -456,11 +454,10 @@ if __name__ == "__main__":
 
     forcedTasks = [
             #startExperiment,
-         #   filterLR,
-         #   determineSchlierenParameters,
-         #   computeDz,
-         #   computeAxi,
-         #   getParameters,
+            #determineSchlierenParameters,
+            #computeDz,
+            #computeAxi,
+            #getParameters,
          #   tableExperimentParameters,
          #   FFT_left,
          #   FFT_raw,
@@ -479,14 +476,14 @@ if __name__ == "__main__":
     pipeline_printout_graph( open('workflow_%s.pdf' % datetime.datetime.now().isoformat(), 'w'),
         'pdf',
         finalTasks,
-       # forcedtorun_tasks = forcedTasks,
+        forcedtorun_tasks = forcedTasks,
 
         no_key_legend=False)
 
     pipeline_run(finalTasks,
-          #  forcedTasks,
+            forcedTasks,
             verbose=5,
-        #    multiprocess=4,
+            multiprocess=4,
             one_second_per_job=True)
 
     stop_time = datetime.datetime.now()

@@ -94,6 +94,7 @@ def plot_stratification_file(filename,zoffset=5):
     m = (z < (zmax-zoffset)) & (z > (zmin)) # 7 is the mixed layer depth
     fit = np.polyfit(z[m], rho[m], 1)
     fit_line = np.polyval(fit, z[m])
+
     pylab.plot(fit_line, z[m], "k--")
     print "N = %.3f" % np.sqrt(-g/rho0*fit[0])
 
@@ -102,6 +103,7 @@ def plot_all():
     Make a plot for every stratification file in the database
     """
     db = LabDB()
+    plt.figure()
     rows = db.execute("""SELECT path FROM stratification
                        WHERE path IS NOT NULL""")
 

@@ -158,7 +158,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     nc.close()
     return fw_filename, fw_id
 
-def create_nc_file_dzHT(dz_id, fw_id=None):
+def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
     """
     Given an Axi_id, create the waves.nc file that will store the
     Hilbert transform result.
@@ -216,9 +216,14 @@ def create_nc_file_dzHT(dz_id, fw_id=None):
     dzncfile = netCDF4.Dataset(
         '/data/dz/%d/dz.nc' % dz_id,
         'r')
-    Nrow = dzncfile.variables['row'].size
-    Ncol = dzncfile.variables['column'].size
-    Ntime = dzncfile.variables['time'].size
+
+    Nrow_specs = dzncfile.variables['row'][rowS:rowE]
+    Ncol_specs = dzncfile.variables['column'][colS:colE]
+    Ntime = dzncfile.variables['time']
+    Nrow = Nrow_specs.size
+    Ncol = Ncol_specs.size
+    Ntime = Ntime.size
+
 
     nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
 
@@ -256,13 +261,13 @@ def create_nc_file_dzHT(dz_id, fw_id=None):
 
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
-    C = np.arange(0, win_l,win_l/Ncol,dtype=float)
-    R = np.arange(0,win_h,win_h/Nrow,dtype=float)
+    #C = np.arange(0, win_l,win_l/Ncol,dtype=float)
+    #R = np.arange(0,win_h,win_h/Nrow,dtype=float)
 
-    print "spectrumLR c.shape", R.shape
-    print "column.shape", ROW.shape
-    COLUMN[:] = C
-    ROW[:]= R
+    print "spectrumLR c.shape", Ncol_specs.shape
+    print "column.shape", Nrow_specs.shape
+    COLUMN[:] = Ncol_specs[:]
+    ROW[:]= Nrow_specs[:]
 
     db.commit()
     nc.close()
@@ -586,8 +591,6 @@ def filtered_waves_VTS(fw_id,
                       plotcol,
                       max_min,
                       plotName = None,
-                      rowS=0,
-                      rowE=963,
                       ):
 
     db = labdb.LabDB()
@@ -598,20 +601,20 @@ def filtered_waves_VTS(fw_id,
     print "dz_id :: " ,dz_id
 
     # load the dz data of the filtered waves to view the input data before hilbert transforming them
-    dz_filename = "/data/dz/%d/dz.nc" % dz_id
+    dz_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     dz_nc = netCDF4.Dataset(dz_filename,'r')
-    raw = dz_nc.variables['dz_array'][:,rowS:rowE,plotcol]
+    raw = dz_nc.variables['raw_array'][:,:,plotcol]
     t=dz_nc.variables['time']
     print "dz time:", t.shape
     # load the filtered waves data corresponding to the dz_id
     fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(fw_filename, 'r')
-    left = nc.variables['left_array'][:,rowS:rowE,plotcol]
-    right = nc.variables['right_array'][:,rowS:rowE,plotcol]
+    left = nc.variables['left_array'][:,:,plotcol]
+    right = nc.variables['right_array'][:,:,plotcol]
     t = nc.variables['time'][:]
     print "fw_time: ", t.shape
     x = nc.variables['column'][:]
-    z = nc.variables['row'][:][rowS:rowE]
+    z = nc.variables['row'][:]
     print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
     # constants needed to convert dz into energy flux
     # call get_info function from Energy_flux program :: to get info
@@ -635,7 +638,7 @@ def filtered_waves_VTS(fw_id,
     print "window:", window
 
 
-    raw_ma= moving_average_2Darray(raw.T,window) * const * dN2t_to_afa
+    raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
     raw_EF = raw_ma**2
     raw_VAEF = np.mean(raw_EF,0)
     left_ma = moving_average_2Darray(left['real'].T,window) * const * dN2t_to_afa
@@ -654,7 +657,7 @@ def filtered_waves_VTS(fw_id,
     plt.figure(figsize=(15,12))
     # raw field
     plt.subplot(3,1,1)
-    plt.imshow(raw[:,:].T,
+    plt.imshow(raw['real'].T,
                extent=[t[0],t[-1],z[-1],z[0]],
                vmax=max_min,vmin=-max_min,
                aspect='auto',interpolation= 'nearest',
@@ -692,10 +695,12 @@ def filtered_waves_VTS(fw_id,
 
     plt.figure(figsize=(15,12))
     # raw field
+    print raw_EF.max(),left_EF.max(),right_EF.max()
+
     plt.subplot(3,1,1)
     plt.imshow(raw_EF,
                extent=[t[0],t[-1],z[-1],z[0]],
-               vmax=20,vmin=-20,
+               #vmax=max_min,vmin=-max_min,
                aspect='auto',interpolation= 'nearest',
                )
     plt.title('raw dz')
@@ -707,7 +712,7 @@ def filtered_waves_VTS(fw_id,
     plt.subplot(3, 1, 2)
     plt.imshow(left_EF,
                extent=(t[0], t[-1], z[-1], z[0]),
-               vmin =-20, vmax=20,
+               #vmin =-max_min, vmax=max_min,
                aspect='auto',interpolation= 'nearest',
                )
     plt.colorbar()
@@ -719,7 +724,7 @@ def filtered_waves_VTS(fw_id,
     plt.subplot(3, 1, 3)
     plt.imshow(right_EF,
                extent=(t[0], t[-1], z[-1], z[0]),
-               vmin =-20, vmax=20 ,
+               #vmin =-max_min, vmax=max_min ,
                aspect='auto',interpolation= 'nearest',
                )
     plt.colorbar()
@@ -935,7 +940,7 @@ def test():
     plt.title('omega_ = %.2f' % omega0)
     plt.colorbar()
 
-def task_DzHilbertTransform(dz_id, cache=True):
+def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
     """
     Given an dz_id, computes Hilbert transform to filter out
     Leftward and Rightward propagating waves.
@@ -966,10 +971,10 @@ def task_DzHilbertTransform(dz_id, cache=True):
                 os.unlink(fw_filename)
 
             # create a new wave.nc file with the same fw_id
-            fw_filename, fw_id = create_nc_file_dzHT(dz_id, fw_id=fw_id)
+            fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=fw_id)
     else:
         # create the nc file for the first time for storing the filtered data
-        fw_filename, fw_id = create_nc_file_dzHT(dz_id)
+        fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE)
 
     logger.info('filterLR')
 
@@ -988,8 +993,8 @@ def task_DzHilbertTransform(dz_id, cache=True):
 
     # variables
     t = dz_nc.variables['time'][:]
-    z = dz_nc.variables['row'][:]
-    x = dz_nc.variables['column'][:]
+    z = dz_nc.variables['row'][rowS:rowE]
+    x = dz_nc.variables['column'][colS:colE]
     #print "Axi, time", t
 
     # DEBUG MESSAGES
@@ -1019,10 +1024,6 @@ def task_DzHilbertTransform(dz_id, cache=True):
     # STEP 1: FFT in t ######
 
     # create ncfile to store Hilbert transform of U
-
-    #temp = tempfile.NamedTemporaryFile(suffix='.nc', delete=False)
-    #temp_ht_filename = temp.name
-    #temp.close()
     temp_ht_filename = 'HT.nc'
 
     nc_ht = netCDF4.Dataset(temp_ht_filename, 'w', format='NETCDF4')
@@ -1060,9 +1061,10 @@ def task_DzHilbertTransform(dz_id, cache=True):
         pbar.update(i)
 
         A = dz_nc.variables['dz_array']
+        print "###",nz//chunk_nz, (rowS+i)*chunk_nz, (rowS+i+1)*chunk_nz, rowS+ i*chunk_nz, rowS+(i+1)*chunk_nz,
         datain = A[:,
-                   i*chunk_nz:(i+1)*chunk_nz,
-                   :]
+                 rowS+i*chunk_nz:rowS+(i+1)*chunk_nz,
+                   colS:colE]
 
         # take FFT in time
         U_spectrum = np.fft.fft(datain, axis=0)
@@ -1071,6 +1073,8 @@ def task_DzHilbertTransform(dz_id, cache=True):
 
         # explicitly set all non-positive frequencies to zero
         U_spectrum[nt/2:, :] = 0
+        U_spectrum[0, :] = 0 # setting the amplitude of f=0 to zero
+
         # take inverse FFT and multiply by 2
         datac = 2 * np.fft.ifft(U_spectrum, axis=0)
 
@@ -1172,6 +1176,7 @@ def spatial_filter(n, lock, temp_ht_filename, fw_filename):
         nc = netCDF4.Dataset(fw_filename, 'a')
         left = nc.variables['left_array']
         right = nc.variables['right_array']
+        raw = nc.variables['raw_array']
 
         # convert to compound datatype and save
         complex64 = np.dtype([('real', np.float32), ('imag', np.float32)])
@@ -1184,6 +1189,8 @@ def spatial_filter(n, lock, temp_ht_filename, fw_filename):
         dataout['real'] = datac_L.real
         dataout['imag'] = datac_L.imag
         left[n, :, :] = dataout
+
+        raw[n, :, :] = datain
 
         nc.close()
 
