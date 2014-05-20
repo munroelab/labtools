@@ -675,7 +675,7 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
                   :]
 
         # TODO: why (6, 1, 1)?
-        temp_filt = ndimage.uniform_filter(temp,size = (6,1,1))
+        temp_filt = ndimage.uniform_filter(temp,size = (18,1,1))
 
         DZarray[:, 
                 j*chunk_nz:(j+1)*chunk_nz,

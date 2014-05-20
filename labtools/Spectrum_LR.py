@@ -158,7 +158,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     nc.close()
     return fw_filename, fw_id
 
-def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
+def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period=None):
     """
     Given an Axi_id, create the waves.nc file that will store the
     Hilbert transform result.
@@ -191,8 +191,15 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
 
     # Create the directory in which to store the nc file
     if fw_id is None:
-        sql = """INSERT INTO filtered_waves (dz_id,video_id)\
-                VALUES (%d,%d)""" % (dz_id, video_id)
+        if startF is None or period is None:
+            startF_ = "NULL"
+            period_ = "NULL"
+        else:
+            startF_ = "%d" % startF
+            period_ = "%d" % period
+
+        sql = """INSERT INTO filtered_waves (dz_id,video_id,startF,period)\
+                VALUES (%d,%d,%s,%s)""" % (dz_id, video_id,startF_,period_)
         print sql
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()"""
@@ -219,11 +226,21 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
 
     Nrow_specs = dzncfile.variables['row'][rowS:rowE]
     Ncol_specs = dzncfile.variables['column'][colS:colE]
-    Ntime = dzncfile.variables['time']
+    dz_time = dzncfile.variables['time'][:]
     Nrow = Nrow_specs.size
     Ncol = Ncol_specs.size
-    Ntime = Ntime.size
+    # if startF and period are given then you need to get to set Ntime differently
+    if (startF is None or period is None):
+        Ntime = dz_time.size
+    else:
+        sql = """ SELECT wavemaker.frequency_measured FROM wavemaker_experiments INNER JOIN wavemaker \
+        ON wavemaker_experiments.wavemaker_id = wavemaker.wavemaker_id AND \
+        wavemaker_experiments.expt_id = %d""" % expt_id
+        rows = db.execute(sql)
+        f = rows[0][0]
+        Ntime = round(period*6.2/f)
 
+    print "NROW,NCOL,NTIME::" ,Nrow,Ncol,Ntime
 
     nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
 
@@ -256,6 +273,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
         'column'),chunksizes = chunksizes)
 
     print nc.dimensions.keys()
+    print "raw", raw.shape, raw.dtype
     print "L", left_w.shape, left_w.dtype
     print "R", right_w.shape, right_w.dtype
 
@@ -268,6 +286,10 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None):
     print "column.shape", Nrow_specs.shape
     COLUMN[:] = Ncol_specs[:]
     ROW[:]= Nrow_specs[:]
+    if (startF is None or period is None):
+        TIME[:]= dz_time[:]
+    else:
+        TIME[:] = np.mgrid[0:(period*1.0/f):Ntime * 1.0j]
 
     db.commit()
     nc.close()
@@ -638,17 +660,23 @@ def filtered_waves_VTS(fw_id,
     print "window:", window
 
 
-    raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
-    raw_EF = raw_ma**2
-    raw_VAEF = np.mean(raw_EF,0)
-    left_ma = moving_average_2Darray(left['real'].T,window) * const * dN2t_to_afa
-    left_EF = left_ma**2
-    left_VAEF = np.mean(left_EF,0)
-    right_ma = moving_average_2Darray(right['real'].T,window) * const * dN2t_to_afa
-    right_EF = right_ma**2
-    right_VAEF = np.mean(right_EF,0)
+    # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
+    # raw_EF = raw_ma**2
+    # raw_VAEF = np.mean(raw_EF,0)
+    # left_ma = moving_average_2Darray(left['real'].T,window) * const * dN2t_to_afa
+    # left_EF = left_ma**2
+    # left_VAEF = np.mean(left_EF,0)
+    # right_ma = moving_average_2Darray(right['real'].T,window) * const * dN2t_to_afa
+    # right_EF = right_ma**2
+    # right_VAEF = np.mean(right_EF,0)
 
-    print "movarr size", raw_ma.shape,left_ma.shape,right_ma.shape,raw_EF.shape, left_EF.shape
+    raw_EF = raw['real']**2  * const * dN2t_to_afa
+    left_EF =  left['real']**2 * const * dN2t_to_afa
+    right_EF =  right['real']**2 * const * dN2t_to_afa
+    raw_VAEF =np.mean(raw_EF,1)
+    left_VAEF= np.mean(left_EF,1)
+    right_VAEF =  np.mean(right_EF,1)
+    print "movarr size", raw_EF.shape,left_EF.shape
     print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
 
 
@@ -698,7 +726,7 @@ def filtered_waves_VTS(fw_id,
     print raw_EF.max(),left_EF.max(),right_EF.max()
 
     plt.subplot(3,1,1)
-    plt.imshow(raw_EF,
+    plt.imshow(raw_EF.T,
                extent=[t[0],t[-1],z[-1],z[0]],
                #vmax=max_min,vmin=-max_min,
                aspect='auto',interpolation= 'nearest',
@@ -710,7 +738,7 @@ def filtered_waves_VTS(fw_id,
     # L field
     # L field real
     plt.subplot(3, 1, 2)
-    plt.imshow(left_EF,
+    plt.imshow(left_EF.T,
                extent=(t[0], t[-1], z[-1], z[0]),
                #vmin =-max_min, vmax=max_min,
                aspect='auto',interpolation= 'nearest',
@@ -722,7 +750,7 @@ def filtered_waves_VTS(fw_id,
     # R field
     # R field real
     plt.subplot(3, 1, 3)
-    plt.imshow(right_EF,
+    plt.imshow(right_EF.T,
                extent=(t[0], t[-1], z[-1], z[0]),
                #vmin =-max_min, vmax=max_min ,
                aspect='auto',interpolation= 'nearest',
@@ -940,7 +968,7 @@ def test():
     plt.title('omega_ = %.2f' % omega0)
     plt.colorbar()
 
-def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
+def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,startF=None,period= None):
     """
     Given an dz_id, computes Hilbert transform to filter out
     Leftward and Rightward propagating waves.
@@ -949,9 +977,11 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
     """
 
     db = labdb.LabDB()
-
-    #check if the file already exists
-    sql = "SELECT fw_id FROM filtered_waves WHERE dz_id = %d" % dz_id
+    if startF is None or period is None:
+        sql = "SELECT fw_id FROM filtered_waves WHERE dz_id = %d AND startF is NULL AND period is NULL" % (dz_id)
+    else:
+        #check if the file already exists
+        sql = "SELECT fw_id FROM filtered_waves WHERE dz_id = %d AND startF= %d AND period = %d" % (dz_id,startF,period)
     rows = db.execute(sql)
     if len(rows) > 0:
 
@@ -971,10 +1001,10 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
                 os.unlink(fw_filename)
 
             # create a new wave.nc file with the same fw_id
-            fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=fw_id)
+            fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=fw_id,startF=startF,period=period)
     else:
         # create the nc file for the first time for storing the filtered data
-        fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE)
+        fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE,startF=startF,period=period)
 
     logger.info('filterLR')
 
@@ -988,11 +1018,15 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
 
     # open the axi dataset and get the no of rows and col
     dz_nc = netCDF4.Dataset(filename, 'r')
+    # Open the filtered_waves nc file for details needed for creating the intermediate HT nc file
+    nc = netCDF4.Dataset(fw_filename, 'a')
 
     logger.debug('dz filename {}'.format(filename))
 
     # variables
-    t = dz_nc.variables['time'][:]
+    #time is taken from the filtered waves nc file
+    t = nc.variables['time'][:]
+
     z = dz_nc.variables['row'][rowS:rowE]
     x = dz_nc.variables['column'][colS:colE]
     #print "Axi, time", t
@@ -1006,20 +1040,7 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
     nx = len(x)
     print "length of T, Z, X:  ", nt, nz, nx
 
-    # assume data is sampled evenly
-    dt = np.mean(np.diff(t))
-    dz = np.mean(np.diff(z))
-    dx = np.mean(np.diff(x))
 
-    # Open the nc file for writing data
-    nc = netCDF4.Dataset(fw_filename, 'a')
-    raw = nc.variables['raw_array']
-    left = nc.variables['left_array']
-    right = nc.variables['right_array']
-    ft = nc.variables['time']
-
-    # data stored into the nc file
-    ft[:] = np.mgrid[t[0]:t[-1]:nt * 1.0j]
 
     # STEP 1: FFT in t ######
 
@@ -1061,10 +1082,17 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291):
         pbar.update(i)
 
         A = dz_nc.variables['dz_array']
-        print "###",nz//chunk_nz, (rowS+i)*chunk_nz, (rowS+i+1)*chunk_nz, rowS+ i*chunk_nz, rowS+(i+1)*chunk_nz,
-        datain = A[:,
-                 rowS+i*chunk_nz:rowS+(i+1)*chunk_nz,
-                   colS:colE]
+        #print "###",nz//chunk_nz, (rowS+i)*chunk_nz, (rowS+i+1)*chunk_nz, rowS+ i*chunk_nz, rowS+(i+1)*chunk_nz,
+
+        #load data
+        if startF is None and period is None:
+            datain = A[:,
+                    rowS+i*chunk_nz:rowS+(i+1)*chunk_nz,
+                    colS:colE]
+        else:
+            datain = A[startF:startF+nt,
+                    rowS+i*chunk_nz:rowS+(i+1)*chunk_nz,
+                    colS:colE]
 
         # take FFT in time
         U_spectrum = np.fft.fft(datain, axis=0)
