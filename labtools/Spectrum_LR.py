@@ -180,15 +180,6 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
     expt_id = rows[0][1]
     print " experiment ID : ", expt_id, "Video ID :", video_id
 
-    # get the window length and window height
-    sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
-    rows = db.execute(sql)
-    win_l = rows[0][0] * 1.0
-
-    sql = """SELECT height FROM video WHERE video_id = %d  """ % video_id
-    rows = db.execute(sql)
-    win_h = rows[0][0] * 1.0
-
     # Create the directory in which to store the nc file
     if fw_id is None:
         if startF is None or period is None:
@@ -289,7 +280,9 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
     if (startF is None or period is None):
         TIME[:]= dz_time[:]
     else:
-        TIME[:] = np.mgrid[0:(period*1.0/f):Ntime * 1.0j]
+        #TIME[:] = np.mgrid[0:(period*1.0/f):Ntime * 1.0j]
+        TIME[:] = dz_time[startF:(startF+Ntime)]
+
 
     db.commit()
     nc.close()
@@ -608,12 +601,7 @@ def moving_average_2Darray(arr, N):
     print "array size in moving average along one axis function" ,arr.shape, conv.shape,arr_ma.shape
     return arr_ma
 
-
-def filtered_waves_VTS(fw_id,
-                      plotcol,
-                      max_min,
-                      plotName = None,
-                      ):
+def compute_vertically_averaged_energy_flux(fw_id,plotcol):
 
     db = labdb.LabDB()
     # get the dz_id of the raw dz data
@@ -621,29 +609,23 @@ def filtered_waves_VTS(fw_id,
     rows = db.execute(sql)
     dz_id = rows[0][0]
     print "dz_id :: " ,dz_id
-
-    # load the dz data of the filtered waves to view the input data before hilbert transforming them
-    dz_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
-    dz_nc = netCDF4.Dataset(dz_filename,'r')
-    raw = dz_nc.variables['raw_array'][:,:,plotcol]
-    t=dz_nc.variables['time']
-    print "dz time:", t.shape
-    # load the filtered waves data corresponding to the dz_id
-    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
-    nc = netCDF4.Dataset(fw_filename, 'r')
-    left = nc.variables['left_array'][:,:,plotcol]
-    right = nc.variables['right_array'][:,:,plotcol]
-    t = nc.variables['time'][:]
-    print "fw_time: ", t.shape
-    x = nc.variables['column'][:]
-    z = nc.variables['row'][:]
-    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
-    # constants needed to convert dz into energy flux
-    # call get_info function from Energy_flux program :: to get info
+    # need expt_id to call get_info function from Energy_flux program
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
 
+    # load the filtered waves data corresponding to the dz_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
+    nc = netCDF4.Dataset(fw_filename, 'r')
+    raw = nc.variables['raw_array'][:,:,plotcol]
+    left = nc.variables['left_array'][:,:,plotcol]
+    right = nc.variables['right_array'][:,:,plotcol]
+    t = nc.variables['time'][:]
+    x = nc.variables['column'][:]
+    z = nc.variables['row'][:]
+    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
+
+    # constants needed to convert dz into energy flux
     vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
     dN2t_to_afa = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
     print "dN2t_to_afa::", dN2t_to_afa
@@ -659,7 +641,141 @@ def filtered_waves_VTS(fw_id,
     window = np.int16(window)
     print "window:", window
 
+    # Computation of the vertically averaged energy flux with a moving window .. OUTDATED but may be useful someday!
+    # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
+    # raw_EF = raw_ma**2
+    # raw_VAEF = np.mean(raw_EF,0)
+    # left_ma = moving_average_2Darray(left['real'].T,window) * const * dN2t_to_afa
+    # left_EF = left_ma**2
+    # left_VAEF = np.mean(left_EF,0)
+    # right_ma = moving_average_2Darray(right['real'].T,window) * const * dN2t_to_afa
+    # right_EF = right_ma**2
+    # right_VAEF = np.mean(right_EF,0)
 
+    raw_EF = raw['real']**2  * const * dN2t_to_afa
+    left_EF =  left['real']**2 * const * dN2t_to_afa
+    right_EF =  right['real']**2 * const * dN2t_to_afa
+    raw_VAEF =np.mean(raw_EF,1)
+    left_VAEF= np.mean(left_EF,1)
+    right_VAEF =  np.mean(right_EF,1)
+    print "movarr size", raw_EF.shape,left_EF.shape
+    print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
+    # arrays needed to be pickled..
+    return raw,left,right,t,z,x,raw_VAEF,left_VAEF,right_VAEF
+
+
+def compute_mergeEF(rawVAEF,leftVAEF,rightVAEF,t):
+    filt = np.hanning(len(rawVAEF))
+    raw = np.mean(rawVAEF*filt)
+    left = np.mean(leftVAEF*filt)
+    right = np.mean(rightVAEF*filt)
+    taxis = t[len(t)/2]
+    print "####", raw,left,right,taxis
+    return raw,left,right,taxis
+
+
+
+def plot_energy_flux_VTS(raw,left,right,t,z,x,max_min,plotName):
+        # plotting all the timeseries
+
+    plt.figure(figsize=(15,12))
+    # raw field
+    plt.subplot(3,1,1)
+    plt.imshow(raw['real'].T,
+               extent=[t[0],t[-1],z[-1],z[0]],
+               vmax=max_min,vmin=-max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.title('raw dz')
+    plt.ylabel('depth (cm)')
+    plt.colorbar()
+
+    # L field
+    # L field real
+    plt.subplot(3, 1, 2)
+    plt.imshow(left['real'].T,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-max_min, vmax=max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.ylabel('depth (cm)')
+    plt.title('Left')
+
+    # R field
+    # R field real
+    plt.subplot(3, 1, 3)
+    plt.imshow(right['real'].T,
+               extent=(t[0], t[-1], z[-1], z[0]),
+               vmin =-max_min, vmax=max_min,
+               aspect='auto',interpolation= 'nearest',
+               )
+    plt.colorbar()
+    plt.title('Right')
+    plt.ylabel('depth (cm)')
+    plt.xlabel('Time (s)')
+
+    plt.savefig(plotName)
+
+    return
+
+def get_num_frames(expt_id):
+
+    db = labdb.LabDB()
+
+    # Get the num_frames for the corresponding expt.id
+    sql = """ SELECT num_frames FROM video WHERE expt_id = %d """ % expt_id
+    rows = db.execute(sql)
+    num_frames = rows[0][0]
+    print "number of frames = " ,num_frames
+    return num_frames
+
+
+def filtered_waves_VTS(fw_id,
+                      plotcol,
+                      max_min,
+                      plotName = None,
+                      ):
+
+    db = labdb.LabDB()
+    # get the dz_id of the raw dz data
+    sql = """ SELECT dz_id FROM filtered_waves WHERE fw_id = %d """ % fw_id
+    rows = db.execute(sql)
+    dz_id = rows[0][0]
+    print "dz_id :: " ,dz_id
+    # need expt_id to call get_info function from Energy_flux program
+    sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+
+    # load the filtered waves data corresponding to the dz_id
+    fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
+    nc = netCDF4.Dataset(fw_filename, 'r')
+    raw = nc.variables['raw_array'][:,:,plotcol]
+    left = nc.variables['left_array'][:,:,plotcol]
+    right = nc.variables['right_array'][:,:,plotcol]
+    t = nc.variables['time'][:]
+    x = nc.variables['column'][:]
+    z = nc.variables['row'][:]
+    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
+
+    # constants needed to convert dz into energy flux
+    vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
+    dN2t_to_afa = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
+    print "dN2t_to_afa::", dN2t_to_afa
+    rho0 = 0.998
+    kx = (omega * kz)/(N**2 - omega**2)**0.5
+    const = (0.5/kx) * rho0 * (N**3) * np.cos(theta*np.pi/180) * (np.sin(theta*np.pi/180))**2
+    dn2t_to_ef = rho0 * (1-(omega/N)**2)**(3/2) / (kz**3 * N**3 * (omega/N)**2)
+    print "dn2t_to_ef ::",dn2t_to_ef
+    print "const:: ",const
+    #get the window size for computing the moving average
+    dt = np.mean(np.diff(t[:]))
+    window = 2*np.pi/(omega*dt)
+    window = np.int16(window)
+    print "window:", window
+
+    # Computation of the vertically averaged energy flux with a moving window .. OUTDATED
     # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
     # raw_EF = raw_ma**2
     # raw_VAEF = np.mean(raw_EF,0)
@@ -720,7 +836,7 @@ def filtered_waves_VTS(fw_id,
     plt.xlabel('Time (s)')
 
     plt.savefig(plotName)
-
+    """
     plt.figure(figsize=(15,12))
     # raw field
     print raw_EF.max(),left_EF.max(),right_EF.max()
@@ -761,7 +877,7 @@ def filtered_waves_VTS(fw_id,
     plt.xlabel('Time (s)')
 
     plt.savefig(plotName+"EF.pdf")
-
+    """
     title1 = "energy flux at %d cm of the raw data" % x[plotcol]
     title3 = "energy flux at %d cm of the leftward propagating wave "  % x[plotcol]
     title2 = "energy flux at %d cm of the rightward propagating wave"  % x[plotcol]
@@ -977,6 +1093,24 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
     """
 
     db = labdb.LabDB()
+    frame_rate=6.2
+
+    #get video_id from database
+    sql = """ SELECT video_id FROM dz WHERE dz_id = %d """ % dz_id
+    rows = db.execute(sql)
+    video_id = rows[0][0]
+
+    # get num_frames from the database
+    sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
+    rows = db.execute(sql)
+    num_frames = rows[0][0]
+
+    # get experiment id to get the frequency
+    sql = """ SELECT expt_id FROM video_experiments WHERE video_id = %d """ % video_id
+    rows = db.execute(sql)
+    expt_id = rows[0][0]
+    wg_time_period = Energy_flux.get_wg_timeperiod(expt_id)
+
     if startF is None or period is None:
         sql = "SELECT fw_id FROM filtered_waves WHERE dz_id = %d AND startF is NULL AND period is NULL" % (dz_id)
     else:
@@ -1002,9 +1136,17 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
 
             # create a new wave.nc file with the same fw_id
             fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=fw_id,startF=startF,period=period)
-    else:
-        # create the nc file for the first time for storing the filtered data
-        fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE,startF=startF,period=period)
+    else :
+        #create nc file for the first time when startF and stopF are not mentioned
+        if (startF is None and period is None):
+            # create the nc file for the first time for storing the filtered data
+            fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE,startF=startF,period=period)
+        elif ((startF+(frame_rate*period*wg_time_period)) < num_frames):
+            #create nc file if there are enough frames are present in video
+            fw_filename, fw_id = create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE,startF=startF,period=period)
+        else:
+            # Don't create nc file or do HT incase there are not enough frames left
+            return None
 
     logger.info('filterLR')
 

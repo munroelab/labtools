@@ -17,6 +17,9 @@ import logging
 import matplotlib
 matplotlib.use('Agg')
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -33,13 +36,25 @@ from labtools import labdb
 from labtools import predictions_wave
 from labtools import plots
 from labtools import stratification_plot
+from labtools import plotting_functions
 
 # EDIT list of expt_id's to process:
 # 764,760,759,758,757,766,763,761,762,779
 #expt_ids = [777,764,760,759,758,757,766,763,761,762,779]
 #expt_ids = [748,749,750,751,752,753,754,755,756]
 #expt_ids = [579,583,584,586,587,589]
-expt_ids = [753,755,756]
+expt_ids = [758,759]
+
+params = {755 : { 'rowS': 260, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+          756 : { 'rowS': 260, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 900, },
+          757 : { 'rowS': 320, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          758 : { 'rowS': 320, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          759 : { 'rowS': 260, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          760 : { 'rowS': 320, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          761 : { 'rowS': 320, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          762 : { 'rowS': 320, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+        }
+
 
 workingdir = "workflow/"
 moviedir = "movies/"
@@ -146,7 +161,14 @@ def determineSchlierenParameters(infile, outfile):
    
     # sigma depends on background image line thickness
     p = {}
-    p['sigma'] = 10 # constant for now
+
+    if expt_id in (764,):
+        p['sigma'] = 10
+    elif expt_id in (755,756,):
+        p['sigma'] = 8
+    else:
+        p['sigma'] = 8
+
     p['filterSize'] = 40 # 190 pixel is about 10 cm in space. # it is not used
 
     pickle.dump(p, open(outfile, 'w'))
@@ -215,37 +237,151 @@ def movieDz(infile, outfile):
                       movieName= outfile
                      )
 
+@subdivide(computeDz, formatter(),
+           "{path[0]}/{basename[0]}.*.fw_id",
+           "{path[0]}/{basename[0]}",
+           "{basename[0]}"
+           )
+def filterLR_window(infile, outfiles, outfile_root,expt_id):
+
+    dz_id = pickle.load(open(infile))
+    expt_id = int(expt_id)
+
+    # get num_frames
+    num_frames = Spectrum_LR.get_num_frames(expt_id)
+    print num_frames
+    for oo in outfiles:
+        os.unlink(oo)
+
+    for n, startF in enumerate(range(1, num_frames, 200)):
+        fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id,
+                                                    cache=True,
+                                                    rowS = params[expt_id]['rowS'],
+                                                    rowE = params[expt_id]['rowE'],
+                                                    colS = params[expt_id]['colS'],
+                                                    colE = params[expt_id]['colE'],
+                                                    startF=startF,
+                                                    period=2)
+        if (fw_id is None):
+            break
+
+        print "fw_id",fw_id
+        outfile = "%s.%d.fw_id" % (outfile_root, n)
+        pickle.dump(fw_id, open(outfile, 'w'))
+
+@subdivide(filterLR_window,formatter(),
+            ['{path[0]}/{basename[0]}.fw_id_EF_VTS','{path[0]}/{basename[0]}.fw_id_VAEF']
+            )
+def computeEnergyFlux(infile, outfiles):
+
+    print infile
+    fw_id = pickle.load(open(infile))
+
+    print "& outfile:",outfiles
+    print "FW_ID #",fw_id
+
+    raw_EF,left_EF,right_EF,t,z,x,raw_VAEF,left_VAEF,\
+    right_VAEF= Spectrum_LR.compute_vertically_averaged_energy_flux(fw_id,plotcol=600)
+
+    pickle.dump((raw_EF,left_EF,right_EF,t,x,z), open(outfiles[0], 'w'))
+    pickle.dump((raw_VAEF,left_VAEF,right_VAEF,t), open(outfiles[1], 'w'))
+
+
+@collate(computeEnergyFlux,
+         formatter(),
+         [  '{subpath[0][1]}/plots/{basename[0]}.VTS_WavesRawLeftRight_dn2tEF.pdf',
+            '{subpath[0][1]}/plots/{basename[0]}.Plot_WavesRawLeftRight_dn2tVAEF.pdf',
+         ])
+def energyFluxPlots(infiles, outfiles):
+    logging.info('called EnergyFluxPlots')
+    logging.info(infiles)
+    print infiles
+    raw_EF,left_EF,right_EF,t,x,z = pickle.load(open(infiles[0]))
+    raw_VAEF,left_VAEF,right_VAEF,t = pickle.load(open(infiles[1]))
+    print raw_EF.shape,t.shape,raw_VAEF.shape
+    Spectrum_LR.plot_energy_flux_VTS(raw_EF,left_EF,right_EF,t,z,x,0.5,plotName=outfiles[0])
+    plotting_functions.sharexy_overlay3plots(raw_VAEF,left_VAEF,right_VAEF,t,0.8,'Raw','Left','Right','Time (s)', 'Energy flux',plotName=outfiles[1])
+
+
+@collate(computeEnergyFlux,
+         regex(r"(.*workflow/)(\d+).(\d+).fw_id_VAEF$"),
+         r'\1\2.VAEF.csv', r'\2'
+         )
+def mergeEnergyFlux(infiles, outfile, expt_id):
+    logging.info(infiles)
+    logging.info(outfile)
+    expt_id = int(expt_id)
+
+
+    f = open(outfile, 'w')
+    f.write('t, raw, left, right\n')
+    for infile in infiles:
+
+        # we need to check the expt id of all the files as merge is globbing!
+
+        raw_VAEF,left_VAEF,right_VAEF,t = pickle.load(open(infile))
+        print len(raw_VAEF),len(left_VAEF),len(right_VAEF)
+        a,b,c,d = Spectrum_LR.compute_mergeEF(raw_VAEF,left_VAEF,right_VAEF,t)
+
+        f.write( "%f, %f, %f, %f\n" % (d, a,b,c))
+    f.close()
+
+@transform(mergeEnergyFlux,
+           formatter(),
+           '{subpath[0][1]}/plots/{basename[0]}.finalEF.pdf')
+def plotMergeEnergyFlux( infile, outfile):
+    data = np.loadtxt(infile, skiprows=1, delimiter=',')
+
+    t = data[:,0]
+    raw = data[:,1]
+    left = data[:,2]
+    right = data[:,3]
+
+    plt.clf()
+
+    plt.plot(t, raw, 'o-', label = 'Raw')
+    plt.plot(t, right, 'o-', label = 'Right')
+    plt.plot(t, left, 'o-', label = 'Left')
+
+    plt.legend()
+    plt.xlabel('t (s)')
+    plt.ylabel('Energy Flux')
+
+    plt.savefig(outfile)
+
+
+
+
+@transform(filterLR_window,formatter('fw_id'),
+            '{subpath[0][1]}/plots/{basename[0]}.VTS_PlotWavesRawLeftRight_dn2t.pdf')
+def plotWavesVTSWindow(infile,outfile):
+
+    print infile
+    fw_id = pickle.load(open(infile))
+    print "&",outfile
+    print len(outfile)
+    ###", outfile
+
+
+    print "####",fw_id
+    Spectrum_LR.filtered_waves_VTS(fw_id,
+            600,  # column number
+            .04,      # maxmin
+            plotName = outfile,
+            )
+
 @jobs_limit(1)
 @transform(computeDz, suffix('.dz_id'), '.fw_id')
 def filterLR(infile, outfile):
     dz_id = pickle.load(open(infile))
 
-    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue,rowS=260,rowE = 860,colS=60,colE=1260)
+    fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id, cacheValue,rowS=320,rowE = 860,colS=60,colE=1260)
     print "fw_id",fw_id
     pickle.dump(fw_id, open(outfile, 'w'))
 
-@jobs_limit(1)
-@transform(computeDz, suffix('.dz_id'), '.fw_id_NR')
-def filterLR_NR(infile, outfile):
-    dz_id = pickle.load(open(infile))
-
-    fw_id_NR = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue,rowS=260,rowE = 860,colS=60,colE=1260,startF=200,period=3)
-    print "FW_ID NR::",fw_id_NR
-    pickle.dump(fw_id_NR, open(outfile, 'w'))
-
-@jobs_limit(1)
-@transform(computeDz, suffix('.dz_id'), '.fw_id_WR')
-def filterLR_WR(infile, outfile):
-    dz_id = pickle.load(open(infile))
-
-    fw_id_WR = Spectrum_LR.task_DzHilbertTransform(dz_id, cache=cacheValue,rowS=260,rowE = 860,colS=60,colE=1260,startF=700,period=3)
-    print "FW_ID WR",fw_id_WR
-    pickle.dump(fw_id_WR, open(outfile, 'w'))
-
-
-@transform(filterLR,
+@transform(filterLR_window,
            formatter('.fw_id'), 
-           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesRawLeftRight_dn2t.pdf')
+           '{subpath[0][1]}/plots/{basename[0]}.VTS_PlotWavesRawLeftRight_dn2t.pdf')
 def plotWavesVerticalTimeSeries(infile, outfile):
     fw_id = pickle.load(open(infile))
 
@@ -256,35 +392,7 @@ def plotWavesVerticalTimeSeries(infile, outfile):
             plotName = outfile,
             )
 
-@transform(filterLR_NR,
-           formatter('.fw_id_NR'),
-           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesLeftRight_NR_dn2t.pdf')
-def plotWavesVerticalTimeSeries_NR(infile, outfile):
-    fw_id_NR = pickle.load(open(infile))
-
-    Spectrum_LR.filtered_waves_VTS(
-            fw_id_NR,
-            600,  # column number
-            .04,      # maxmin
-            plotName = outfile,
-            )
-
-
-@transform(filterLR_WR,
-           formatter('.fw_id_WR'),
-           '{subpath[0][1]}/plots/{basename[0]}.plotWavesVerticalTimeSeriesLeftRight_WR_dn2t.pdf')
-def plotWavesVerticalTimeSeries_WR(infile, outfile):
-    fw_id_WR = pickle.load(open(infile))
-
-    Spectrum_LR.filtered_waves_VTS(
-            fw_id_WR,
-            600,  # column number
-            .04,      # maxmin
-            plotName = outfile,
-            )
-
-
-@subdivide(filterLR,
+@subdivide(filterLR_window,
            formatter('.fw_id'),
            ['{subpath[0][1]}/plots/{basename[0]}.LR.right.pdf',
             '{subpath[0][1]}/plots/{basename[0]}.LR.left.pdf'],
@@ -301,44 +409,6 @@ def plotLR(infile, outfiles, extra_arg):
                     maxmin = 0.02,  # min_max value
                     plotName=outfiles[i],
                    )
-
-
-@subdivide(filterLR_NR,
-           formatter('.fw_id_NR'),
-           ['{subpath[0][1]}/plots/{basename[0]}.LR_NR.right.pdf',
-            '{subpath[0][1]}/plots/{basename[0]}.LR_NR.left.pdf'],
-           ['right', 'left']
-           )
-def plotLR_NR(infile, outfiles, extra_arg):
-    logging.info('plotLR_NR called')
-    nc_id = pickle.load(open(infile))
-
-    for i in range(len(outfiles)):
-        plots.plot_slice(extra_arg[i],  # var
-                    nc_id, # id of nc file
-                    'vts', 300,
-                    maxmin = 0.02,  # min_max value
-                    plotName=outfiles[i],
-                   )
-
-@subdivide(filterLR_WR,
-           formatter('.fw_id_WR'),
-           ['{subpath[0][1]}/plots/{basename[0]}.LR_WR.right.pdf',
-            '{subpath[0][1]}/plots/{basename[0]}.LR_WR.left.pdf'],
-           ['right', 'left']
-           )
-def plotLR_WR(infile, outfiles, extra_arg):
-    logging.info('plotLR_WR called')
-    nc_id = pickle.load(open(infile))
-
-    for i in range(len(outfiles)):
-        plots.plot_slice(extra_arg[i],  # var
-                    nc_id, # id of nc file
-                    'vts', 300,
-                    maxmin = 0.02,  # min_max value
-                    plotName=outfiles[i],
-                   )
-
 
 
 @transform(computeDz, suffix('.dz_id'), '.Axi_id')
@@ -414,8 +484,7 @@ def tableExperimentParameters(infiles, outfile):
         f.write("\n")
 
 
-#@transform([computeAxi, filterAxiLR], suffix('.Axi_id'), '.plotEnergyFlux')
-@transform([computeAxi], 
+@transform([computeAxi],
            formatter('.Axi_id'), 
            '{subpath[0][1]}/plots/{basename[0]}.plotEnergyFlux_axi.pdf')
 def plotEnergyFlux(infile, outfile):
@@ -524,13 +593,19 @@ if __name__ == "__main__":
     print "="*40
 
     finalTasks = [
-                 tableExperimentParameters,
+
+                 plotMergeEnergyFlux,
+                 #filterLR_window,
+                 computeEnergyFlux,
+                 energyFluxPlots,
+                 #plotWavesVTSWindow,
+                 #tableExperimentParameters,
                  #FFT_plots,
                  #plotStratification,
-                 plotDz,
-                 plotLR,
-                 plotLR_NR,
-                 plotLR_WR,
+                 #plotDz,
+                 #plotLR,
+                 #plotLR_NR,
+                 #plotLR_WR,
                 # #movieVideo,
                  #movieDz,
                  #movieAxi,
@@ -538,13 +613,14 @@ if __name__ == "__main__":
                  #plotFilteredLR,
                  #tableExperimentParameters,
                  #plotAxiHorizontalTimeSeries,
-                 plotAxiVerticalTimeSeries,
-                 plotWavesVerticalTimeSeries_NR,
-                 plotWavesVerticalTimeSeries_WR,
-                 plotWavesVerticalTimeSeries,
+                 #plotAxiVerticalTimeSeries,
+              #   plotWavesVerticalTimeSeries_NR,
+               #  plotWavesVerticalTimeSeries_WR,
+                 #plotWavesVerticalTimeSeries,
             ]
 
     forcedTasks = [
+            #filterLR_WR,
             #startExperiment,
             #determineSchlierenParameters,
             #computeDz,
@@ -569,7 +645,6 @@ if __name__ == "__main__":
         'pdf',
         finalTasks,
         forcedtorun_tasks = forcedTasks,
-
         no_key_legend=False)
 
     pipeline_run(finalTasks,
