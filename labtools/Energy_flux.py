@@ -453,12 +453,14 @@ def getwgamplitude(expt_id):
     return wg_amplitude
 
 def get_wg_timeperiod(expt_id):
+    "Return the period of the wave maker in seconds for this expt_id"
 
     # Get the frequency,kz and calculate theta
-    sql = """ SELECT kz , frequency_measured FROM wavemaker WHERE wavemaker_id \
+    sql = """ SELECT frequency_measured FROM wavemaker WHERE wavemaker_id \
             = (SELECT wavemaker_id FROM wavemaker_experiments WHERE expt_id = %d) """% expt_id
     rows = db.execute(sql)
     wg_timeperiod = rows[0][0]
+
     return (1.0/wg_timeperiod)
 
 def get_info(expt_id):

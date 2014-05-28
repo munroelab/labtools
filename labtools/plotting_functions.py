@@ -45,7 +45,9 @@ def sharexy_overlay3plots(ts1,ts2,ts3,time,max_min,var1,var2,var3,xlab,ylab,plot
     ax.plot(time,ts2,label=var2,color='blue')
     ax.plot(time,ts3,label=var3,color='green')
     ax.legend(loc='upper right')
-    plt.ylim(0,0.9)
+    plt.ylim(0,max_min)
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
     plt.savefig(plotName)
     return
 

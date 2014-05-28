@@ -229,7 +229,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
         wavemaker_experiments.expt_id = %d""" % expt_id
         rows = db.execute(sql)
         f = rows[0][0]
-        Ntime = round(period*6.2/f)
+        Ntime = int(round(period*6.2/f))
 
     print "NROW,NCOL,NTIME::" ,Nrow,Ncol,Ntime
 
@@ -675,7 +675,7 @@ def compute_mergeEF(rawVAEF,leftVAEF,rightVAEF,t):
 
 
 
-def plot_energy_flux_VTS(raw,left,right,t,z,x,max_min,plotName):
+def plot_energy_flux_VTS(raw,left,right,t,z,max_min,plotName):
         # plotting all the timeseries
 
     plt.figure(figsize=(15,12))
@@ -1278,7 +1278,7 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
     # Create pool
     manager = multiprocessing.Manager()
     lock = manager.Lock()
-    pool = multiprocessing.Pool(processes=8)
+    pool = multiprocessing.Pool(processes=4)
 
     # submit tasks to perform in parallel
     results = [ pool.apply_async(spatial_filter, 
