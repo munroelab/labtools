@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 import netCDF4 as nc
 import numpy as np
 import matplotlib.pyplot as plt
-from  matplotlib import animation 
+from  matplotlib import animation
+import os
 
 import labdb
 import progressbar
@@ -32,7 +33,7 @@ def movie(var, id,
     Given a 'variable name' of a given "id" make a movie
     """
 
-    skip_frames = 6
+    skip_frames = 4
 
     logger.debug('Making a movie %s %d' % (var, id))
 
@@ -125,11 +126,16 @@ def movie(var, id,
         speedup = 4
         anim.save(movieName,
              #   fps = speedup * 6.0 / skip_frames,
-          #        dpi=150,
-          fps = 2, 
-          extra_args=['-q', '1'],
+                  dpi=72,
+          fps = 4,
+          codec='libx264',
+        #  extra_args=['-q', '1'],
+          extra_args=['-preset', 'medium', '-crf', '23', '-pix_fmt', 'yuv420p'],
+
          # extra_args=['-b:v', '720k'],
           )
+
+
 
     pbar.finish()
 

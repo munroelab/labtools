@@ -39,12 +39,19 @@ from labtools import plotting_functions
 
 # EDIT list of expt_id's to process:
 # 764,760,759,758,757,766,763,761,762,779
-#expt_ids = [750,751,752,753,755,756,757,758,759,761,762,763,766]#779]
-expt_ids = [779]
+expt_ids = [579,583,584,586,587,589,750,751,752,753,754,755,756,757,758,759,760,761,762,764,768,778,779,817,818,819,821,822,823,824,825]
+
 #Done expt_ids = [754,764,760]
 ## expt_ids = [579,583,584,586,587,589]
 
-params = {750 : { 'rowS': 100, 'rowE' : 830, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+params = {579 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+          583 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+          584 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 900, },
+          586 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          587 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+          589 : { 'rowS': 100, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
+
+          750 : { 'rowS': 100, 'rowE' : 830, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
           751 : { 'rowS': 100, 'rowE' : 830, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 800, },
           752 : { 'rowS': 100, 'rowE' : 830, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 900, },
           753 : { 'rowS': 260, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
@@ -61,9 +68,21 @@ params = {750 : { 'rowS': 100, 'rowE' : 830, 'colS' : 60, 'colE': 1260, 'startF_
           763 : { 'rowS': 250, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
           764 : { 'rowS': 250, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
           766 : { 'rowS': 280, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          768 : { 'rowS': 280, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
           778 : { 'rowS': 230, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
           779 : { 'rowS': 230, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
           780 : { 'rowS': 230, 'rowE' : 860, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+
+          817 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          818 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          819 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          821 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          822 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          823 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          824 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+          825 : { 'rowS': 250, 'rowE' : 900, 'colS' : 60, 'colE': 1260, 'startF_NR' : 100,'startF_WR' : 700, },
+
+
 
         }
 
@@ -177,12 +196,18 @@ def determineSchlierenParameters(infile, outfile):
     # sigma depends on background image line thickness
     p = {}
 
-    if expt_id in (754,764,):
+    if expt_id in (753,579,583,584,586,587,589,):
+        p['sigma'] = 5
+    elif expt_id in (817,818,819,):
+        p['sigma'] = 6
+    elif expt_id in (754,755,756,757,758,759,760,761,762,778,779):
         p['sigma'] = 10
-    elif expt_id in (755,756,):
+    elif expt_id in (763,764,766,768):
+        p['sigma'] = 11
+    elif expt_id in (751,752,821,822,823,824,825,):
         p['sigma'] = 8
     else:
-        p['sigma'] = 8
+        p['sigma'] = 10
 
     p['filterSize'] = 40 # 190 pixel is about 10 cm in space. # it is not used
 
@@ -234,7 +259,7 @@ def plotDz(infile, outfile):
     plots.plot_slice('dz',  # var
                 dz_id, # id of nc file
                 'vts', 300,
-                maxmin = 0.04,  # min_max value
+                maxmin = 0.02,  # min_max value
                 plotName=outfile,
                )
 
@@ -249,7 +274,7 @@ def movieDz(infile, outfile):
     # make the movie
     movieplayer.movie('dz',  # var
                       dz_id, # id of nc file
-                      0.05,  # min_max value
+                      0.02,  # min_max value
                       saveFig=True,
                       movieName= outfile
                      )
@@ -270,7 +295,7 @@ def filterLR_window(infile,outfiles, outfile_root,expt_id):
     for oo in outfiles:
         os.unlink(oo)
 
-    for n, startF in enumerate(range(1, num_frames, 200)):
+    for n, startF in enumerate(range(1, num_frames, 100)):
         fw_id = Spectrum_LR.task_DzHilbertTransform(dz_id,
                                                     cache=cacheValue,
                                                     rowS = params[expt_id]['rowS'],
@@ -284,15 +309,21 @@ def filterLR_window(infile,outfiles, outfile_root,expt_id):
             break
 
         print "fw_id",fw_id
-        outfile = "%s.%d.fw_id" % (outfile_root, n)
-        pickle.dump(fw_id, open(outfile, 'w'))
+
+        for plotcol in [100, 1000]:
+            outfile = "%s.%d.%d.fw_id" % (outfile_root, n, plotcol)
+            pickle.dump(fw_id, open(outfile, 'w'))
 
 @subdivide(filterLR_window,
-           formatter(),
-           ['{path[0]}/{basename[0]}.fw_id_EF_VTS',
-            '{path[0]}/{basename[0]}.fw_id_VAEF']
+           regex(r"(.*workflow/)(\d+).(\d+).(\d+).fw_id$"),
+           [r'\1\2.\3.\4.fw_id_EF_VTS',
+            r'\1\2.\3.\4.fw_id_VAEF'],
+           r'\4',
         )
-def computeEnergyFlux(infile, outfiles):
+def computeEnergyFlux(infile, outfiles, plotcol):
+
+    plotcol = int(plotcol)
+
     logging.info("Computing the energy flux values for every fw_id and storing them in disk as 2 separate files.")
     print infile
     fw_id = pickle.load(open(infile))
@@ -300,8 +331,7 @@ def computeEnergyFlux(infile, outfiles):
     print "& outfile:",outfiles
     print "FW_ID #",fw_id
 
-    raw_EF,left_EF,right_EF,t,z,x,raw_VAEF,left_VAEF,\
-    right_VAEF= Spectrum_LR.compute_vertically_averaged_energy_flux(fw_id,plotcol=600)
+    raw_EF,left_EF,right_EF,t,z,x,raw_VAEF,left_VAEF,right_VAEF= Spectrum_LR.compute_vertically_averaged_energy_flux(fw_id, plotcol=plotcol)
 
     pickle.dump((raw_EF,left_EF,right_EF,t,x,z), open(outfiles[0], 'w'))
     pickle.dump((raw_VAEF,left_VAEF,right_VAEF,t), open(outfiles[1], 'w'))
@@ -323,11 +353,15 @@ def energyFluxPlots(infiles, outfiles):
 
 
 @collate(computeEnergyFlux,
-         regex(r"(.*workflow/)(\d+).(\d+).fw_id_VAEF$"),
-         r'\1\2.VAEF.csv',
+         regex(r"(.*workflow/)(\d+).(\d+).(\d+).fw_id_VAEF$"),
+         r'\1\2.\4.VAEF.csv',
          )
 def mergeEnergyFlux(infiles, outfile):
     logging.info("Merge all the VAEF files in the workflow to create the plot consisting of all fw_id average energy flux values")
+
+    # sort by part number increasing numerically
+    infiles = sorted(infiles, key=lambda s: int(os.path.basename(s).split('.')[1]) )
+
     logging.info(infiles)
     logging.info(outfile)
 
@@ -653,7 +687,7 @@ if __name__ == "__main__":
                 ]
 
     forcedTasks = [
-                plotStratification,
+                #plotStratification,
                 #energyFluxPlots,
                 #filterLR_WR,
                 #startExperiment,

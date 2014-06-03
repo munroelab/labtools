@@ -601,7 +601,7 @@ def moving_average_2Darray(arr, N):
     print "array size in moving average along one axis function" ,arr.shape, conv.shape,arr_ma.shape
     return arr_ma
 
-def compute_vertically_averaged_energy_flux(fw_id,plotcol):
+def compute_vertically_averaged_energy_flux(fw_id, plotcol):
 
     db = labdb.LabDB()
     # get the dz_id of the raw dz data
@@ -617,13 +617,11 @@ def compute_vertically_averaged_energy_flux(fw_id,plotcol):
     # load the filtered waves data corresponding to the dz_id
     fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(fw_filename, 'r')
-    raw = nc.variables['raw_array'][:,:,plotcol]
-    left = nc.variables['left_array'][:,:,plotcol]
-    right = nc.variables['right_array'][:,:,plotcol]
+
     t = nc.variables['time'][:]
     x = nc.variables['column'][:]
     z = nc.variables['row'][:]
-    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
+
 
     # constants needed to convert dz into energy flux
     vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
@@ -640,6 +638,12 @@ def compute_vertically_averaged_energy_flux(fw_id,plotcol):
     window = 2*np.pi/(omega*dt)
     window = np.int16(window)
     print "window:", window
+
+    raw = nc.variables['raw_array'][:,:,plotcol]
+    left = nc.variables['left_array'][:,:,plotcol]
+    right = nc.variables['right_array'][:,:,plotcol]
+
+    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
 
     # Computation of the vertically averaged energy flux with a moving window .. OUTDATED but may be useful someday!
     # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
@@ -658,17 +662,19 @@ def compute_vertically_averaged_energy_flux(fw_id,plotcol):
     raw_VAEF =np.mean(raw_EF,1)
     left_VAEF= np.mean(left_EF,1)
     right_VAEF =  np.mean(right_EF,1)
+
     print "movarr size", raw_EF.shape,left_EF.shape
     print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
+
     # arrays needed to be pickled..
     return raw,left,right,t,z,x,raw_VAEF,left_VAEF,right_VAEF
 
 
 def compute_mergeEF(rawVAEF,leftVAEF,rightVAEF,t):
     filt = np.hanning(len(rawVAEF))
-    raw = np.mean(rawVAEF*filt)
-    left = np.mean(leftVAEF*filt)
-    right = np.mean(rightVAEF*filt)
+    raw = np.max(rawVAEF*filt)
+    left = np.max(leftVAEF*filt)
+    right = np.max(rightVAEF*filt)
     taxis = t[len(t)/2]
     print "####", raw,left,right,taxis
     return raw,left,right,taxis
