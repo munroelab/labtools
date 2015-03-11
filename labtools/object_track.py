@@ -4,7 +4,7 @@ Tools to track position of objects (balls) in stratified fluid
 """
 
 import numpy
-import Image
+from PIL import Image
 import cv2
 import cv
 import argparse

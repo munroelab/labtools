@@ -1,4 +1,4 @@
-import Image
+from PIL import Image
 import numpy
 import matplotlib.pyplot as plt
 import netCDF4 as nc

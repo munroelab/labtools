@@ -7,7 +7,7 @@ import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 from matplotlib import pyplot as plt
 import argparse
-import Image
+from PIL import Image
 import pylab
 import numpy
 import time

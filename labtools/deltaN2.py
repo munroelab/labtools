@@ -6,7 +6,7 @@ Calculate the deltaN2 field from the dz field
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
-import Image
+form PIL import Image
 import pylab
 import numpy
 import time

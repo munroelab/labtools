@@ -16,7 +16,7 @@ import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
-import Image
+from PIL import Image
 import pylab
 import numpy
 import time

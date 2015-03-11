@@ -2,7 +2,7 @@
 Given a video_id, create an nc file of raw images
 """
 
-import Image
+from PIL import Image
 import numpy as np
 import os
 

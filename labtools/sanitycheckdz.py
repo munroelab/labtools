@@ -1,7 +1,7 @@
 # explaining every step of SyntheticSchlieren.  To understand the purpose of every single step and view the output of every step.
 
 
-import Image
+from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import SyntheticSchlieren as SS
