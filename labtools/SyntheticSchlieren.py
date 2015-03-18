@@ -242,8 +242,19 @@ def create_nc_file(video_id,
     R = numpy.arange(0, win_h, win_h/Nrow, dtype=float)
     C = numpy.arange(0, win_l, win_l/Ncol, dtype=float)
 
-    path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
-    t=numpy.loadtxt(path2time)
+
+    # given a video_id, look up filename and extract out a time.txt file
+    mkvfile = '20140225T210351.mkv' ## TEMPORARY
+
+    cmd = 'mkvextract attachments /data/dv/%s 1:time.txt' % mkvfile
+    os.system(cmd)
+    t = numpy.loadtxt('time.txt')
+
+
+    #path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
+    #t=numpy.loadtxt(path2time)
+    print t
+
     dt = numpy.mean(numpy.diff(t[:,1]))
     
     # compute dt,dz,dx
@@ -408,10 +419,12 @@ def schlieren_lines(p):
 
     returns array
     """
+
     # Loading the INPUT :: 2 images and converting them into arrays
     IM1 = numpy.array(Image.open(p['filename1']))
     #loading the array according to user specification
     image1 = IM1[::p['skip_row'],::p['skip_col']]    
+
     IM2 = numpy.array(Image.open(p['filename2']))
     #loading the array according to user specification
     image2 = IM2[::p['skip_row'],::p['skip_col']]
@@ -525,9 +538,6 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     # Create pool
     pool = multiprocessing.Pool(PROCESSES)
-
-    #check if path exists
-    filename2 = path % (video_id, count)
 
     p = {}
     p['filename1'] = None
