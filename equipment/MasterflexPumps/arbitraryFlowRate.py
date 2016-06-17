@@ -10,7 +10,7 @@
 #generated in another function. Given that no motor control should
 #be available while running the program, only the buttons will be available.
 
-from tkinter import *
+from Tkinter import *
 import pumpDriver
 import pumpCalibration
 import math

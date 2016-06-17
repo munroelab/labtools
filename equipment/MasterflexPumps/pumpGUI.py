@@ -1,4 +1,4 @@
-from tkinter import *
+from Tkinter import *
 import pumpDriver
 import sys
 import pumpCalibration
