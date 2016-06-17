@@ -17,8 +17,16 @@ import pumpCalibration
 ser = serial.Serial()
 
 pumpCal = [1, 0]
+TESTING = False
 
-def init(devicePath=None):
+
+def init(devicePath=None, testing=False):
+    if testing=True:
+        # fake the presence of real pumps
+
+        TESTING = True
+        return
+
     if devicePath is None:
         #minor problem: while Mac uses this:
         devicePaths = glob.glob("/dev/ttyACM0")
@@ -91,6 +99,9 @@ def good_input():
         return False
 
 def set_speed(pump, setting):
+    if TESTING:
+        return (True)
+
     pump = pump + 1 #Python to Arduino conversion of pump notation
     if setting > 255:
         setting = 255
@@ -103,6 +114,9 @@ def set_speed(pump, setting):
         return False
 
 def set_state(pump, boolState):
+    if TESTING:
+        return (True)
+
     pump = pump + 1 #Python to Arduino conversion of pump notation
     if boolState == True: #converts from boolean to an int for the Arduino
         state = 1
@@ -115,12 +129,18 @@ def set_state(pump, boolState):
         return False
 
 def get_speed(pump):
+    if TESTING:
+        return (True)
+
     pump = pump + 1 #Python to Arduino conversion of pump notation
     write('GP' + str(pump))
     pumpSpeed = read_input()
     return pumpSpeed
 
 def get_state(pump):
+    if TESTING:
+        return (True)
+
     pump = pump + 1 #Python to Arduino conversion of pump notation
     write('GT' + str(pump))
     pumpState = read_input()
