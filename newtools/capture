@@ -1,0 +1,10 @@
+EXP=`date +exp%y%m%d%H%M%S`
+mkdir $EXP
+
+FRAMERATE=10
+NUMFRAMES=6000
+
+echo Experiment: $EXP
+echo Capturing video at $FRAMERATE fps to a maximum of $NUMFRAMES frames, max 10 mins
+echo Ctrl-C to stop earlier
+./Stream2JPEG 169.254.146.98 $FRAMERATE $NUMFRAMES 100 2 2 ~/data/$EXP
