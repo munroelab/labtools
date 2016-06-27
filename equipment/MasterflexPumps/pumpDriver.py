@@ -21,10 +21,8 @@ TESTING = False
 
 
 def init(devicePath=None, testing=False):
-    if testing=True:
+    if testing:
         # fake the presence of real pumps
-
-        TESTING = True
         return
 
     if devicePath is None:
@@ -102,7 +100,6 @@ def set_speed(pump, setting):
     if TESTING:
         return (True)
 
-    pump = pump + 1 #Python to Arduino conversion of pump notation
     if setting > 255:
         setting = 255
     elif setting < 0:
@@ -117,7 +114,6 @@ def set_state(pump, boolState):
     if TESTING:
         return (True)
 
-    pump = pump + 1 #Python to Arduino conversion of pump notation
     if boolState == True: #converts from boolean to an int for the Arduino
         state = 1
     else:
@@ -132,7 +128,6 @@ def get_speed(pump):
     if TESTING:
         return (True)
 
-    pump = pump + 1 #Python to Arduino conversion of pump notation
     write('GP' + str(pump))
     pumpSpeed = read_input()
     return pumpSpeed
@@ -141,7 +136,6 @@ def get_state(pump):
     if TESTING:
         return (True)
 
-    pump = pump + 1 #Python to Arduino conversion of pump notation
     write('GT' + str(pump))
     pumpState = read_input()
     if pumpState == 1:
