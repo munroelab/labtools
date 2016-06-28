@@ -1,10 +1,12 @@
-#Arduino Pump Driver Python API
-#Created by Dean Massecar
-#on 2013-06-10
-#Contact: dam671@mun.ca or dean.massecar@gmail.com
-#Chartered by Dr. James Munroe
-#Contact: jmunroe@mun.ca
-#Last updated 2013-06-21
+"""
+Arduino Pump Driver Python API
+Created by Dean Massecar
+on 2013-06-10
+Contact: dam671@mun.ca or dean.massecar@gmail.com
+Chartered by Dr. James Munroe
+Contact: jmunroe@mun.ca
+Last updated 2013-06-21
+"""
 
 import serial
 import glob
@@ -15,11 +17,17 @@ import pumpCalibration
 ser = serial.Serial()
 
 pumpCal = [1, 0]
+TESTING = False
 
-def init(devicePath=None):
+
+def init(devicePath=None, testing=False):
+    if testing:
+        # fake the presence of real pumps
+        return
+
     if devicePath is None:
         #minor problem: while Mac uses this:
-        devicePaths = glob.glob("/dev/tty.usbmodem*")
+        devicePaths = glob.glob("/dev/ttyACM0")
         #Linux uses this:
         #devicePaths = glob.glob("/dev/tty*")
         if len(devicePaths) > 0:
@@ -40,7 +48,7 @@ def init(devicePath=None):
     time.sleep(1)
     ser.flushInput()
     ser.flushOutput()
-    
+
     #for Arduino compatibility, byte strings must be used
     #this section tests the connection to the Arduino by asking for
     #the initial state of pump one, which should be received as '0\n'
@@ -60,10 +68,11 @@ def init(devicePath=None):
 def write(s):
     #'GT%d%d'%(pump, 123)
     s = s + '\n'
-    bs = bytes(s, 'UTF-8')
+    #bs = bytes(s, 'UTF-8')
+    bs = bytes(s)
     ser.write(bs)
     return True
-    
+
 def read_input():
     #reads the serial stream and pulls the first int
     #from the incoming string
@@ -86,9 +95,11 @@ def good_input():
         return False
     else:
         return False
-    
+
 def set_speed(pump, setting):
-    pump = pump + 1 #Python to Arduino conversion of pump notation
+    if TESTING:
+        return (True)
+
     if setting > 255:
         setting = 255
     elif setting < 0:
@@ -98,9 +109,11 @@ def set_speed(pump, setting):
         return True
     else:
         return False
-    
+
 def set_state(pump, boolState):
-    pump = pump + 1 #Python to Arduino conversion of pump notation
+    if TESTING:
+        return (True)
+
     if boolState == True: #converts from boolean to an int for the Arduino
         state = 1
     else:
@@ -112,13 +125,17 @@ def set_state(pump, boolState):
         return False
 
 def get_speed(pump):
-    pump = pump + 1 #Python to Arduino conversion of pump notation
+    if TESTING:
+        return (True)
+
     write('GP' + str(pump))
     pumpSpeed = read_input()
     return pumpSpeed
-    
+
 def get_state(pump):
-    pump = pump + 1 #Python to Arduino conversion of pump notation
+    if TESTING:
+        return (True)
+
     write('GT' + str(pump))
     pumpState = read_input()
     if pumpState == 1:
