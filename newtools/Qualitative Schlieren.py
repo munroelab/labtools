@@ -34,8 +34,11 @@ from PIL import Image
 expts = ['/Users/jmunroe/data/exp160622143528',
          '/Users/jmunroe/data/exp160622151225',
          '/Users/jmunroe/data/exp160622154207',
-        ]
-exp = expts[2]
+         '/Users/jmunroe/data/exp160623112912',
+         '/Users/jmunroe/data/exp160623114719',
+         '/Users/jmunroe/data/exp160623120410',
+         ]
+exp = expts[4]
 
 # In[23]:
 
