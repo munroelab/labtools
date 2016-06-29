@@ -19,8 +19,12 @@ def main():
     f = open("cup.txt", "w")
     cup_number = raw_input("Enter cup number: ")
     cup_density = raw_input("Enter its density: ")
-    print "Cup no.: ", cup_number, "\n", "Density: ", cup_density
-    f.write(cup_number, cup_density) 
+    #print "Cup no.: ", cup_number, "\n", "Density: ", cup_density
+    f.write("Cup_number: ")
+    f.write(cup_number) 
+    f.write("\nCup_density: ")
+    f.write(cup_density)
+    f.write("\n")
 
     # Set up LabJack
     d = u3.U3()
@@ -28,10 +32,13 @@ def main():
     AIN0_REGISTER = 0
     
     while True:
-        sample = d.getAIN(0)
-        now = datetime.datetime.now()
-        print now, sample
-        f.write(now, sample)
+        sample = str(d.getAIN(0))
+        now = str(datetime.datetime.now())
+        print sample
+        f.write(now)
+        f.write(" ")
+        f.write(sample)
+        f.write("\n")
         time.sleep(0.1)
 
 
