@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+"""
+This script allows review of existing video_id
+"""
+
+import cv2
+import os
+import time
+import sys
+import argparse
+import labdb
+
+def main():
+    """
+    """
+    frame_num =0
+    parser = argparse.ArgumentParser(description="Play an existing video_id as a movie")
+
+    parser.add_argument("video_id", type=int, help = "video_id")
+    args = parser.parse_args()
+
+    # look up video_id
+    db = labdb.LabDB()
+    rows = db.execute("SELECT path FROM video WHERE video_id = %d" % args.video_id)
+    if len(rows) == 0:
+        print "video_id %d not found." % video_id
+        return
+    
+    rootpath = rows[0][0]
+    
+    path = os.path.join(rootpath, "frame%05d.png")
+
+    if not os.path.exists(path % 0):
+        path = os.path.join(rootpath, "frame%05d.pgm")
+
+    print "Using", path
+
+    capture = cv2.VideoCapture(path)
+
+    cv2.namedWindow("video")
+    cv2.namedWindow("diff")
+
+    scale = 2
+    max_scale = 10
+
+    def changeScale(scale):
+        print "scale changed to %d" % scale
+
+    cv2.createTrackbar("scale", "diff", scale, max_scale, changeScale)
+    
+    retval, frame = capture.read()
+    reference = frame
+    while retval:
+
+        print "frame num: ", frame_num
+        scale = cv2.getTrackbarPos("scale", "diff")
+
+        diff = scale * cv2.absdiff(frame, reference)
+
+        cv2.imshow("video", frame)
+        diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
+        cv2.putText(diff, "frame number : %d" % frame_num,(100,100),\
+                cv2.FONT_HERSHEY_PLAIN,3.0,(255,150,0),thickness=3\
+                ,lineType=cv2.CV_AA)
+        cv2.imshow("diff" , diff)
+        c = cv2.waitKey(10)
+
+        if c == 27:  #ESC
+            break
+
+        retval, frame = capture.read()
+        frame_num +=1
+
+if __name__ == "__main__":
+    main()

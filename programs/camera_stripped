@@ -1,0 +1,153 @@
+#!/usr/bin/env python
+"""
+This script controls the AVT camera.
+
+1) configuration
+2) save video sequences
+"""
+
+import cv2
+import os
+import time
+import sys
+import numpy as np
+
+#  Try and get camera up and working
+
+capture = cv2.VideoCapture(0)
+
+if not capture.isOpened():
+    # hmm.. no camera available.
+    # CLIpConfig trick to list available cameras
+    os.system("CLIpConfig -l")
+    #try again
+    capture = cv2.VideoCapture(0)
+    if not capture.isOpened():
+        print "Camera not found!. Is it powered up?"
+        sys.exit(0)
+
+retval, frame = capture.read()
+
+# convert to grayscale
+img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+cv2.namedWindow("camera", 1)
+
+finished = False
+recording = False
+
+framenum = 0
+t0 = time.time()
+video_path = '.' 
+tlog = None
+
+print "Press escape (in camera window) to start quit"
+print "Press space bar (in camera window) to start/stop recording"
+print "Press the key 'd' (in Camera Window) to select the reference image to start viewing the difference images"
+
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_CONVERT_RGB)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FPS)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FORMAT)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_GAIN)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT)
+#print cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH)
+
+reference = img
+diff = img
+cv2.namedWindow("Difference",1)
+cv2.namedWindow("HTS",1)
+HTS = img[:800,:]
+
+scale = 2
+max_scale = 10
+
+def changeScale(scale):
+    print "scale changed to %d" % scale
+
+def changeHTS(j):
+    pass
+
+cv2.createTrackbar("scale", "Difference", scale, max_scale, changeScale)
+cv2.createTrackbar("j", "camera", 0, 900, changeHTS)
+    
+while not finished:
+
+    retval, frame = capture.read()
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    if recording:
+       t = time.time() - t0
+
+       framename = os.path.join(video_path, "frame%05d.png" % framenum)
+       cv2.imwrite(framename, img)
+       tlog.write("%d %.4f\n" % (framenum, t))
+       print "Frame: %d Time: %.4f s" % (framenum, t)
+
+       framenum += 1
+
+    scale = cv2.getTrackbarPos("scale", "Difference")
+    diff = scale * cv2.absdiff(img, reference)
+    diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
+
+    cv2.imshow("Difference",diff)
+    
+    j = cv2.getTrackbarPos("j", "camera")
+    if j < 10:
+        j = 10
+    line = img[j-5:j+5,:]
+    print line.reshape(-1,1).shape
+    print HTS.shape
+
+    # append to end of HTS
+    HTS = np.vstack((HTS[10:,:], line))
+    HTSshow = cv2.blur(HTS,( 5,5))
+    HTSshow = cv2.applyColorMap(HTSshow, cv2.COLORMAP_JET)
+    cv2.imshow("HTS", HTSshow)
+    #cv2.imshow("HTS", HTS)
+
+    # horiz line
+    cv2.line(frame, (0, j), (1290, j), (0, 255, 0), 5)
+    # vert line
+    #cv2.line(frame, (j, 0), (j, 900), (0, 255, 0), 5)
+    cv2.imshow("camera", frame)
+
+    c = cv2.waitKey(10)
+    if c ==100: # 'd' key
+        reference = img
+
+    if c == 27: # escape key
+        finished = True
+
+    if c == 32 or finished: # space bar
+        if recording:
+            # Stop recording!
+
+            # close time log file
+            tlog.close()
+
+            print "Number of frames captured:", framenum
+            print "see file %s for conversion from frame number to time" % tlogname
+            print "frames are stored in %s/frame%%05d.pgm" % video_path
+            print
+            print "video_id =", video_id
+            recording = False
+
+        elif not finished: # Start recording
+
+            video_path = '.'
+
+            os.mkdir(video_path)
+
+            print
+            print
+            print "Press escape (in camera window) to stop recording"
+
+            # Capture frame from experiment
+            tlogname = os.path.join(video_path, "time.txt")
+            tlog = open (tlogname, "w")
+
+            framenum = 0
+            t0 = time.time()
+
+            recording = True
+
