@@ -3,7 +3,7 @@ import pylab
 import matplotlib.pyplot as plt
 import netCDF4
 import argparse
-import labdb
+from . import labdb
 import os
 
 # Open database for access
@@ -16,30 +16,30 @@ def compute_energy_flux(a_xi_id,row_no,max_min,plotname = "axiHorizontalTimeSeri
     """ 
 
     #check if the nc file exists
-    print "entering compute_energy_flux function...."
+    print("entering compute_energy_flux function....")
 
     sql = """SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id= %d """ % a_xi_id
-    print sql
+    print(sql)
     row = db.execute_one(sql)
-    print "axi HTS .... row", row
+    print("axi HTS .... row", row)
     if (row[0] is None):
-        print "The a_xi for the expt_id is not yet computed.. "
+        print("The a_xi for the expt_id is not yet computed.. ")
         return
     # get the expt_id 
     sql = """SELECT expt_id from dz where dz_id =\
             (SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id = %d) """ % a_xi_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print "expt ID: ", expt_id
+    print("expt ID: ", expt_id)
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
     # Open the nc file and load the variables.
     path = "/Volumes/HD4/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
-    print " variables: " ,nc.variables.keys()
+    print(" variables: " ,list(nc.variables.keys()))
     a_xi_arr = nc.variables['a_xi_array']
-    print " a_xi array.shape ", a_xi_arr.shape
+    print(" a_xi array.shape ", a_xi_arr.shape)
     t = nc.variables['time']
     z = nc.variables['row']
     x = nc.variables['column']
@@ -48,11 +48,11 @@ def compute_energy_flux(a_xi_id,row_no,max_min,plotname = "axiHorizontalTimeSeri
     rho0 = 0.998
     kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
-    print "kx:",kx
-    print "const:",const
+    print("kx:",kx)
+    print("const:",const)
     data = a_xi_arr[:,row_no,:]
     
-    print "data.T.shape", data.shape
+    print("data.T.shape", data.shape)
     plt.figure()
     #plt.contourf(t,z,data.T[::-1],levels=level)
     plt.imshow(data[:,:],extent=[x[0],x[-1],t[-1],t[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
@@ -69,7 +69,7 @@ def get_info(expt_id):
     sql = """ SELECT video_id FROM video_experiments WHERE expt_id = %d """ % expt_id
     rows = db.execute(sql)
     video_id = rows[0][0]
-    print "VIDEO ID = " ,video_id
+    print("VIDEO ID = " ,video_id)
 
     # Get the Buoyancy frequency
     sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\
@@ -77,7 +77,7 @@ def get_info(expt_id):
             expt_id = %d ORDER BY strat_id ASC LIMIT 1)""" % expt_id
     rows = db.execute(sql)
     N_frequency = rows[0][0]
-    print "Buoyancy Frequency: ", N_frequency
+    print("Buoyancy Frequency: ", N_frequency)
 
     # Get the frequency,kz and calculate theta
     sql = """ SELECT kz , frequency_measured FROM wavemaker WHERE wavemaker_id \
@@ -85,12 +85,12 @@ def get_info(expt_id):
     rows = db.execute(sql)
     kz = rows[0][0]
     f = rows[0][1]
-    print "kz : ",kz, "frequency:" ,f
+    print("kz : ",kz, "frequency:" ,f)
     omega = 2 * numpy.pi * f
 
     # wkt w = N * cos(theta) ,arccos returns in radians 
     theta = numpy.arccos(omega/N_frequency) 
-    print "omega: ", omega, "\t theta: " ,theta*180/numpy.pi
+    print("omega: ", omega, "\t theta: " ,theta*180/numpy.pi)
 
     return video_id, N_frequency, omega, kz, theta*180.0/numpy.pi
 

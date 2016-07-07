@@ -3,9 +3,9 @@ import pylab
 import matplotlib.pyplot as plt
 import netCDF4
 import argparse
-import labdb
+from . import labdb
 import os
-import plotting_functions
+from . import plotting_functions
 
 # Open database for access
 db  = labdb.LabDB()
@@ -19,11 +19,11 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,rstop=0,lstop=0):
     rows=db.execute(sql)
     
     if len(rows) == 0:
-        print "It has not been computed"
+        print("It has not been computed")
         return
 
     fw_path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % rows[0][0]
-    print fw_path
+    print(fw_path)
     
     # Get experiment ID
     
@@ -32,13 +32,13 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,rstop=0,lstop=0):
             vertical_displacement_amplitude.dz_id AND \
             vertical_displacement_amplitude.a_xi_id = %d) """ %a_xi_id
     rows = db.execute(sql)
-    print rows 
+    print(rows) 
     expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
+    print(" experiment ID : ", expt_id)
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
-    print "Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta
+    print("Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta)
     # Open the nc file for reading data
     nc = netCDF4.Dataset(fw_path,'r')
     raw = nc.variables['raw_array']
@@ -46,48 +46,48 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,rstop=0,lstop=0):
     fz = nc.variables['row'][row_s:row_e]
     fx = nc.variables['column']
     # print information about dz dataset
-    print "variables  of the nc file :", nc.variables.keys()
-    print "t  shape : " , ft.shape
+    print("variables  of the nc file :", list(nc.variables.keys()))
+    print("t  shape : " , ft.shape)
     
     #select the timeseries of the rows along the column you are interested in 
     raw = nc.variables['raw_array'][row_s:row_e,:,col1]
     raw_squared = raw**2
     
-    print "raw_squared shape: ",raw_squared.shape
+    print("raw_squared shape: ",raw_squared.shape)
 
-    print "depth from :: ", fz[0], " to ", fz[-1]
-    print "time from :: ", ft[0], " to ", ft[-1]
+    print("depth from :: ", fz[0], " to ", fz[-1])
+    print("time from :: ", ft[0], " to ", ft[-1])
     
     # Calculate kx and  energy flux
     rho0 = 0.998
     kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
-    print "kx:",kx
-    print "const:",const
+    print("kx:",kx)
+    print("const:",const)
     
     EF1 = (numpy.mean(raw_squared,0)) * const
-    print "EF arrays shape:: ", EF1.shape
+    print("EF arrays shape:: ", EF1.shape)
     
     # get dt and length of the timeseries
     dt = numpy.mean(numpy.diff(ft))
     nt = len(ft)
-    print "dt :: ",dt,"nt ::", nt
+    print("dt :: ",dt,"nt ::", nt)
     
     #average rightward energy
     rstop = rstop*1.0/dt
-    print rstop
+    print(rstop)
     rightE = numpy.mean(EF1[0:rstop])
-    print "rightE" , rightE
+    print("rightE" , rightE)
     #average reflected energy
     lstop = lstop *1.0/dt
-    print lstop
+    print(lstop)
     leftE = numpy.mean(EF1[rstop:lstop])
-    print "leftE", leftE
+    print("leftE", leftE)
     
     # get the moving average
     window = 2*numpy.pi/(omega*dt)
     window = numpy.int16(window)
-    print window
+    print(window)
     avg1 = moving_average(EF1,window)
     #print "raw energy average : ", avg1[-1],numpy.max(avg1)
     plt.plot(ft,EF1,ft,avg1)
@@ -97,26 +97,26 @@ def compute_energy_flux(a_xi_id,row_s,row_e,col1,rstop=0,lstop=0):
 def growing_average(arr):
     sum_arr=[]
     window = arr.shape[0]
-    print "input shape",arr.shape
+    print("input shape",arr.shape)
     sum_arr.append(arr[0:])
     i=1
-    print "in loop 1"
+    print("in loop 1")
     while (i < window):
         sum_arr.append(numpy.pad(arr[:-i], (i,0),'constant',constant_values=(0,)))
         i+=1
     sum_arr = numpy.array(sum_arr)
     total = numpy.sum(sum_arr,0)
-    print "in loop 2"
+    print("in loop 2")
     for i in range(window):
         total[i] = 1.0*total[i]/(i+1)
-    print "shape",sum_arr.shape
-    print "average shape: ", total.shape
+    print("shape",sum_arr.shape)
+    print("average shape: ", total.shape)
     return total
 
 
 def moving_average(arr,window):
     sum_arr=[]
-    print "input shape",arr.shape
+    print("input shape",arr.shape)
     sum_arr.append(arr)
     i=1
     while (i < window):
@@ -124,9 +124,9 @@ def moving_average(arr,window):
         i+=1
 
     sum_arr = numpy.array(sum_arr)
-    print "shape",sum_arr.shape
+    print("shape",sum_arr.shape)
     avg= numpy.sum(sum_arr,0)/window
-    print "average shape: ", avg.shape
+    print("average shape: ", avg.shape)
     return avg
 
 
@@ -136,14 +136,14 @@ def get_info(expt_id):
     sql = """ SELECT video_id FROM video_experiments WHERE expt_id = %d """ % expt_id
     rows = db.execute(sql)
     video_id = rows[0][0]
-    print "VIDEO ID = " ,video_id
+    print("VIDEO ID = " ,video_id)
 
     # Get the Buoyancy frequency
     sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\
             (SELECT strat_id FROM stratification_experiments WHERE expt_id = %d )""" % expt_id
     rows = db.execute(sql)
     N_frequency = rows[0][0]
-    print "Buoyancy Frequency: ", N_frequency
+    print("Buoyancy Frequency: ", N_frequency)
 
     # Get the frequency,kz and calculate theta
     sql = """ SELECT kz , frequency_measured FROM wavemaker WHERE wavemaker_id \
@@ -151,12 +151,12 @@ def get_info(expt_id):
     rows = db.execute(sql)
     kz = rows[0][0]
     f = rows[0][1]
-    print "kz : ",kz, "frequency:" ,f
+    print("kz : ",kz, "frequency:" ,f)
     omega = 2 * numpy.pi * f
 
     # wkt w = N * cos(theta) ,arccos returns in radians 
     theta = numpy.arccos(omega/N_frequency) 
-    print "omega: ", omega, "\t theta: " ,theta*180/numpy.pi
+    print("omega: ", omega, "\t theta: " ,theta*180/numpy.pi)
 
     return video_id, N_frequency, omega, kz, theta*180.0/numpy.pi
 

@@ -14,7 +14,7 @@ vts = numpy.array(vts)
 
 #open the axi nc file
 data = nc.Dataset(path2axincfile, 'r')
-print data.variables.keys()
+print(list(data.variables.keys()))
 a_xi = data.variables['a_xi_array']
 t = data.variables['time'][:]
 z = data.variables['row'][:]
@@ -24,7 +24,7 @@ x = data.variables['column'][:]
 dz = nc.Dataset(path2dzncfile,'r')
 dz_array = dz.variables['dz_array']
 
-print a_xi.shape, dz_array.shape
+print(a_xi.shape, dz_array.shape)
 # row and column numbers
 column1 = 570 # 10 cm to the left of the ball
 column2 = 716 # where the ball is floating

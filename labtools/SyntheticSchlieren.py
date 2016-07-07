@@ -2,7 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrix based operations
 """
-import spectrum_test
+from . import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -12,19 +12,19 @@ import numpy
 import time
 import os
 import sys
-import labdb
+from . import labdb
 import gc
 import netCDF4
 from scipy import ndimage
 from scipy.ndimage import gaussian_filter
 from numpy import ma
-import progressbar
+from . import progressbar
 import multiprocessing
 import socket
 import warnings
 import tempfile
 import logging
-from chunk_shape_3D import chunk_shape_3D
+from .chunk_shape_3D import chunk_shape_3D
 
 import skimage.morphology, skimage.filter 
 
@@ -152,9 +152,9 @@ def create_nc_file(video_id,
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
     
-    print "length" , win_l, "\nheight", win_h
-    print  "video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
-    print  video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
+    print("length" , win_l, "\nheight", win_h)
+    print("video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames")
+    print(video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)
 
     if dz_id is None:
 
@@ -168,10 +168,10 @@ def create_nc_file(video_id,
             # there is already a dz_id; reuse it
             dz_id = rows[0][0]
         elif len(rows) > 1:
-            print "MULTIPLE dz_id exist in database with same parameters!!!  FIXME!"
+            print("MULTIPLE dz_id exist in database with same parameters!!!  FIXME!")
             sys.exit(1)
 
-    print "dz_ID ###", dz_id
+    print("dz_ID ###", dz_id)
     if dz_id is None:
 
         if diff_frames is None:
@@ -185,7 +185,7 @@ def create_nc_file(video_id,
                 VALUES (%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%s)""" %\
                 (video_id,skip_frames,skip_row,skip_col,expt_id,\
                 mintol,sigma,filter_size,startF,stopF,diff_frames_s)
-        print sql
+        print(sql)
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()"""
         rows = db.execute(sql)
@@ -196,11 +196,11 @@ def create_nc_file(video_id,
                 startF,stopF FROM dz WHERE dz_id = %s""" \
                 %dz_id
         previous_row = db.execute_one(sql)
-        print previous_row 
+        print(previous_row) 
         if (previous_row[0] != video_id or previous_row[1] !=skip_frames  or\
                  previous_row[2]!=skip_row or previous_row[3]!=skip_col\
                  or  previous_row[4]!=startF or previous_row[5]!=stopF):
-                    print "video id/startF/stopF mismatch!"
+                    print("video id/startF/stopF mismatch!")
                     return None
 
     dz_path = "/data/dz/%d" % dz_id
@@ -209,7 +209,7 @@ def create_nc_file(video_id,
         os.mkdir(dz_path)
 
     dz_filename = os.path.join(dz_path, "dz.nc")
-    print "dz_ filename: ",dz_filename
+    print("dz_ filename: ",dz_filename)
 
     # Declare the nc file for the first time 
     if os.path.exists(dz_filename):
@@ -221,7 +221,7 @@ def create_nc_file(video_id,
     Ncol = 1292/skip_col
     Ntime =  (stopF - startF - 1 ) // skip_frames + 1 - diff_frames
 
-    print "no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
+    print("no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime))
 
     # create the nc file and set the dimensions of z and x axis.
     nc = netCDF4.Dataset(dz_filename, 'w', format = 'NETCDF4')
@@ -253,7 +253,7 @@ def create_nc_file(video_id,
 
     #path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     #t=numpy.loadtxt(path2time)
-    print t
+    print(t)
 
     dt = numpy.mean(numpy.diff(t[:,1]))
     
@@ -284,7 +284,7 @@ def create_nc_file(video_id,
     return dz_filename, dz_id, dt, dz, dx, chunksizes
 
 def create_temp_nc_file(dz_filename):
-    print "creating the temporary nc file for storing dz array.."
+    print("creating the temporary nc file for storing dz array..")
     """
     creating a temporary dz file so as to avoid reading and writing from the same nc file
     while filtering in time. 
@@ -307,7 +307,7 @@ def create_temp_nc_file(dz_filename):
     Ncol = X.size
     Ntime = T.size
 
-    print "TEMP DZ FILE ### \n no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime)
+    print("TEMP DZ FILE ### \n no of rows : %d and no of columns : %d and Ntime : %d" %(Nrow,Ncol,Ntime))
 
     # get a new, unique filename for the temp dz file
     temp_file = tempfile.NamedTemporaryFile(suffix='.nc',
@@ -331,7 +331,7 @@ def create_temp_nc_file(dz_filename):
     # chunk the data intelligently
     valSize = numpy.float32().itemsize
     chunksizes = chunk_shape_3D( ( Ntime, Nrow, Ncol), valSize=valSize )
-    print "chunksizes",chunksizes
+    print("chunksizes",chunksizes)
 
     # declare the 3D data variable
     # TODO: why the name change for this variable?
@@ -358,7 +358,7 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
     returns none otherwise
 
     """
-    print "checking if dz already exists.."
+    print("checking if dz already exists..")
     db = labdb.LabDB()
     # check if this dz array has already been computed?
     if diff_frames is None:
@@ -372,31 +372,31 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
     if (len(rows) > 0):
         # dz array already computed
         dz_id = rows[0][0]
-        print "Loading cached dz %d..." % dz_id
+        print("Loading cached dz %d..." % dz_id)
         # load the array from the disk
         dz_path = "/data/dz/%d" % dz_id
         dz_filename = dz_path+'/'+'dz.nc'
 
         if not os.path.exists(dz_filename):
-            print "file", dz_filename, "not found."
+            print("file", dz_filename, "not found.")
             return None
 
         #dz_array = numpy.load(dz_filename)
         #loading the nc file
-        print dz_filename
+        print(dz_filename)
         nc=netCDF4.Dataset(dz_filename,'a')
         # some information about the nc file
-        print "dimensions of nc file -> ", nc.dimensions.keys()
-        print "variables of nc file -> ", nc.variables.keys()
+        print("dimensions of nc file -> ", list(nc.dimensions.keys()))
+        print("variables of nc file -> ", list(nc.variables.keys()))
         # loading the data 
         dz_arr = nc.variables['dz_array']
         nt, nrows, ncols = dz_arr.shape
 
-        print "shape of nc file -> ", dz_arr.shape
+        print("shape of nc file -> ", dz_arr.shape)
 
         if 'calculation_complete' not in nc.ncattrs() or not nc.calculation_complete:
             # previous dz_array was not completed computed => redo.
-            print "Previous dz_array was not complete -- redo"
+            print("Previous dz_array was not complete -- redo")
             return None
 
         return dz_id 
@@ -404,7 +404,8 @@ def checkifdzexists(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_s
         return None
 
 
-def calculate(func, (args, index)):
+def calculate(func, xxx_todo_changeme):
+    (args, index) = xxx_todo_changeme
     result = func(*args)
     msg = '%s does %s%s' % (
         multiprocessing.current_process().name,
@@ -452,7 +453,7 @@ def schlieren_lines(p):
     # masked array and then applying a gaussian filter to smooth the image
 
     # step 6: prepare a mask:: Mask value 1: use the data and 0: ignore the data here within the disk
-    mask_delz = numpy.uint8(mapped_delz <>128)
+    mask_delz = numpy.uint8(mapped_delz !=128)
     
     #Step 7 : apply the mean filter to compute values for the masked pixels
     # Apply the filter in Z not in X.
@@ -502,9 +503,9 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
         sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
         rows = db.execute(sql)
         stopF = rows[0][0]
-        print "stop_frames = ", stopF 
+        print("stop_frames = ", stopF) 
     num_frames=stopF-startF
-    print "num_frames:" ,num_frames
+    print("num_frames:" ,num_frames)
 
     dz_id =checkifdzexists(video_id,skip_frames,skip_row,skip_col,min_tol,sigma,filter_size,startF,stopF,diff_frames)
     if (dz_id is not None) and cache:
@@ -654,9 +655,9 @@ def compute_dz(video_id, min_tol, sigma, filter_size,skip_frames=1,skip_row=1,sk
 
     t_chunk,r_chunk,c_chunk = chunkshape
 
-    print "chunk t,z,x :", t_chunk,r_chunk,c_chunk
+    print("chunk t,z,x :", t_chunk,r_chunk,c_chunk)
 
-    print "CC size, zz size" , CC.size, ZZ.size
+    print("CC size, zz size" , CC.size, ZZ.size)
     col_count= CC.size-1
     row_count= ZZ.size-1
 

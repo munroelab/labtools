@@ -7,6 +7,7 @@ Also see blog post: http://www.unidata.ucar.edu/blogs/developer/entry/chunking_d
 """
 import math
 import operator
+from functools import reduce
 
 def binlist(n, width=0):
     """Return list of bits that represent a non-negative integer.
@@ -14,7 +15,7 @@ def binlist(n, width=0):
     n      -- non-negative integer
     width  -- number of bits in returned zero-filled list (default 0)
     """
-    return map(int, list(bin(n)[2:].zfill(width)))
+    return list(map(int, list(bin(n)[2:].zfill(width))))
 
 def numVals(shape):
     """Return number of values in chunk of specified shape, given by a list of dimension lengths.
@@ -30,7 +31,7 @@ def perturbShape(shape, onbits):
     shape  -- list of variable dimension sizes
     onbits -- non-negative integer less than 2**len(shape)
     """
-    return map(sum, zip(shape, binlist(onbits, len(shape))))
+    return list(map(sum, list(zip(shape, binlist(onbits, len(shape))))))
 
 def chunk_shape_3D(varShape, valSize=4, chunkSize=4096):
     """
@@ -92,4 +93,4 @@ def chunk_shape_3D(varShape, valSize=4, chunkSize=4096):
         if bestChunkSize < thisChunkSize <= chunkSize:
             bestChunkSize = thisChunkSize
             cBest = list(cCand) # make a copy of best candidate so far
-    return map(int, cBest)
+    return list(map(int, cBest))

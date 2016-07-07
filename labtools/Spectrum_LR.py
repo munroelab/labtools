@@ -16,13 +16,13 @@ import argparse
 import netCDF4
 import pylab
 import copy
-import labdb
+from . import labdb
 import tempfile
 import time
-import progressbar
+from . import progressbar
 import multiprocessing
 from matplotlib import animation
-from chunk_shape_3D import chunk_shape_3D
+from .chunk_shape_3D import chunk_shape_3D
 from labtools import Energy_flux
 from labtools import  plotting_functions
 import logging
@@ -52,7 +52,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     rows = db.execute(sql)
     video_id = rows[0][0]
     expt_id = rows[0][1]
-    print " experiment ID : ", expt_id, "Video ID :", video_id
+    print(" experiment ID : ", expt_id, "Video ID :", video_id)
 
     # get the window length and window height
     sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
@@ -67,7 +67,7 @@ def create_nc_file(a_xi_id, fw_id=None):
     if fw_id is None:
         sql = """INSERT INTO filtered_waves (a_xi_id,video_id)\
                 VALUES (%d,%d)""" % (a_xi_id, video_id)
-        print sql
+        print(sql)
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()"""
         rows = db.execute(sql)
@@ -76,7 +76,7 @@ def create_nc_file(a_xi_id, fw_id=None):
         sql = "SELECT a_xi_id FROM filtered_waves WHERE fw_id = %s" % fw_id
         previous_a_xi_id, = db.execute_one(sql)
         if previous_a_xi_id != a_xi_id:
-            print "fw_id, a_xi_id, mismatch!"
+            print("fw_id, a_xi_id, mismatch!")
             return None
 
     fw_path = "/data/filtered_waves/%d" % fw_id
@@ -140,17 +140,17 @@ def create_nc_file(a_xi_id, fw_id=None):
     right_w = nc.createVariable('right_array', complex64_t, ('time', 'row',
         'column'),chunksizes = chunksizes)
 
-    print nc.dimensions.keys()
-    print "L", left_w.shape, left_w.dtype
-    print "R", right_w.shape, right_w.dtype
+    print(list(nc.dimensions.keys()))
+    print("L", left_w.shape, left_w.dtype)
+    print("R", right_w.shape, right_w.dtype)
 
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     C = np.arange(0, win_l, win_l / Ncol, dtype=float)
     R = np.arange(0,win_h, win_h/Nrow,dtype=float)
 
-    print "spectrumLR c.shape", C.shape
-    print "column.shape", COLUMN.shape
+    print("spectrumLR c.shape", C.shape)
+    print("column.shape", COLUMN.shape)
     COLUMN[:] = C
     ROW[:]= R
 
@@ -178,7 +178,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
     rows = db.execute(sql)
     video_id = rows[0][0]
     expt_id = rows[0][1]
-    print " experiment ID : ", expt_id, "Video ID :", video_id
+    print(" experiment ID : ", expt_id, "Video ID :", video_id)
 
     # Create the directory in which to store the nc file
     if fw_id is None:
@@ -191,7 +191,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
 
         sql = """INSERT INTO filtered_waves (dz_id,video_id,startF,period)\
                 VALUES (%d,%d,%s,%s)""" % (dz_id, video_id,startF_,period_)
-        print sql
+        print(sql)
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()"""
         rows = db.execute(sql)
@@ -200,7 +200,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
         sql = "SELECT dz_id FROM filtered_waves WHERE fw_id = %s" % fw_id
         previous_dz_id, = db.execute_one(sql)
         if previous_dz_id != dz_id:
-            print "fw_id, dz_id, mismatch!"
+            print("fw_id, dz_id, mismatch!")
             return None
 
     fw_path = "/data/filtered_waves/%d" % fw_id
@@ -231,7 +231,7 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
         f = rows[0][0]
         Ntime = int(round(period*6.2/f))
 
-    print "NROW,NCOL,NTIME::" ,Nrow,Ncol,Ntime
+    print("NROW,NCOL,NTIME::" ,Nrow,Ncol,Ntime)
 
     nc = netCDF4.Dataset(fw_filename, 'w', format='NETCDF4')
 
@@ -263,18 +263,18 @@ def create_nc_file_dzHT(dz_id,rowS,rowE,colS,colE, fw_id=None,startF=None,period
     right_w = nc.createVariable('right_array', complex64_t, ('time', 'row',
         'column'),chunksizes = chunksizes)
 
-    print nc.dimensions.keys()
-    print "raw", raw.shape, raw.dtype
-    print "L", left_w.shape, left_w.dtype
-    print "R", right_w.shape, right_w.dtype
+    print(list(nc.dimensions.keys()))
+    print("raw", raw.shape, raw.dtype)
+    print("L", left_w.shape, left_w.dtype)
+    print("R", right_w.shape, right_w.dtype)
 
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     #C = np.arange(0, win_l,win_l/Ncol,dtype=float)
     #R = np.arange(0,win_h,win_h/Nrow,dtype=float)
 
-    print "spectrumLR c.shape", Ncol_specs.shape
-    print "column.shape", Nrow_specs.shape
+    print("spectrumLR c.shape", Ncol_specs.shape)
+    print("column.shape", Nrow_specs.shape)
     COLUMN[:] = Ncol_specs[:]
     ROW[:]= Nrow_specs[:]
     if (startF is None or period is None):
@@ -302,7 +302,7 @@ def plotFilteredLR(fw_id,max_min,plotcolumn,
     fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
 
     if not os.path.exists(fw_filename):
-        print "waves.nc not found"
+        print("waves.nc not found")
         return
 
 
@@ -358,16 +358,16 @@ def just_plot(fw_path, a_xi_id, maxmin, plotcolumn):
     fz = nc.variables['row']
     fx = nc.variables['column']
     # print information about dz dataset
-    print "variables  of the nc file :", nc.variables.keys()
-    print "left_w shape : ", left.shape
-    print "right_w shape : ", right.shape
-    print "t  shape : ", ft.shape
+    print("variables  of the nc file :", list(nc.variables.keys()))
+    print("left_w shape : ", left.shape)
+    print("right_w shape : ", right.shape)
+    print("t  shape : ", ft.shape)
 
     #generate a unique path for storing plots
     import datetime as dt
 
     now = dt.datetime.now()
-    print now
+    print(now)
     path = "/Users/prajvala/Desktop/figures/axi_LR/axi%d_%d-%d-%d_%d-%d-%d/" % \
            (a_xi_id, now.day, now.month, now.year, now.hour, now.minute, now.second)
     os.mkdir(path)
@@ -375,12 +375,12 @@ def just_plot(fw_path, a_xi_id, maxmin, plotcolumn):
     fname2 = os.path.join(path, "plot2.pdf")
     names = [fname1, fname2]
 
-    print names
+    print(names)
 
     #call the plotting function
     plot_axes = np.array([ft, fz, fx])
 
-    print plot_axes.shape
+    print(plot_axes.shape)
     plot_plots(raw[:, :, plotcolumn], right[:, :, plotcolumn], left[:, :, plotcolumn], plotcolumn, plot_axes, maxmin,
                names)
 
@@ -392,13 +392,13 @@ def plot_plots(var1, var2, var3, col, plotaxes, maxmin, name):
     t = plotaxes[0]
     z = plotaxes[1]
     x = plotaxes[2]
-    print x.shape
-    print var1.shape
-    print x[col]
+    print(x.shape)
+    print(var1.shape)
+    print(x[col])
 
-    print "x", x[0], x[-1]
-    print "z", z[0], z[-1]
-    print "t", t[0], t[-1]
+    print("x", x[0], x[-1])
+    print("z", z[0], z[-1])
+    print("t", t[0], t[-1])
 
     fig = plt.figure(1, figsize=(17, 13))
     fig.patch.set_facecolor('white')
@@ -440,7 +440,7 @@ def moving_average(arr, window):
     n_rows = arr.shape[1]
     avg = []
     for nr in range(n_rows):
-        print nr, "out of ", n_rows
+        print(nr, "out of ", n_rows)
         temp = arr[:, nr]
         sum = []
         for i in range(window):
@@ -449,7 +449,7 @@ def moving_average(arr, window):
         avg.append(temp1[:-(window - 1)])
     avg = np.float32(avg)
     avg = np.array(avg)
-    print "average shape: ", avg.shape
+    print("average shape: ", avg.shape)
     return avg
 
 def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
@@ -477,7 +477,7 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     # save memory
     a_xi_arr = a_xi_arr[:, row_z, col_start:col_end]
     #a_xi_arr = a_xi_arr - a_xi_arr.mean()
-    print "mean.shape :: ", a_xi_arr.mean().shape
+    print("mean.shape :: ", a_xi_arr.mean().shape)
 
     a_xi_arr = np.float16(a_xi_arr)
     x = np.float16(x)
@@ -485,22 +485,22 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     #z = np.float16(z)
 
 
-    print "Vertical Displacement Amplitude array shape: ", a_xi_arr.shape
-    print "T shape: ", t.shape
-    print "X shape: ", x.shape
-    print "Z shape: ", z.shape
+    print("Vertical Displacement Amplitude array shape: ", a_xi_arr.shape)
+    print("T shape: ", t.shape)
+    print("X shape: ", x.shape)
+    print("Z shape: ", z.shape)
 
     # determine lengths of x, z, t
     #nz = len(z)
     nx = len(x)
     nt = len(t)
-    print "length of X, T:  ", nx, nt
+    print("length of X, T:  ", nx, nt)
 
     # assume data is sampled evenly
     #dz = z[1] - z[0]
     dx = np.mean(np.diff(x))
     dt = np.mean(np.diff(t))
-    print "dx,dt :: ", dx, dt
+    print("dx,dt :: ", dx, dt)
 
     # perform FFT alone all three dimensions
     # Normalize and shift so that zero frequency is at the center
@@ -510,8 +510,8 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     F_invs = np.fft.ifftshift(F)
     a_xi_rec = np.fft.ifft2(F_invs)
 
-    print "fft of deltaN2 _array:: type and size::", a_xi_fft.dtype, a_xi_fft.size
-    print "shape:", a_xi_fft.shape
+    print("fft of deltaN2 _array:: type and size::", a_xi_fft.dtype, a_xi_fft.size)
+    print("shape:", a_xi_fft.shape)
     #print"F: ", F[10,200]
     #print "abs F:", abs(F[10,200])
     #print "F.real",F[10,200].real
@@ -526,28 +526,28 @@ def xzt_fft(a_xi_id, row_z, col_start, col_end, max_min):
     omega = np.fft.fftfreq(nt, dt)
     omega = np.fft.fftshift(omega)
 
-    print "kx shape: ", kx.shape
+    print("kx shape: ", kx.shape)
     #print "kz shape: ", kz.shape
-    print "omega shape: ", omega.shape
-    print "omega", omega
+    print("omega shape: ", omega.shape)
+    print("omega", omega)
     # create a 2D mesh grid so that omega,kx and fft have the same dimensions
     K, O = np.meshgrid(kx, omega[::-1])
-    print "KX.shape", K.shape
-    print "OMEGA.shape", O.shape
+    print("KX.shape", K.shape)
+    print("OMEGA.shape", O.shape)
 
     #calling the filter to separate out the waves travelling right from those
     #travelling left
     F_R, F_L = filter_LR(K, O, F)
-    print "shape of F_R and F_L", F_R.shape, "and ", F_L.shape
+    print("shape of F_R and F_L", F_R.shape, "and ", F_L.shape)
 
     # inverse shift and ifft the fft-ed data to get back the rightward
     # travelling and leftward travelling deltaN2
     F_Rinvs = np.fft.ifftshift(F_R)
     a_xi_R = np.fft.ifft2(F_Rinvs)
-    print "a_xi_R.shape", a_xi_R.shape
+    print("a_xi_R.shape", a_xi_R.shape)
     F_Linvs = np.fft.ifftshift(F_L)
     a_xi_L = np.fft.ifft2(F_Linvs)
-    print "a_xi_L.shape", a_xi_L.shape
+    print("a_xi_L.shape", a_xi_L.shape)
 
     plt.figure(8)
     pylab.subplot(2, 1, 1)
@@ -598,7 +598,7 @@ def moving_average_2Darray(arr, N):
     PadRight = N - 1 - PadLeft
     arr_ma = np.hstack( [ np.zeros((conv.shape[0],PadLeft)), conv, np.zeros((conv.shape[0],PadRight)) ] )
 
-    print "array size in moving average along one axis function" ,arr.shape, conv.shape,arr_ma.shape
+    print("array size in moving average along one axis function" ,arr.shape, conv.shape,arr_ma.shape)
     return arr_ma
 
 def compute_vertically_averaged_energy_flux(fw_id, plotcol):
@@ -608,7 +608,7 @@ def compute_vertically_averaged_energy_flux(fw_id, plotcol):
     sql = """ SELECT dz_id FROM filtered_waves WHERE fw_id = %d """ % fw_id
     rows = db.execute(sql)
     dz_id = rows[0][0]
-    print "dz_id :: " ,dz_id
+    print("dz_id :: " ,dz_id)
     # need expt_id to call get_info function from Energy_flux program
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
@@ -626,24 +626,24 @@ def compute_vertically_averaged_energy_flux(fw_id, plotcol):
     # constants needed to convert dz into energy flux
     vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
     dN2t_to_afa = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
-    print "dN2t_to_afa::", dN2t_to_afa
+    print("dN2t_to_afa::", dN2t_to_afa)
     rho0 = 0.998
     kx = (omega * kz)/(N**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N**3) * np.cos(theta*np.pi/180) * (np.sin(theta*np.pi/180))**2
     dn2t_to_ef = rho0 * (1-(omega/N)**2)**(3/2) / (kz**3 * N**3 * (omega/N)**2)
-    print "dn2t_to_ef ::",dn2t_to_ef
-    print "const:: ",const
+    print("dn2t_to_ef ::",dn2t_to_ef)
+    print("const:: ",const)
     #get the window size for computing the moving average
     dt = np.mean(np.diff(t[:]))
     window = 2*np.pi/(omega*dt)
     window = np.int16(window)
-    print "window:", window
+    print("window:", window)
 
     raw = nc.variables['raw_array'][:,:,plotcol]
     left = nc.variables['left_array'][:,:,plotcol]
     right = nc.variables['right_array'][:,:,plotcol]
 
-    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
+    print("raw array :", raw.shape, "left.array", left.shape,"right array", right.shape)
 
     # Computation of the vertically averaged energy flux with a moving window .. OUTDATED but may be useful someday!
     # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
@@ -663,8 +663,8 @@ def compute_vertically_averaged_energy_flux(fw_id, plotcol):
     left_VAEF= np.mean(left_EF,1)
     right_VAEF =  np.mean(right_EF,1)
 
-    print "movarr size", raw_EF.shape,left_EF.shape
-    print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
+    print("movarr size", raw_EF.shape,left_EF.shape)
+    print("vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape)
 
     # arrays needed to be pickled..
     return raw,left,right,t,z,x,raw_VAEF,left_VAEF,right_VAEF
@@ -676,7 +676,7 @@ def compute_mergeEF(rawVAEF,leftVAEF,rightVAEF,t):
     left = np.max(leftVAEF*filt)
     right = np.max(rightVAEF*filt)
     taxis = t[len(t)/2]
-    print "####", raw,left,right,taxis
+    print("####", raw,left,right,taxis)
     return raw,left,right,taxis
 
 
@@ -733,7 +733,7 @@ def get_num_frames(expt_id):
     sql = """ SELECT num_frames FROM video WHERE expt_id = %d """ % expt_id
     rows = db.execute(sql)
     num_frames = rows[0][0]
-    print "number of frames = " ,num_frames
+    print("number of frames = " ,num_frames)
     return num_frames
 
 
@@ -748,7 +748,7 @@ def filtered_waves_VTS(fw_id,
     sql = """ SELECT dz_id FROM filtered_waves WHERE fw_id = %d """ % fw_id
     rows = db.execute(sql)
     dz_id = rows[0][0]
-    print "dz_id :: " ,dz_id
+    print("dz_id :: " ,dz_id)
     # need expt_id to call get_info function from Energy_flux program
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
@@ -763,23 +763,23 @@ def filtered_waves_VTS(fw_id,
     t = nc.variables['time'][:]
     x = nc.variables['column'][:]
     z = nc.variables['row'][:]
-    print "raw array :", raw.shape, "left.array", left.shape,"right array", right.shape
+    print("raw array :", raw.shape, "left.array", left.shape,"right array", right.shape)
 
     # constants needed to convert dz into energy flux
     vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
     dN2t_to_afa = (1/N**3)/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
-    print "dN2t_to_afa::", dN2t_to_afa
+    print("dN2t_to_afa::", dN2t_to_afa)
     rho0 = 0.998
     kx = (omega * kz)/(N**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N**3) * np.cos(theta*np.pi/180) * (np.sin(theta*np.pi/180))**2
     dn2t_to_ef = rho0 * (1-(omega/N)**2)**(3/2) / (kz**3 * N**3 * (omega/N)**2)
-    print "dn2t_to_ef ::",dn2t_to_ef
-    print "const:: ",const
+    print("dn2t_to_ef ::",dn2t_to_ef)
+    print("const:: ",const)
     #get the window size for computing the moving average
     dt = np.mean(np.diff(t[:]))
     window = 2*np.pi/(omega*dt)
     window = np.int16(window)
-    print "window:", window
+    print("window:", window)
 
     # Computation of the vertically averaged energy flux with a moving window .. OUTDATED
     # raw_ma= moving_average_2Darray(raw['real'].T,window) * const * dN2t_to_afa
@@ -798,8 +798,8 @@ def filtered_waves_VTS(fw_id,
     raw_VAEF =np.mean(raw_EF,1)
     left_VAEF= np.mean(left_EF,1)
     right_VAEF =  np.mean(right_EF,1)
-    print "movarr size", raw_EF.shape,left_EF.shape
-    print "vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape
+    print("movarr size", raw_EF.shape,left_EF.shape)
+    print("vertically averaged size" , raw_VAEF.shape,left_VAEF.shape,right_VAEF.shape)
 
 
     # plotting all the timeseries
@@ -959,9 +959,9 @@ def plot_data(fw_id,plotName = None):
 def plot_fft(kx, kz, omega, F):
     # get the path to the nc file
     # Open &  Load the nc file
-    print " kx shape", kx.shape
-    print " kz shape", kz.shape
-    print " omega shape", omega.shape
+    print(" kx shape", kx.shape)
+    print(" kz shape", kz.shape)
+    print(" omega shape", omega.shape)
 
     path = "/data/deltaN2/%d" % deltaN2_id
     filename = path + "/deltaN2.nc"
@@ -974,9 +974,9 @@ def plot_fft(kx, kz, omega, F):
     x = a[600:1000]
     b = nc.variables['row']
     z = b[300:800]
-    print "t : ", t[0], "to ", t[-1]
-    print "x : ", x[0], "to ", x[-1]
-    print "z : ", z[0], "to ", z[-1]
+    print("t : ", t[0], "to ", t[-1])
+    print("x : ", x[0], "to ", x[-1])
+    print("z : ", z[0], "to ", z[-1])
 
     #plot kx_, kz_, omega_
     plt.figure(2)
@@ -1036,11 +1036,11 @@ def test():
     x = np.mgrid[xmin:xmax:nx * 1j]
     z = np.mgrid[zmin:zmax:nz * 1j]
     t = np.mgrid[tmin:tmax:dt]
-    print "x", x.shape, "z ", z.shape, "t ", t.shape
+    print("x", x.shape, "z ", z.shape, "t ", t.shape)
     X, Z, T = np.mgrid[xmin:xmax:nx * 1j,
               zmin:zmax:nz * 1j,
               tmin:tmax:dt]
-    print "X", X.shape, "Z ", Z.shape, "T ", T.shape
+    print("X", X.shape, "Z ", Z.shape, "T ", T.shape)
     # ensure nx, nz, nt, dx, dz, dt are all defined
     nx, nz, nt = len(x), len(z), len(t)
     dx = x[1] - x[0]
@@ -1052,7 +1052,7 @@ def test():
     kz0 = 2.0
     omega0 = 2.0
     f = np.cos(kx0 * X + kz0 * Z - omega0 * T)
-    print "F:", f.shape
+    print("F:", f.shape)
     # find the peak frequencies
     kx_, kz_, omega_ = estimate_dominant_frequency(f, x, z, t)
 
@@ -1127,13 +1127,13 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
 
         fw_id = rows[0][0]
 
-        print "filterLR id already exists in database"
+        print("filterLR id already exists in database")
         fw_filename = "/data/filtered_waves/%d/waves.nc" % fw_id
-        print fw_filename
+        print(fw_filename)
         #just_plot(fw_path,a_xi_id,maxmin,plotcolumn)
         #plt.show()
         if os.path.exists(fw_filename) and cache:
-            print "returning cached data"
+            print("returning cached data")
             return fw_id
         else:
             # delete waves.nc file if exists
@@ -1180,13 +1180,13 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
     #print "Axi, time", t
 
     # DEBUG MESSAGES
-    print "x & z shape", x.shape, z.shape
+    print("x & z shape", x.shape, z.shape)
 
     # determine lengths of x, z, t
     nt = len(t)
     nz = len(z)
     nx = len(x)
-    print "length of T, Z, X:  ", nt, nz, nx
+    print("length of T, Z, X:  ", nt, nz, nx)
 
 
 
@@ -1310,7 +1310,7 @@ def task_DzHilbertTransform(dz_id, cache=True,rowS=0,rowE=963,colS=0,colE=1291,s
 
     #os.unlink(temp_ht_filename)
     
-    print "FW_ID ## ", fw_id
+    print("FW_ID ## ", fw_id)
     return fw_id
 
 def spatial_filter(n, lock, temp_ht_filename, fw_filename):

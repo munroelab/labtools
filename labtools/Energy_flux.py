@@ -6,9 +6,9 @@ import pylab
 import matplotlib.pyplot as plt
 import netCDF4
 import argparse
-import labdb
+from . import labdb
 import os
-import plotting_functions
+from . import plotting_functions
 
 # Open database for access
 db  = labdb.LabDB()
@@ -27,19 +27,19 @@ def compute_energy_flux_raw(
 
     """
     db = labdb.LabDB()
-    print "inside function****************************"
+    print("inside function****************************")
     #check if the file already exists
     sql = """ SELECT a_xi_id FROM vertical_displacement_amplitude WHERE a_xi_id = %d""" % a_xi_id
     rows=db.execute(sql)
     
     if len(rows) == 0:
-        print "axi.nc has not been computed"
+        print("axi.nc has not been computed")
         return
 
     
     axi_path = "/data/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     if not os.path.exists(axi_path):
-        print axi_path, 'not found'
+        print(axi_path, 'not found')
         return
     
     # Get experiment ID
@@ -49,32 +49,32 @@ def compute_energy_flux_raw(
             vertical_displacement_amplitude.dz_id AND \
             vertical_displacement_amplitude.a_xi_id = %d) """ %a_xi_id
     rows = db.execute(sql)
-    print rows 
+    print(rows) 
     expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
+    print(" experiment ID : ", expt_id)
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
-    print "Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta
+    print("Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta)
     # Open the nc file for reading data
     nc = netCDF4.Dataset(axi_path,'r')
     data = nc.variables['a_xi_array']
-    print "axi array shape", data.shape
+    print("axi array shape", data.shape)
     ft = nc.variables['time'][:]
-    print 'row shape', nc.variables['row'].shape
+    print('row shape', nc.variables['row'].shape)
     fz = nc.variables['row'][row_s:row_e]
     fx = nc.variables['column'][col1]
     # print information about dz dataset
-    print "variables  of the nc file :", nc.variables.keys()
-    print "t  shape : " , ft.shape
+    print("variables  of the nc file :", list(nc.variables.keys()))
+    print("t  shape : " , ft.shape)
     
     #select the timeseries of the rows along the column you are interested in 
     raw = data[:,row_s:row_e,col1]
     raw_squared = raw**2
     
-    print "raw_squared shape: ",raw_squared.shape
-    print "depth from :: ", fz[0], " to ", fz[-1]
-    print "time from :: ", ft[0], " to ", ft[-1]
+    print("raw_squared shape: ",raw_squared.shape)
+    print("depth from :: ", fz[0], " to ", fz[-1])
+    print("time from :: ", ft[0], " to ", ft[-1])
     
     # Calculate kx and  energy flux
     rho0 = 0.998
@@ -84,39 +84,39 @@ def compute_energy_flux_raw(
     #print "const:",const
     # implementing new corrections ---
     const = rho0* (omega/N_frequency)**2 * (1.0- (omega/N_frequency)**2 )**0.5 * N_frequency**3 / (kz)
-    print "const:" ,const
+    print("const:" ,const)
 
 
     EF1 = (numpy.mean(raw_squared,1)) * const
-    print "EF arrays shape:: ", EF1.shape
+    print("EF arrays shape:: ", EF1.shape)
     # get dt and length of the timeseries
     dt = numpy.mean(numpy.diff(ft))
     nt = len(ft)
-    print "dt :: ",dt,"nt ::", nt
+    print("dt :: ",dt,"nt ::", nt)
     
     # perform fft along the time axis
     F1 = numpy.fft.fft(EF1)/nt*nt
-    print "F1 shape::", F1.shape
+    print("F1 shape::", F1.shape)
     
     # normalize
     F1 = numpy.fft.fftshift(F1)
-    print "after shifting fft F1 shape::", F1.shape
+    print("after shifting fft F1 shape::", F1.shape)
 
     #Frequency axis
     freq = numpy.fft.fftfreq(nt,dt)
-    print "freq.shape" ,freq.shape
+    print("freq.shape" ,freq.shape)
     freq = numpy.fft.fftshift(freq) * 2*numpy.pi
-    print "after shifting freq.shape ::",freq.shape
+    print("after shifting freq.shape ::",freq.shape)
     
     # get the moving average
     window = 2*numpy.pi/(omega*dt)
-    print "window:", window
+    print("window:", window)
     window = numpy.int16(window)
-    print "window:", window
+    print("window:", window)
 
     avg1 = moving_average(EF1,window)
-    print "debug: " , avg1.shape,ft.shape
-    print EF1.shape,avg1.shape
+    print("debug: " , avg1.shape,ft.shape)
+    print(EF1.shape,avg1.shape)
     #  plotting outouts
     title1 = "Energy Flux at %d cm from left edge of window  " %fx
     #plotting_functions.sharexy_plot_ts(EF1,avg1,ft,title1,"time","Energy_flux")
@@ -150,24 +150,24 @@ def compute_energy_flux(
     dz_id = rows[0][0]
 
     if len(rows) == 0:
-        print "fw_id has not been computed"
+        print("fw_id has not been computed")
         return
 
     dz_path = "/data/dz/%d/dz.nc" %dz_id
     fw_path = "/data/filtered_waves/%d/waves.nc" % fw_id
     if not os.path.exists(fw_path):
-        print fw_path, 'not found'
+        print(fw_path, 'not found')
         return
     
     # Get experiment ID
     sql = """ SELECT expt_id FROM dz WHERE dz_id = %d """ % dz_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
+    print(" experiment ID : ", expt_id)
 
     # Call the function get_info() to get omega, kz and theta
     video_id, N_frequency, omega, kz, theta = get_info(expt_id)
-    print "Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta
+    print("Vid ID: ",video_id,"N: ",  N_frequency,"omega: ", omega,"kz: ", kz, "theta: ",theta)
 
     #open the dz data to plot the get the raw energy flux
 
@@ -177,14 +177,14 @@ def compute_energy_flux(
     left = nc.variables['left_array']
     right = nc.variables['right_array']
     ft = nc.variables['time'][:]
-    print 'row shape', nc.variables['row'].shape
+    print('row shape', nc.variables['row'].shape)
     fz = nc.variables['row'][row_s:row_e]
     fx = nc.variables['column']
     # print information about dz dataset
-    print "variables  of the nc file :", nc.variables.keys()
-    print "left_w shape : " , left.shape
-    print "right_w shape : " , right.shape
-    print "t  shape : " , ft.shape
+    print("variables  of the nc file :", list(nc.variables.keys()))
+    print("left_w shape : " , left.shape)
+    print("right_w shape : " , right.shape)
+    print("t  shape : " , ft.shape)
     
     #select the timeseries of the rows along the column you are interested in 
     raw = nc.variables['raw_array'][row_s:row_e,:,col1]
@@ -194,60 +194,60 @@ def compute_energy_flux(
     right = nc.variables['right_array'][row_s:row_e,:,col1]
     right_squared = right**2
     
-    print "raw_squared shape: ",raw_squared.shape
-    print "left_squared shape: ",left_squared.shape
-    print "right_squared shape:  ", right_squared.shape
+    print("raw_squared shape: ",raw_squared.shape)
+    print("left_squared shape: ",left_squared.shape)
+    print("right_squared shape:  ", right_squared.shape)
     #print raw[300:310,30]
     #print raw_squared[300:310,30]
 
-    print "depth from :: ", fz[0], " to ", fz[-1]
-    print "time from :: ", ft[0], " to ", ft[-1]
+    print("depth from :: ", fz[0], " to ", fz[-1])
+    print("time from :: ", ft[0], " to ", ft[-1])
     
     # Calculate kx and  energy flux
     rho0 = 0.998
     kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
-    print "kx:",kx
-    print "const:",const
+    print("kx:",kx)
+    print("const:",const)
     
     EF1 = (numpy.mean(raw_squared,0)) * const
-    print "EF arrays shape:: ", EF1.shape
+    print("EF arrays shape:: ", EF1.shape)
     EF2 = (numpy.mean(left_squared,0)) * const
-    print EF2.shape
+    print(EF2.shape)
     EF3 = (numpy.mean(right_squared,0)) * const
-    print EF3.shape
+    print(EF3.shape)
     
     # get dt and length of the timeseries
     dt = numpy.mean(numpy.diff(ft))
     nt = len(ft)
-    print "dt :: ",dt,"nt ::", nt
+    print("dt :: ",dt,"nt ::", nt)
     
     # perform fft along the time axis
     F1 = numpy.fft.fft(EF1)/nt*nt
-    print "F1 shape::", F1.shape
+    print("F1 shape::", F1.shape)
     F2 = numpy.fft.fft(EF2)/nt*nt
-    print "F2 shape::", F2.shape
+    print("F2 shape::", F2.shape)
     F3 = numpy.fft.fft(EF3)/nt*nt
-    print "F3 shape::", F3.shape
+    print("F3 shape::", F3.shape)
     
     # normalize
     F1 = numpy.fft.fftshift(F1)
-    print "after shifting fft F1 shape::", F1.shape
+    print("after shifting fft F1 shape::", F1.shape)
     F2 = numpy.fft.fftshift(F2)
-    print "after shifting fft F2 shape::", F2.shape
+    print("after shifting fft F2 shape::", F2.shape)
     F3 = numpy.fft.fftshift(F3)
-    print "after shifting fft F3 shape::", F3.shape
+    print("after shifting fft F3 shape::", F3.shape)
 
     #Frequency axis
     freq = numpy.fft.fftfreq(nt,dt)
-    print "freq.shape" ,freq.shape
+    print("freq.shape" ,freq.shape)
     freq = numpy.fft.fftshift(freq) * 2*numpy.pi
-    print "after shifting freq.shape ::",freq.shape
+    print("after shifting freq.shape ::",freq.shape)
     
     # get the moving average
     window = 2*numpy.pi/(omega*dt)
     window = numpy.int16(window)
-    print "window:", window
+    print("window:", window)
 
     avg1 = moving_average(EF1,window)
     avg2 = moving_average(EF2,window)
@@ -279,20 +279,20 @@ def compute_energy_flux(
 def growing_average(arr):
     sum_arr=[]
     window = arr.shape[0]
-    print "input shape",arr.shape
+    print("input shape",arr.shape)
     sum_arr.append(arr[0:])
     i=1
-    print "in loop 1"
+    print("in loop 1")
     while (i < window):
         sum_arr.append(numpy.pad(arr[:-i], (i,0),'constant',constant_values=(0,)))
         i+=1
     sum_arr = numpy.array(sum_arr)
     total = numpy.sum(sum_arr,0)
-    print "in loop 2"
+    print("in loop 2")
     for i in range(window):
         total[i] = 1.0*total[i]/(i+1)
-    print "shape",sum_arr.shape
-    print "average shape: ", total.shape
+    print("shape",sum_arr.shape)
+    print("average shape: ", total.shape)
     return total
 
 
@@ -324,7 +324,7 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.p
     a_xi_id = rows[0][0]
 
     if (len(rows) == 0):
-        print "The a_xi for the expt_id is not yet computed.. "
+        print("The a_xi for the expt_id is not yet computed.. ")
         return
     # get experiment ID
     #sql = """SELECT expt_id FROM deltaN2 WHERE id = (SELECT deltaN2_id FROM\
@@ -338,7 +338,7 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.p
     # Open the nc file and load the variables.
     path = "/data/vertical_displacement_amplitude/%d/a_xi.nc" % a_xi_id
     nc = netCDF4.Dataset(path,'r')
-    print " variables: " ,nc.variables.keys()
+    print(" variables: " ,list(nc.variables.keys()))
     #a_xi = nc.variables['a_xi_array'][:,120:900,:]
     #print a_xi.shape
     a1_xi = nc.variables['a_xi_array'][:,row_s:row_e,col1]
@@ -348,13 +348,13 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.p
     a3_xi = nc.variables['a_xi_array'][:,row_s:row_e,col3]
     a3_xi_squared = a3_xi**2
     
-    print "A1 xi shape: ",a1_xi.shape
-    print "A2 xi shape: ",a2_xi.shape
-    print "A3 xi shape: ",a3_xi.shape
+    print("A1 xi shape: ",a1_xi.shape)
+    print("A2 xi shape: ",a2_xi.shape)
+    print("A3 xi shape: ",a3_xi.shape)
 
     t = nc.variables['time'][:]
     z = nc.variables['row'][row_s:row_e]
-    print "depth from :: ", z[0], " to ", z[-1]
+    print("depth from :: ", z[0], " to ", z[-1])
 
     x = nc.variables['column']
     
@@ -363,42 +363,42 @@ def old_compute_energy_flux(a_xi_id,row_s,row_e,col1,col2,col3,plotname1 = 'EF.p
     rho0 = 0.998
     kx = (omega * kz)/(N_frequency**2 - omega**2)**0.5
     const = (0.5/kx) * rho0 * (N_frequency**3) * numpy.cos(theta*numpy.pi/180) * (numpy.sin(theta*numpy.pi/180))**2
-    print "kx:",kx
-    print "const:",const
+    print("kx:",kx)
+    print("const:",const)
     
     EF1 = (numpy.mean(a1_xi_squared,1)) * const
-    print "EF arrays shape:: ", EF1.shape
+    print("EF arrays shape:: ", EF1.shape)
     EF2 = (numpy.mean(a2_xi_squared,1)) * const
-    print EF2.shape
+    print(EF2.shape)
     EF3 = (numpy.mean(a3_xi_squared,1)) * const
-    print EF3.shape
+    print(EF3.shape)
     
     # get dt and length of the timeseries
     dt = numpy.mean(numpy.diff(t))
     nt = len(t)
-    print "dt :: ",dt,"nt ::", nt
+    print("dt :: ",dt,"nt ::", nt)
     
     # perform fft along the time axis
     F1 = numpy.fft.fft(EF1)
-    print "F1 shape::", F1.shape
+    print("F1 shape::", F1.shape)
     F2 = numpy.fft.fft(EF2)
-    print "F2 shape::", F2.shape
+    print("F2 shape::", F2.shape)
     F3 = numpy.fft.fft(EF3)
-    print "F3 shape::", F3.shape
+    print("F3 shape::", F3.shape)
     
     # normalize
     F1 = numpy.fft.fftshift(F1)/(nt*nt)
-    print "after shifting fft F1 shape::", F1.shape
+    print("after shifting fft F1 shape::", F1.shape)
     F2 = numpy.fft.fftshift(F2)/(nt*nt)
-    print "after shifting fft F2 shape::", F2.shape
+    print("after shifting fft F2 shape::", F2.shape)
     F3 = numpy.fft.fftshift(F3)/(nt*nt)
-    print "after shifting fft F3 shape::", F3.shape
+    print("after shifting fft F3 shape::", F3.shape)
 
     #Frequency axis
     freq = numpy.fft.fftfreq(nt,dt)
-    print "freq.shape" ,freq.shape
+    print("freq.shape" ,freq.shape)
     freq = numpy.fft.fftshift(freq) * 2*numpy.pi
-    print "after shifting freq.shape ::",freq.shape
+    print("after shifting freq.shape ::",freq.shape)
 
 
     
@@ -469,7 +469,7 @@ def get_info(expt_id):
     sql = """ SELECT video_id FROM video_experiments WHERE expt_id = %d """ % expt_id
     rows = db.execute(sql)
     video_id = rows[0][0]
-    print "VIDEO ID = " ,video_id
+    print("VIDEO ID = " ,video_id)
 
     # Get the Buoyancy frequency
     sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\
@@ -477,21 +477,21 @@ def get_info(expt_id):
             expt_id = %d ORDER BY strat_id ASC LIMIT 1)""" % expt_id
     rows = db.execute(sql)
     N_frequency = rows[0][0]
-    print "Buoyancy Frequency: ", N_frequency
+    print("Buoyancy Frequency: ", N_frequency)
 
     # Get the frequency,kz and calculate theta
     sql = """ SELECT kz , frequency_measured FROM wavemaker WHERE wavemaker_id \
             = (SELECT wavemaker_id FROM wavemaker_experiments WHERE expt_id = %d) """% expt_id
     rows = db.execute(sql)
-    print sql , rows
+    print(sql , rows)
     kz = rows[0][0]
     f = rows[0][1]
-    print "kz : ",kz, "frequency:" ,f
+    print("kz : ",kz, "frequency:" ,f)
     omega = 2 * numpy.pi * f
 
     # wkt w = N * cos(theta) ,arccos returns in radians 
     theta = numpy.arccos(omega/N_frequency) 
-    print "omega: ", omega, "\t theta: " ,theta*180/numpy.pi
+    print("omega: ", omega, "\t theta: " ,theta*180/numpy.pi)
 
     return video_id, N_frequency, omega, kz, theta*180.0/numpy.pi
 

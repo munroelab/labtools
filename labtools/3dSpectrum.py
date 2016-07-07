@@ -44,22 +44,22 @@ def xzt_fft(a_xi_id,max_min):
     z = np.float16(z)
 
 
-    print "Vertical Displacement Amplitude array shape: " ,a_xi_arr.shape
-    print "T shape: " ,t.shape
-    print "X shape: " ,x.shape
-    print "Z shape: " ,z.shape
+    print("Vertical Displacement Amplitude array shape: " ,a_xi_arr.shape)
+    print("T shape: " ,t.shape)
+    print("X shape: " ,x.shape)
+    print("Z shape: " ,z.shape)
 
     # determine lengths of x, z, t
     nz = len(z)
     nx = len(x)
     nt = len(t)
-    print "length of X, T:  ",nx,nt
+    print("length of X, T:  ",nx,nt)
 
     # assume data is sampled evenly
     #dz = z[1] - z[0]
     dx = np.mean(np.diff(x))
     dt = np.mean(np.diff(t))
-    print "dx,dt :: " ,dx,dt
+    print("dx,dt :: " ,dx,dt)
     
     # perform FFT alone all three dimensions
     # Normalize and shift so that zero frequency is at the center
@@ -70,8 +70,8 @@ def xzt_fft(a_xi_id,max_min):
     F_invs = np.fft.ifftshift(F,axes=(2,0))
     a_xi_rec = np.fft.ifft2(F_invs,axes=(0,2))
 
-    print "fft of deltaN2 _array:: type and size::", a_xi_fft.dtype, a_xi_fft.size
-    print "shape:", a_xi_fft.shape
+    print("fft of deltaN2 _array:: type and size::", a_xi_fft.dtype, a_xi_fft.size)
+    print("shape:", a_xi_fft.shape)
     #print"F: ", F[10,200]
     #print "abs F:", abs(F[10,200])
     #print "F.real",F[10,200].real
@@ -86,28 +86,28 @@ def xzt_fft(a_xi_id,max_min):
     omega = np.fft.fftfreq(nt, dt)
     omega = np.fft.fftshift(omega)
     
-    print "kx shape: ", kx.shape
+    print("kx shape: ", kx.shape)
     #print "kz shape: ", kz.shape
-    print "omega shape: ", omega.shape
-    print "omega",omega
+    print("omega shape: ", omega.shape)
+    print("omega",omega)
     # create a 2D mesh grid so that omega,kx and fft have the same dimensions
     K,O=np.meshgrid(kx,omega[::-1])
-    print "KX.shape" ,K.shape
-    print "OMEGA.shape",O.shape
+    print("KX.shape" ,K.shape)
+    print("OMEGA.shape",O.shape)
     
     #calling the filter to separate out the waves travelling right from those
     #travelling left
     F_R, F_L = filter_LR(K,O,F)
-    print "shape of F_R and F_L" , F_R.shape ,"and ", F_L.shape
+    print("shape of F_R and F_L" , F_R.shape ,"and ", F_L.shape)
 
     # inverse shift and ifft the fft-ed data to get back the rightward
     # travelling and leftward travelling deltaN2
     F_Rinvs = np.fft.ifftshift(F_R)
     a_xi_R = np.fft.ifft2(F_Rinvs)
-    print "a_xi_R.shape", a_xi_R.shape
+    print("a_xi_R.shape", a_xi_R.shape)
     F_Linvs = np.fft.ifftshift(F_L)
     a_xi_L = np.fft.ifft2(F_Linvs)
-    print "a_xi_L.shape", a_xi_L.shape
+    print("a_xi_L.shape", a_xi_L.shape)
     """
     plt.figure(8)
     pylab.subplot(2,1,1)
@@ -200,9 +200,9 @@ def plot_data(kx,omega,F,F_R,F_L,K,O):
 def plot_fft(kx,kz,omega,F):
     # get the path to the nc file
     # Open &  Load the nc file
-    print " kx shape", kx.shape
-    print " kz shape", kz.shape
-    print " omega shape", omega.shape
+    print(" kx shape", kx.shape)
+    print(" kz shape", kz.shape)
+    print(" omega shape", omega.shape)
 
     path = "/Volumes/HD4/deltaN2/%d" % deltaN2_id
     filename = path + "/deltaN2.nc"
@@ -215,9 +215,9 @@ def plot_fft(kx,kz,omega,F):
     x = a[600:1000]
     b = nc.variables['row']
     z = b[300:800]
-    print "t : " ,t[0],"to " , t[-1]
-    print "x : " ,x[0],"to " , x[-1]
-    print "z : " ,z[0],"to " , z[-1]
+    print("t : " ,t[0],"to " , t[-1])
+    print("x : " ,x[0],"to " , x[-1])
+    print("z : " ,z[0],"to " , z[-1])
 
     #plot kx_, kz_, omega_
     plt.figure(2)
@@ -272,7 +272,7 @@ def testing_HT():
     tmin,tmax,dt = 0,100,0.5
     x = np.mgrid[xmin:xmax:dx]
     t = np.mgrid[tmin:tmax:dt]
-    print "x & t:" , x.shape,t.shape 
+    print("x & t:" , x.shape,t.shape) 
     
     #X,T = np.meshgrid(x,t)
     X,T = np.mgrid[xmin:xmax:dx,tmin:tmax:dt]
@@ -309,16 +309,16 @@ def testing_HT():
     fft_f = np.fft.fft2(f)
     F = np.fft.fftshift(fft_f)
     
-    print "x:",X.shape,"\nT: " ,T.shape," \n F: ",f.shape,"\nFFT of f: " ,fft_f.shape
+    print("x:",X.shape,"\nT: " ,T.shape," \n F: ",f.shape,"\nFFT of f: " ,fft_f.shape)
     
     #calculating the horizontal wavenumber and the omega of the function
     wavenum = np.fft.fftfreq(nx, dx)
     wavenum = 2*np.pi*np.fft.fftshift(wavenum)
     omega = np.fft.fftfreq(nt, dt)
     omega = 2*np.pi*np.fft.fftshift(omega)
-    print "wavenum: ", wavenum.shape, "\n omega: ", omega.shape
+    print("wavenum: ", wavenum.shape, "\n omega: ", omega.shape)
     OM,KX= np.meshgrid(omega,wavenum)
-    print "KX: ", KX.shape, "\n OM: ", OM.shape
+    print("KX: ", KX.shape, "\n OM: ", OM.shape)
     
     # Call the function that filters out negative frequencies in fourier space
     # and multiplies the result by a constant 2.0 and separates out the +ve and
@@ -326,7 +326,7 @@ def testing_HT():
 
     rFFT,lFFT = filter_LR(KX,OM,F)
     
-    print "RFFT:", rFFT.shape, "\nLFFT :", lFFT.shape      
+    print("RFFT:", rFFT.shape, "\nLFFT :", lFFT.shape)      
     """    plt.figure(5)
     pylab.subplot(2,1,1)
     plt.imshow(rFFT.real,extent=[wavenum[0],wavenum[-1],omega[0],omega[-1]],interpolation='nearest',aspect='auto')
@@ -344,7 +344,7 @@ def testing_HT():
     deltaN2_R = np.fft.ifft2(F_Rinvs)
     F_Linvs = np.fft.ifftshift(lFFT)
     deltaN2_L = np.fft.ifft2(F_Linvs)
-    print "deltaN2_R: " ,deltaN2_R.shape, "\n deltaN2_L: ", deltaN2_L.shape
+    print("deltaN2_R: " ,deltaN2_R.shape, "\n deltaN2_L: ", deltaN2_L.shape)
 
     # plotting the results
     plt.figure(3)
@@ -384,11 +384,11 @@ def test():
     x = np.mgrid[xmin:xmax:nx*1j]
     z = np.mgrid[zmin:zmax:nz*1j]
     t = np.mgrid[tmin:tmax:dt]
-    print "x",x.shape, "z ", z.shape,"t ",t.shape
+    print("x",x.shape, "z ", z.shape,"t ",t.shape)
     X, Z, T = np.mgrid[xmin:xmax:nx*1j,
                        zmin:zmax:nz*1j,
                        tmin:tmax:dt]
-    print "X",X.shape, "Z ", Z.shape,"T ",T.shape
+    print("X",X.shape, "Z ", Z.shape,"T ",T.shape)
     # ensure nx, nz, nt, dx, dz, dt are all defined
     nx, nz, nt = len(x), len(z), len(t)
     dx = x[1] - x[0]
@@ -400,7 +400,7 @@ def test():
     kz0 = 2.0
     omega0 = 2.0
     f = np.cos(kx0*X + kz0*Z - omega0*T)
-    print "F:",f.shape
+    print("F:",f.shape)
     # find the peak frequencies
     kx_, kz_, omega_ = estimate_dominant_frequency(f, x, z, t)
 

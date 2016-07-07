@@ -50,7 +50,7 @@ class LabDB:
 
 if __name__ == "__main__":
     db = LabDB()
-    print db.execute("SELECT * FROM experiments")
+    print(db.execute("SELECT * FROM experiments"))
     db.close()
 
 

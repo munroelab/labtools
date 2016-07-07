@@ -6,7 +6,7 @@ Routines for computing Fourier transforms of f(x,z,t) fields
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import schlieren
+from . import schlieren
 
 def fxzt_fft(f, x, z, t):
     """
@@ -24,8 +24,8 @@ def fxzt_fft(f, x, z, t):
 
     # sanity check for data consistency
     if f.shape != (nt, nx, nz):
-        print "Array has shape %s but nx,nz,nt = %d,%d,%d" % (f.shape,
-                nx, nz, nt)
+        print("Array has shape %s but nx,nz,nt = %d,%d,%d" % (f.shape,
+                nx, nz, nt))
         return None
 
     # assume data is sampled evenly

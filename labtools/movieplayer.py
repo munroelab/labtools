@@ -21,8 +21,8 @@ import matplotlib.pyplot as plt
 from  matplotlib import animation
 import os
 
-import labdb
-import progressbar
+from . import labdb
+from . import progressbar
 
 def movie(var, id, 
         max_min=None,
@@ -49,7 +49,7 @@ def movie(var, id,
     path = "/data/%s/%d/%s" % ( ncdir, id, ncfile )
 
     if not os.path.exists(path):
-        print path, "not found"
+        print(path, "not found")
         return
 
     logger.debug('Dataset is %s' %  path)
@@ -64,7 +64,7 @@ def movie(var, id,
     #print "variables: ", data.variables.keys()
 
     # Load the variables
-    arr = data.variables.keys()
+    arr = list(data.variables.keys())
     array = data.variables[ncvar]
     t = data.variables[arr[2]]
     z = data.variables[arr[0]]

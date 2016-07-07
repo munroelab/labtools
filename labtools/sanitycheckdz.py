@@ -4,7 +4,7 @@
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import SyntheticSchlieren as SS
+from . import SyntheticSchlieren as SS
 import skimage.morphology, skimage.filter
 from scipy import ndimage
 import netCDF4 as nc
@@ -12,7 +12,7 @@ import netCDF4 as nc
 # take a look at a time series of any single vertical column of the video
 im = Image.open('/Users/prajvala/Documents/Project_labtools/labtools/plots/vts757.png')
 im = np.array(im)
-print im.shape
+print(im.shape)
 # plt.figure(1)
 # ax = plt.subplot(2,2,1)
 # plt.imshow(im,
@@ -101,7 +101,7 @@ delz[delz < -clip_min_max] = -clip_min_max # clipping off the very small values
 # Step 2 : map the original data from -0.05 to +0.05 to range from 0 to 255
 check = np.array((delz + min_max/(2.0 *min_max)*256) ,dtype=np.uint8)
 check1 = np.array(((delz + min_max)/(2.0 *min_max)*256),dtype=np.uint8)
-print check[700:750,570:580], "\n######\n", check1[700:750,570:580]
+print(check[700:750,570:580], "\n######\n", check1[700:750,570:580])
 
 # just found a bug in SyntheticSchlieren!!! previously the expression was delz + min_max/(.5 *min_max)*256 instead of being
 #(delz + min_max)/(.5 *min_max)*256). In the first case the mapped_delz has only 0 and 255 instead of having a
@@ -117,14 +117,14 @@ mapped_delz = np.uint8((delz + min_max)/ (2.0* min_max) * 256)
 # Step 3 : prepare a mask:: 1 means use the data and 0 means ignore the
 # data here within the disk
 # The mask is 0 wherever the data is bad and 1 wherever the data is to be considered
-mask_delz = np.uint8(mapped_delz <>128)
+mask_delz = np.uint8(mapped_delz !=128)
 # take a look at the mask
 # plt.figure()
 # plt.imshow(mask_delz)
 # plt.title('mask_delz')
 # plt.colorbar()
 #Step 4: apply the mean filter to compute values for the masked pixels
-print "delz.shape", delz.shape
+print("delz.shape", delz.shape)
 row_disk = np.ones((disk_size,1))
 
 filtmapped_delz = np.ones((nz,nt))
@@ -196,9 +196,9 @@ datain = final_dz[:, :]
 # take FFT in time
 U_spectrum = np.fft.fft(datain, axis=1)
 freq = np.fft.fftfreq(nt,d = 1.0/6.2)
-print "@@@",len(freq),len(U_spectrum[400,:])
+print("@@@",len(freq),len(U_spectrum[400,:]))
 
-print freq
+print(freq)
 plt.figure()
 
 plt.plot(np.fft.fftshift(freq),np.fft.fftshift(U_spectrum[400,:].real))
@@ -219,7 +219,7 @@ datain = datac[:, :]
 # fft
 datac_spectrum = np.fft.fft(datain, axis=0)
 freq  = np.fft.fftshift(np.fft.fftfreq(964,d = 56.0/964))
-print "@@@",len(freq),len(datac_spectrum[:,1000])
+print("@@@",len(freq),len(datac_spectrum[:,1000]))
 plt.figure()
 plt.plot(freq, np.fft.fftshift(datac_spectrum[:,300]))
 
@@ -259,7 +259,7 @@ plot_maxmin = 0.1
 ncdata = '/Volumes/HD4/dz/32/dz.nc'
 dz = nc.Dataset(ncdata,'r')
 dzhts = dz.variables['dz_array'][:,320,40:1240]
-print dzhts.shape
+print(dzhts.shape)
 nt,nx = dzhts.shape
 
 plt.figure()
@@ -283,12 +283,12 @@ U_spectrum[:,nt/2:] = 0
 
 # take inverse FFT and multiply by 2
 datac = 2 * np.fft.ifft(U_spectrum, axis=1)
-print datac.shape
+print(datac.shape)
 
 # fft
 datac_spectrum = np.fft.fft(datac, axis=0)
 freq = np.fft.fftshift(np.fft.fftfreq(1200,d=73.0/1292))
-print "@@@", len(freq),len(U_spectrum[:,500])
+print("@@@", len(freq),len(U_spectrum[:,500]))
 plt.figure()
 plt.plot(freq,np.fft.fftshift(U_spectrum[:,100]))
 

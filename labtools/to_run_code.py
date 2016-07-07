@@ -10,7 +10,7 @@ import matplotlib
 
 #FW_timseries.compute_fw_row_timeseries(111,100,0.15)
 
-import Spectrum_Analysis
+from . import Spectrum_Analysis
 
 kx,kz,omega, max_kx, max_kz,max_omega = Spectrum_Analysis.xzt_fft(369,rowS=250,rowE=800)
 Spectrum_Analysis.plot_fft(kx,kz,omega,max_kx, max_kz,max_omega,369)

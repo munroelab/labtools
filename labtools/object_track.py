@@ -10,7 +10,7 @@ import cv
 import argparse
 import os
 import pylab as py
-import labdb
+from . import labdb
 
 
 def estimate_position(image, threshold_val, blur_val):
@@ -44,12 +44,12 @@ def estimate_position(image, threshold_val, blur_val):
         cv2.circle(imgray, center, int(radius), 180, -1)
 
         ellipse = cv2.fitEllipse(cnt)
-        print ellipse,
+        print(ellipse, end=' ')
         (x,y), (w,h), theta = ellipse
         #if x > 200 and x < 1000 and y > 200 and y < 600:
         cv2.ellipse(imgray, ellipse, 127, 2)
         count += 1
-    print count
+    print(count)
 
     return x, y
 
@@ -59,7 +59,7 @@ def track_object(video_id):
     db = labdb.LabDB()
     rows = db.execute("SELECT path FROM video WHERE video_id = %d" % video_id)
     if len(rows) == 0:
-        print "video_id %d not found." % video_id
+        print("video_id %d not found." % video_id)
         return
     
     rootpath = rows[0][0]
@@ -69,7 +69,7 @@ def track_object(video_id):
     if not os.path.exists(path % 0):
         path = os.path.join(rootpath, "frame%05d.pgm")
 
-    print "Using", path
+    print("Using", path)
 
     capture = cv2.VideoCapture(path)
 
@@ -90,7 +90,7 @@ def track_object(video_id):
 
         #ret, imgray = cv2.threshold(imgray, threshval, 255, cv2.THRESH_BINARY_INV)
 
-        print threshval, blurval,
+        print(threshval, blurval, end=' ')
 
         count = 0;
         for cnt in contours:
@@ -112,12 +112,12 @@ def track_object(video_id):
             cv2.circle(imgray, center, int(radius), 180, -1)
 
             ellipse = cv2.fitEllipse(cnt)
-            print ellipse,
+            print(ellipse, end=' ')
             (x,y), (w,h), theta = ellipse
             #if x > 200 and x < 1000 and y > 200 and y < 600:
             cv2.ellipse(imgray, ellipse, 127, 2)
             count += 1
-        print count
+        print(count)
  
         cv2.imshow("video", imgray[:,:])
 

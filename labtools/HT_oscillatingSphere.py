@@ -9,11 +9,11 @@ import argparse
 import netCDF4
 import pylab
 import copy
-import labdb
+from . import labdb
 import time
-import progressbar
+from . import progressbar
 from matplotlib import animation
-from chunk_shape_3D import chunk_shape_3D
+from .chunk_shape_3D import chunk_shape_3D
 
 
 def HT_OC(dz_id):
@@ -52,8 +52,8 @@ def HT_OC(dz_id):
     dzht = nc_ht.createVariable('dzht', complex64_t, ('t', 'x', 'z'),
                                chunksizes=chunksizes)
 
-    print "Temporal filtering"
-    print
+    print("Temporal filtering")
+    print()
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=nx).start()
     # loop over all x
@@ -122,7 +122,7 @@ def HT_OC(dz_id):
     R = nc_lr.createVariable('R', complex64_t, ('t', 'x', 'z'),
                              chunksizes=chunksizes)
 
-    print "Spatial filtering"
+    print("Spatial filtering")
     widgets = [progressbar.Percentage(), ' '
         , progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=nt).start()

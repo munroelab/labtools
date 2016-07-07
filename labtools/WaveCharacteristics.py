@@ -5,18 +5,18 @@
 # related by the deltaN2_id fields.
 #
 
-from chunk_shape_3D import chunk_shape_3D
-import playncfile
+from .chunk_shape_3D import chunk_shape_3D
+from . import playncfile
 import matplotlib
 import argparse 
 import numpy
-import labdb
+from . import labdb
 import os
 import netCDF4
 import pylab
 import matplotlib.pyplot as plt
-import Energy_flux
-import progressbar
+from . import Energy_flux
+from . import progressbar
 
 
 def createncfile(dz_id,t,x,z,
@@ -29,12 +29,12 @@ def createncfile(dz_id,t,x,z,
 
     Axi_id will be chosen as the next available id if a_xi_id is None.
     """
-    print "inside createncfile function"
+    print("inside createncfile function")
     db = labdb.LabDB()
     #create the directory in which to store the nc file
     if a_xi_id is None:
         sql = """INSERT into vertical_displacement_amplitude (dz_id) VALUES (%d)"""%(dz_id)  
-        print sql
+        print(sql)
         db.execute(sql)
         sql = """SELECT LAST_INSERT_ID()""" 
         rows = db.execute(sql)
@@ -45,7 +45,7 @@ def createncfile(dz_id,t,x,z,
         sql = "SELECT dz_id FROM vertical_displacement_amplitude WHERE a_xi_id = %s" % a_xi_id
         previous_dz_id, = db.execute_one(sql)
         if previous_dz_id != dz_id:
-            print "dz_id, a_xi_id mismatch!"
+            print("dz_id, a_xi_id mismatch!")
             return None
 
     a_xi_path = "/data/vertical_displacement_amplitude/%d" % a_xi_id 
@@ -53,7 +53,7 @@ def createncfile(dz_id,t,x,z,
         os.mkdir(a_xi_path)
 
     a_xi_filename = os.path.join(a_xi_path,"a_xi.nc")
-    print "A xi : ",a_xi_filename
+    print("A xi : ",a_xi_filename)
 
     # open the dz file corresponding to the vertical displacement nc file so as
     # to get info about the number of rows and column.
@@ -76,11 +76,11 @@ def createncfile(dz_id,t,x,z,
 
     # Dimensions are also variable
     ROW = nc.createVariable('row',numpy.float32,('row'),contiguous=False)
-    print  ROW.shape,ROW.dtype
+    print(ROW.shape,ROW.dtype)
     COLUMN = nc.createVariable('column',numpy.float32,('column'),contiguous=False)
-    print COLUMN.shape, COLUMN.dtype
+    print(COLUMN.shape, COLUMN.dtype)
     TIME = nc.createVariable('time',numpy.float32,('time'),contiguous=False)
-    print TIME.shape, TIME.dtype
+    print(TIME.shape, TIME.dtype)
     
     # chunk the data intelligently
     valSize = numpy.float32().itemsize
@@ -89,7 +89,7 @@ def createncfile(dz_id,t,x,z,
     # declare the 3D data variable 
     a_xi = nc.createVariable('a_xi_array',numpy.float32,('time','row','column'),
             chunksizes = chunksizes)
-    print nc.dimensions.keys() ,a_xi.shape,a_xi.dtype
+    print(list(nc.dimensions.keys()) ,a_xi.shape,a_xi.dtype)
 
     # assign the values
     
@@ -139,9 +139,9 @@ def compute_a_xi(dz_id, cache=True):
     
     #  open the dataset dz.nc for calculating a_xi
     filepath = "/data/dz/%d/dz.nc"  % dz_id
-    print "dz filepath: WC.py" , filepath 
+    print("dz filepath: WC.py" , filepath) 
     if not os.path.exists(filepath):
-        print filepath, "not found"
+        print(filepath, "not found")
         return
     nc = netCDF4.Dataset(filepath,'r')
     
@@ -151,8 +151,8 @@ def compute_a_xi(dz_id, cache=True):
     z = nc.variables['row']
     x = nc.variables['column']
     # print information about dz dataset
-    print "variables  of the nc file :", nc.variables.keys()
-    print "dz shape : " , dz.shape
+    print("variables  of the nc file :", list(nc.variables.keys()))
+    print("dz shape : " , dz.shape)
     
     # call get_info function from Energy_flux program :: to get info
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d """ % dz_id
@@ -161,10 +161,10 @@ def compute_a_xi(dz_id, cache=True):
 
     vid_id, N, omega,kz,theta = Energy_flux.get_info(expt_id)
 
-    print "V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta
+    print("V_ID:",  vid_id,"\n N:", N, "\n OMEGA: ", omega,"\n kz:",kz,"\n theta : ", theta)
     # calculate dt
     dt = numpy.mean(numpy.diff(t))
-    print "dt of delta z:",dt
+    print("dt of delta z:",dt)
     
     #call the function to create the nc file in which we are going to store the dz array
     a_xi_id,a_xi_filename = createncfile(dz_id,t,x,z,a_xi_id=a_xi_id)
@@ -184,7 +184,7 @@ def compute_a_xi(dz_id, cache=True):
     # implemented across the database and the library labtools
     #dN2t_to_axi = -1.0 /( omega* N * N * kz)
     dN2t_to_axi = 1.0/((omega/N)**2 * kz * (1.0-(omega/N)**2)**-0.5)
-    print "dN2t_to_axi::", dN2t_to_axi
+    print("dN2t_to_axi::", dN2t_to_axi)
 
     widgets = [progressbar.Percentage(), ' ', progressbar.Bar(), ' ', progressbar.ETA()]
     pbar = progressbar.ProgressBar(widgets=widgets, maxval=dz.shape[0]).start()
@@ -263,7 +263,7 @@ def UI():
     parser.add_argument("dz_id", type=int, help="Enter the dz_id")
     args = parser.parse_args()
     a_xi_id = compute_a_xi(args.dz_id)
-    print a_xi_id
+    print(a_xi_id)
 
 if __name__ == "__main__":
     #test()
