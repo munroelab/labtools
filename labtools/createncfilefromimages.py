@@ -6,9 +6,9 @@ from PIL import Image
 import numpy as np
 import os
 
-import labdb
-from dataset import Dataset
-import progressbar
+from . import labdb
+from .dataset import Dataset
+from . import progressbar
 
 def video2dataset(video_id,
                   imin = 0, imax = 0,
@@ -34,7 +34,7 @@ def video2dataset(video_id,
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
 
-    print "length", win_l, "\nheight", win_h
+    print("length", win_l, "\nheight", win_h)
 
     nx = 1292
     nz = 964
@@ -45,7 +45,7 @@ def video2dataset(video_id,
 
     t = np.loadtxt(path2time)
     dt = np.mean(np.diff(t[:,1]))
-    print "dt = " ,dt
+    print("dt = " ,dt)
 
     #get the number of frames
     sql = """SELECT num_frames FROM video WHERE video_id = %d""" % video_id

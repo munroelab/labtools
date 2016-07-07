@@ -1,4 +1,4 @@
-import labdb
+from . import labdb
 import pylab
 import numpy
 from numpy import linspace,exp

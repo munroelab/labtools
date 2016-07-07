@@ -25,8 +25,8 @@ nc_id's are stored in a database table
 """
 import numpy as np
 import netCDF4
-from chunk_shape_3D import chunk_shape_3D
-import labdb
+from .chunk_shape_3D import chunk_shape_3D
+from . import labdb
 
 class Dataset(netCDF4.Dataset):
 

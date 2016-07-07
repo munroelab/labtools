@@ -12,7 +12,7 @@ image from which all the future images are subtracted from.
 
 """
 
-import spectrum_test
+from . import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -21,11 +21,11 @@ import pylab
 import numpy
 import time
 import os
-import labdb
+from . import labdb
 import gc
 import netCDF4
 from scipy import ndimage
-import progressbar
+from . import progressbar
 import multiprocessing
 import socket
 import warnings
@@ -107,7 +107,7 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     sql = """ SELECT expt_id FROM video_experiments WHERE video_id =  %d """ % video_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print " experiment ID : ", expt_id
+    print(" experiment ID : ", expt_id)
 
     # get the window length and window height
     sql = """SELECT length FROM video WHERE video_id = %d  """ % video_id
@@ -118,14 +118,14 @@ def create_nc_file(video_id,skip_frames,skip_row,skip_col,mintol,sigma,filter_si
     rows = db.execute(sql)
     win_h = rows[0][0]*1.0
     
-    print "lenght" , win_l, "\nheight", win_h
-    print  "video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames"
-    print  video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames
+    print("lenght" , win_l, "\nheight", win_h)
+    print("video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames")
+    print(video_id,skip_frames,skip_row,skip_col,expt_id,mintol,sigma,filter_size,startF,stopF,diff_frames)
     
     # find the number for rows and column of the frames
     Nrow = 964/skip_row
     Ncol = 1292/skip_col
-    print "no of rows : %d and no of columns : %d" %(Nrow,Ncol)
+    print("no of rows : %d and no of columns : %d" %(Nrow,Ncol))
 
     path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     t=numpy.loadtxt(path2time)
@@ -198,7 +198,7 @@ def schlieren_lines(p):
     
     # Step 3 : prepare a mask:: 1 means use the data and 0 means ignore the
     # data here within the disk
-    mask_delz = numpy.uint8(mapped_delz <>128)
+    mask_delz = numpy.uint8(mapped_delz !=128)
     
     #Step 4: apply the mean filter to compute values for the masked pixels 
     disk_size = 1
@@ -270,9 +270,9 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
         sql = """ SELECT num_frames FROM video WHERE video_id = %d""" % video_id
         rows = db.execute(sql)
         stopF = rows[0][0]
-        print "stop_frames = ", stopF 
+        print("stop_frames = ", stopF) 
     num_frames=stopF-startF
-    print "num_frames:" ,num_frames
+    print("num_frames:" ,num_frames)
 
     # Call the function that will create the nc file to append data to
     dt,dz,dx=create_nc_file(video_id,skip_frames,skip_row,skip_col,min_tol,\
@@ -305,7 +305,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
     p['min_tol'] = min_tol
     p['dz'] = dz
     p['sigma'] = sigma
-    print "the dictionary P" ,p
+    print("the dictionary P" ,p)
 
     i = 0
 
@@ -365,17 +365,17 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
 
 
     # get information about the copied nc file to see if its chunked 
-    print "ncdump %s" % dz_filename
+    print("ncdump %s" % dz_filename)
     os.system('ncdump -h -s %s' %  dz_filename )
 
     # USE nccopy to rechunk Dz
     chunked_filename = 'chunked_dz.nc'
     cmd = 'nccopy -c time/%d,row/%d,column/%d %s %s' % (tl, nz, 1, dz_filename, chunked_filename) 
-    print cmd
+    print(cmd)
     os.system(cmd)
 
     # get information about the copied nc file to see if its chunked 
-    print "ncdump %s" % chunked_filename
+    print("ncdump %s" % chunked_filename)
     os.system('ncdump -h -s %s' %  chunked_filename )
 
     nc=netCDF4.Dataset(chunked_filename,'a')
@@ -404,7 +404,7 @@ def compute_dz(video_id,min_tol,sigma,filter_size,skip_frames=1,skip_row=1,skip_
         chunked_filename, dz_filename) )
 
     # get information about the copied nc file to see if its chunked correctly
-    print "ncdump %s" % dz_filename
+    print("ncdump %s" % dz_filename)
     os.system('ncdump -h -s %s' %  dz_filename )
 
     return dz_id

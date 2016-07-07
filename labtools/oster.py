@@ -1,7 +1,7 @@
 """
 Routine to aid in creation of stratifications
 """
-from nacl_solution import *
+from .nacl_solution import *
 import pylab
 import numpy
 
@@ -129,7 +129,7 @@ def other_tests():
             N[j, i] = estimate_N(A, H, rho1_, V0_, rho0=rho0)
 
 
-    print estimate_N(A, H, rho0, 10000)
+    print(estimate_N(A, H, rho0, 10000))
 
     #V0, rho1 = pylab.meshgrid(V0, rho1)
 
@@ -147,24 +147,24 @@ def other_tests():
     Ngoal = 1.0
 
     #what density to achieve desired N given V0_rec?
-    print N[:,i] - Ngoal
+    print(N[:,i] - Ngoal)
 
     j = abs(N[:,i] - Ngoal).argmin()
     rho1_rec = rho1[j]
 
-    print 'To achieve a buoyancy of N = %.2f' % N[j, i]
-    print 'Use V0 = %.0f L' % (V0_rec/1000), ' and rho1 = %.3f' % rho1_rec
-    print 'Fill the FW bucket to a depth of h = %.1f cm' % (V0_rec / A_fw)
-    print
+    print('To achieve a buoyancy of N = %.2f' % N[j, i])
+    print('Use V0 = %.0f L' % (V0_rec/1000), ' and rho1 = %.3f' % rho1_rec)
+    print('Fill the FW bucket to a depth of h = %.1f cm' % (V0_rec / A_fw))
+    print()
 
     V_sw = V0_min + A_fw*2.0
-    print 'Prepare a SW solution of volume V_sw = %.0f L' % V_sw
-    print 'Cs =', rho_to_Cs(rho1_rec)
-    print 'Cw =', rho_to_Cw(rho1_rec)
-    print 'Using M_NaCl = %.0f g ' % (rho_to_Cs(rho1_rec)*V_sw)
+    print('Prepare a SW solution of volume V_sw = %.0f L' % V_sw)
+    print('Cs =', rho_to_Cs(rho1_rec))
+    print('Cw =', rho_to_Cw(rho1_rec))
+    print('Using M_NaCl = %.0f g ' % (rho_to_Cs(rho1_rec)*V_sw))
     V_h20_sw = rho_to_Cw(rho1_rec)*V_sw / rho_fw
-    print 'mixed into a Volume of H20 = %.1f L' % (V_h20_sw / 1000)
-    print ' (height of water h = %.1f cm)' % (V_h20_sw / A_fw)
+    print('mixed into a Volume of H20 = %.1f L' % (V_h20_sw / 1000))
+    print(' (height of water h = %.1f cm)' % (V_h20_sw / A_fw))
 
     V0, rho1 = pylab.meshgrid(V0, rho1)
 
@@ -183,7 +183,7 @@ def other_tests():
 
 
     ##
-    print "-"*40
+    print("-"*40)
 
     # current density of salt water
     rho_sw = 1.041
@@ -191,37 +191,37 @@ def other_tests():
     h_sw = 9.5 # cm
     V_sw = A_fw*h_sw
 
-    print "Have a density of rho_sw = %.3f" % rho_sw
-    print "Have a volume of V_sw = %.1f L" % (V_sw /1000)
+    print("Have a density of rho_sw = %.3f" % rho_sw)
+    print("Have a volume of V_sw = %.1f L" % (V_sw /1000))
 
-    print "Mass of NaCl = %.0f g" % (rho_to_Cs(rho_sw) * V_sw)
+    print("Mass of NaCl = %.0f g" % (rho_to_Cs(rho_sw) * V_sw))
     M_nacl_1 = rho_to_Cs(rho_sw) * V_sw
-    print "Mass of H2O = %.0f g" % (rho_to_Cw(rho_sw) * V_sw)
+    print("Mass of H2O = %.0f g" % (rho_to_Cw(rho_sw) * V_sw))
     V_h20_sw = rho_to_Cw(rho_sw) * V_sw / rho_fw
-    print "Volume of H2O = %.1f L" % (V_h20_sw / 1000)
+    print("Volume of H2O = %.1f L" % (V_h20_sw / 1000))
 
     # volume of final solution
     V_sw =  V_sw * rho_to_Cw(rho_sw) / rho_to_Cw(rho1_rec)
     # amount of H2O in final solution (should remain unchanged)
     V_h20_sw = rho_to_Cw(rho1_rec) * V_sw / rho_fw
-    print 'Prepare a SW solution of volume V_sw = %.0f L' % V_sw
-    print 'Cs =', rho_to_Cs(rho1_rec)
-    print 'Cw =', rho_to_Cw(rho1_rec)
-    print 'Using M_NaCl = %.0f g ' % (rho_to_Cs(rho1_rec)*V_sw)
+    print('Prepare a SW solution of volume V_sw = %.0f L' % V_sw)
+    print('Cs =', rho_to_Cs(rho1_rec))
+    print('Cw =', rho_to_Cw(rho1_rec))
+    print('Using M_NaCl = %.0f g ' % (rho_to_Cs(rho1_rec)*V_sw))
     M_nacl_2 = rho_to_Cs(rho1_rec) * V_sw
-    print '(Add an additional %.0f g of NaCl)' % ( M_nacl_2 - M_nacl_1)
-    print "Mass of H2O = %.0f g" % (rho_to_Cw(rho_sw) * V_sw)
-    print 'mixed into a Volume of H20 = %.1f L' % (V_h20_sw / 1000)
-    print ' (height of water h = %.1f cm)' % (V_h20_sw / A_fw)
+    print('(Add an additional %.0f g of NaCl)' % ( M_nacl_2 - M_nacl_1))
+    print("Mass of H2O = %.0f g" % (rho_to_Cw(rho_sw) * V_sw))
+    print('mixed into a Volume of H20 = %.1f L' % (V_h20_sw / 1000))
+    print(' (height of water h = %.1f cm)' % (V_h20_sw / A_fw))
 
     C0 = rho_to_Cs(rho0) # density of freshwater
 
-    print "Saturated solution"
+    print("Saturated solution")
     # saturated solution
     rho2 = 1.175
-    print "Cs = %.3f g" % (rho_to_Cs(rho2))
+    print("Cs = %.3f g" % (rho_to_Cs(rho2)))
     M_nacl_add = M_nacl_2 - M_nacl_1
-    print "To get enough salt, need %.0f mL of saturated solution" % (M_nacl_add / rho_to_Cs(rho2))
+    print("To get enough salt, need %.0f mL of saturated solution" % (M_nacl_add / rho_to_Cs(rho2)))
 
 
 def strat_20100513():
@@ -240,7 +240,7 @@ def strat_20100513():
     V0 = 60*60*h0
 
     pylab.plot(V0/1000, rho1, 'ko')
-    print "N =", estimate_N(A, H, rho0=rho0, rho1=rho1, V0=V0)
+    print("N =", estimate_N(A, H, rho0=rho0, rho1=rho1, V0=V0))
 
 
 def strat_20100531():
@@ -259,7 +259,7 @@ def strat_20100531():
     V0 = 60*60*h0
 
     pylab.plot(V0/1000, rho1, 'ko')
-    print "N =", estimate_N(A, H, rho0=rho0, rho1=rho1, V0=V0)
+    print("N =", estimate_N(A, H, rho0=rho0, rho1=rho1, V0=V0))
 
 def strat_20100715():
 
@@ -277,7 +277,7 @@ def strat_20100715():
     v0 = 60*60*h0
 
     pylab.plot(v0/1000, rho1, 'ko')
-    print "n =", estimate_n(a, h, rho0=rho0, rho1=rho1, v0=v0)
+    print("n =", estimate_n(a, h, rho0=rho0, rho1=rho1, v0=v0))
 
 def strat_20130311():
 
@@ -295,15 +295,15 @@ def strat_20130311():
     V0 = 800e3
 
     #pylab.plot(V0/1000, rho1, 'ko')
-    print "n =", estimate_N(a, h, rho1, rho0, V0=V0)
+    print("n =", estimate_N(a, h, rho1, rho0, V0=V0))
 
-    print "MNacl=", rho_to_Cs(1.053) * 600e3
+    print("MNacl=", rho_to_Cs(1.053) * 600e3)
     MNacl = rho_to_Cs(1.053) * 600e3
 
     add_salt = 40e3
-    print "Adding", add_salt, "gives a new MNacl =",  (MNacl + add_salt)
-    print "New concentration:", (MNacl + add_salt) / 800e3
-    print "Goal: Cs =", rho_to_Cs(1.0735), "g/mL"
+    print("Adding", add_salt, "gives a new MNacl =",  (MNacl + add_salt))
+    print("New concentration:", (MNacl + add_salt) / 800e3)
+    print("Goal: Cs =", rho_to_Cs(1.0735), "g/mL")
 
 if __name__ == "__main__":
     #plot()

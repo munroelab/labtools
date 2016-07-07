@@ -3,7 +3,7 @@ import pylab
 import matplotlib.pyplot as plt
 import netCDF4
 import argparse
-import labdb
+from . import labdb
 import os
 
 # Open database for access
@@ -14,14 +14,14 @@ def get_MSFD(dz_id):
     #get the mintol,sigma, and filter_size of the deltaN2
     sql = """ SELECT mintol,sigma,filter_size,diff_frames,video_id FROM dz WHERE dz_id= %d""" % dz_id
     rows = db.execute(sql)
-    print "rows:",rows
+    print("rows:",rows)
     mintol= rows[0][0]
     sigma = rows[0][1]
     filter_size = rows[0][2]
     diff_frames = rows[0][3]
     video_id = rows[0][4]
-    print " mintol:" ,mintol, "sigma:" ,sigma, "filter_size:",filter_size,\
-            "diff_frames : " ,diff_frames,"video_id: ",video_id
+    print(" mintol:" ,mintol, "sigma:" ,sigma, "filter_size:",filter_size,\
+            "diff_frames : " ,diff_frames,"video_id: ",video_id)
     return mintol,sigma,filter_size,diff_frames,video_id
 
 
@@ -30,10 +30,10 @@ def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf',rowS=0,r
     sql = """ SELECT expt_id  FROM dz WHERE dz_id = %d""" % dz_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print "expt ID: ", expt_id
+    print("expt ID: ", expt_id)
 
     if (len(rows) == 0):
-        print "The dz for the expt_id is not yet computed.. "
+        print("The dz for the expt_id is not yet computed.. ")
         return
 
 
@@ -48,9 +48,9 @@ def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf',rowS=0,r
     # Open the nc file and load the variables.
     path = "/Volumes/HD4/dz/%d/dz.nc" % dz_id
     nc = netCDF4.Dataset(path,'r')
-    print " variables: " ,nc.variables.keys()
+    print(" variables: " ,list(nc.variables.keys()))
     dz_arr = nc.variables['dz_array']
-    print " dz_array.shape ", dz_arr.shape
+    print(" dz_array.shape ", dz_arr.shape)
     
     t = nc.variables['time'][:] 
     
@@ -60,7 +60,7 @@ def compute_dz_timeseries(dz_id,column,max_min,plot_name = 'dz_vts.pdf',rowS=0,r
     #load the data
     dat = dz_arr[:,rowS:rowE,column]
     data=dat.T
-    print "data.T.shape", data.shape
+    print("data.T.shape", data.shape)
     plt.figure()
     #plt.contourf(t,z,data.T[::-1],levels=level)
     plt.imshow(data[:,:],extent=[t[0],t[-1],z[-1],z[0]],vmax=max_min,vmin=-max_min,aspect='auto',interpolation= 'nearest')
@@ -76,7 +76,7 @@ def get_info(expt_id):
     sql = """ SELECT video_id FROM video_experiments WHERE expt_id = %d """ % expt_id
     rows = db.execute(sql)
     video_id = rows[0][0]
-    print "VIDEO ID = " ,video_id
+    print("VIDEO ID = " ,video_id)
     
     # Get the Buoyancy frequency
     #sql = """ SELECT N_frequency FROM stratification WHERE strat_id =\

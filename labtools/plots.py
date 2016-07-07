@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import labdb
+from . import labdb
 
 
 def plot_slice(ncvarname, nc_id, 
@@ -46,7 +46,7 @@ def plot_slice(ncvarname, nc_id,
     nc = netCDF4.Dataset(path, 'r')
 
     # Load the variables
-    arr = nc.variables.keys()
+    arr = list(nc.variables.keys())
     array = nc.variables[ncvar]
 
     # arr = [u'row',u'column',u'time',u'a_xi_array']

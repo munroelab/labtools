@@ -1,8 +1,8 @@
 
 
-import SyntheticSchlieren
-import Compute_dn2t
-import WaveCharacteristics
+from . import SyntheticSchlieren
+from . import Compute_dn2t
+from . import WaveCharacteristics
 import os
 import netCDF4 as nc
 from matplotlib import pyplot as plt

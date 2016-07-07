@@ -33,21 +33,21 @@ def predictions_wave(N,time,omega=0):
     wavelengthX = 2*np.pi/kx  
     c_px = N * np.cos(theta) /kx
     
-    print "******Predictions********"
-    print "theta : %f" %theta
-    print "omega : %f " %omega
-    print "kx : %f " %kx
-    print "wavelength : %f m " % wavelengthX
-    print "wave speed Cgx : %f cm/s " %c_gx
+    print("******Predictions********")
+    print("theta : %f" %theta)
+    print("omega : %f " %omega)
+    print("kx : %f " %kx)
+    print("wavelength : %f m " % wavelengthX)
+    print("wave speed Cgx : %f cm/s " %c_gx)
 
     # wave generator settings
     setting_4cm = 60 * 200 / time
     settings1 = setting_4cm / 3.2
     settings2 = setting_4cm / 4
-    print "***** WAVE GENERATOR SETTINGS *****"
-    print "RPM (4cm Amplitude) : %d" %setting_4cm
-    print "RPM (2.5cm Amplitude) : %d" %settings1
-    print "RPM (2cm Amplitude) : %d" %settings2
+    print("***** WAVE GENERATOR SETTINGS *****")
+    print("RPM (4cm Amplitude) : %d" %setting_4cm)
+    print("RPM (2.5cm Amplitude) : %d" %settings1)
+    print("RPM (2cm Amplitude) : %d" %settings2)
     return
 
 

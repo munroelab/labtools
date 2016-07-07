@@ -1,8 +1,8 @@
 __author__ = 'prajvala'
-import axi_TS_col
+from . import axi_TS_col
 import matplotlib.pyplot as plt
 import netCDF4
-import labdb
+from . import labdb
 
 
 # Open database for access
@@ -14,10 +14,10 @@ def compute_fw_row_timeseries(fw_id,column,max_min,plotname = "filteredWavesVert
             filtered_waves WHERE fw_id = %d)""" % fw_id
     rows = db.execute(sql)
     expt_id = rows[0][0]
-    print "expt ID: ", expt_id
+    print("expt ID: ", expt_id)
 
     if (len(rows) == 0):
-        print "The a_xi for the expt_id is not yet computed.. "
+        print("The a_xi for the expt_id is not yet computed.. ")
         return
 
 
@@ -26,11 +26,11 @@ def compute_fw_row_timeseries(fw_id,column,max_min,plotname = "filteredWavesVert
     # Open the nc file and load the variables.
     path = "/Volumes/HD4/filtered_waves/%d/waves.nc" % fw_id
     nc = netCDF4.Dataset(path,'r')
-    print " variables: " ,nc.variables.keys()
+    print(" variables: " ,list(nc.variables.keys()))
     left = nc.variables['left_array']
     right = nc.variables['right_array']
 
-    print " L.shape ", left.shape
+    print(" L.shape ", left.shape)
     #print "l['real'] shape" , left['real'].shape
 
     t = nc.variables['time'][:]

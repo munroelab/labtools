@@ -2,7 +2,7 @@
 Calculate the deltaN2 field and then displays it in a movie 
 """
 
-import spectrum_test
+from . import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -11,7 +11,7 @@ import pylab
 import numpy
 import time
 import os
-import labdb
+from . import labdb
 import netCDF4
 from scipy import ndimage
 
@@ -87,14 +87,14 @@ def append2ncfile(deltaN2_filename,deltaN2_arr):
     #print "len(deltaN2): ", i 
     deltaN2[i,:,:]=deltaN2_arr
     nc.close()
-    print "appending"
+    print("appending")
 
 def set_time_axis(deltaN2_filename,dt):
     # open the file in the end and set the time variable start and stop time
     # along with timestep
     nc = netCDF4.Dataset(deltaN2_filename,'a')
     Tm=nc.variables['time']
-    print Tm.shape
+    print(Tm.shape)
     tl = len(Tm)
     t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
     Tm[:] = t_array
@@ -107,7 +107,7 @@ def compute_dz(video_id,skip_frames=100):
     > returns the array dz
     > skip_frames is the number of frames to jump before computing dz
     """
-    print "skip_frames is", skip_frames
+    print("skip_frames is", skip_frames)
     db = labdb.LabDB()
 
     # check if this dz array has already been computed?
@@ -116,21 +116,21 @@ def compute_dz(video_id,skip_frames=100):
     if len(rows) > 0:
         # deltaN2 array already computed
         id = rows[0][0]
-        print "Loading cached deltaN2 %d..." % id
+        print("Loading cached deltaN2 %d..." % id)
         
         # load the array from the disk
         deltaN2_path = "/Volumes/HD3/deltaN2/%d/" % id
         deltaN2_filename = deltaN2_path+'deltaN2.nc'
         
         #loading the nc file
-        print "file loading --> " ,deltaN2_filename
+        print("file loading --> " ,deltaN2_filename)
         nc=netCDF4.Dataset(deltaN2_filename,'a')
         
         # some information about the nc file
-        print "dimensions of nc file -> ", nc.dimensions.keys()
-        print "variables of nc file -> ", nc.variables.keys()
+        print("dimensions of nc file -> ", list(nc.dimensions.keys()))
+        print("variables of nc file -> ", list(nc.variables.keys()))
         deltaN2_arr=nc.variables['deltaN2_array']
-        print "shape of nc file -> ", deltaN2_arr.shape
+        print("shape of nc file -> ", deltaN2_arr.shape)
         nc.close()
         
         return deltaN2_filename
@@ -147,17 +147,17 @@ def compute_dz(video_id,skip_frames=100):
     
     win_l=win_l*1.0
     win_h=win_h*1.0
-    print "lenght" , win_l, "\nheight", win_h
+    print("lenght" , win_l, "\nheight", win_h)
 
     sql = """SELECT path FROM video WHERE video_id = %d  """ % video_id
     rows = db.execute(sql)
-    print "path", rows[0][0]
+    print("path", rows[0][0])
     
     # COMPUTE DELTAN2 FOR THE FIRST TIME
     
     # Create the directory in which to store the nc file
     sql = """INSERT INTO deltaN2 (video_id, skip_frames) VALUES (%d, %d)""" % (video_id, skip_frames)
-    print sql
+    print(sql)
     db.execute(sql)
     sql = """SELECT LAST_INSERT_ID()"""
     rows = db.execute(sql)
@@ -167,7 +167,7 @@ def compute_dz(video_id,skip_frames=100):
     os.mkdir(deltaN2_path)
 
     deltaN2_filename = os.path.join(deltaN2_path, "deltaN2.nc")
-    print "filename: " ,deltaN2_filename
+    print("filename: " ,deltaN2_filename)
 
     # Declare the nc file for the first time 
     nc = netCDF4.Dataset(deltaN2_filename,'w',format = 'NETCDF4')
@@ -177,14 +177,14 @@ def compute_dz(video_id,skip_frames=100):
 
     #the dimensions are also variables
     ROW = nc.createVariable('row',numpy.float32,('row'))
-    print  nc.dimensions.keys(), ROW.shape,ROW.dtype
+    print(list(nc.dimensions.keys()), ROW.shape,ROW.dtype)
     COLUMN = nc.createVariable('column',numpy.float32,('column'))
-    print COLUMN.shape, COLUMN.dtype
+    print(COLUMN.shape, COLUMN.dtype)
     TIME = nc.createVariable('time',numpy.float32,('time'))
-    print TIME.shape, TIME.dtype
+    print(TIME.shape, TIME.dtype)
     # declare the 3D data variable 
     deltaN2 = nc.createVariable('deltaN2_array',numpy.float32,('time','row','column'))
-    print nc.dimensions.keys() , deltaN2.shape, deltaN2.dtype
+    print(list(nc.dimensions.keys()) , deltaN2.shape, deltaN2.dtype)
     # the length and height dimensions are variables containing the length and
     # height of each pixel in cm
     R =numpy.arange(0,win_h,win_h/964,dtype=float)
@@ -192,9 +192,9 @@ def compute_dz(video_id,skip_frames=100):
     path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     t=numpy.loadtxt(path2time)
     dt = numpy.mean(numpy.diff(t[:,1]))
-    print "dt = " ,dt
+    print("dt = " ,dt)
     dt = dt*skip_frames
-    print "timestep: " ,dt
+    print("timestep: " ,dt)
 
     ROW[:] = R
     COLUMN[:] = C
@@ -205,8 +205,8 @@ def compute_dz(video_id,skip_frames=100):
     num_frames = rows[0][0]
     n = 3
     count = n + 1
-    print "R",ROW.shape
-    print "C",COLUMN.shape
+    print("R",ROW.shape)
+    print("C",COLUMN.shape)
 
     db.commit()
     nc.close()
@@ -227,7 +227,7 @@ def compute_dz(video_id,skip_frames=100):
     mintol = 1
     
     C = getTol(image1, mintol = mintol)
-    print "C :",C
+    print("C :",C)
     delz = compute_dz_image(image1, image2, dz) 
     delz = numpy.nan_to_num(delz) * C
     
@@ -238,13 +238,13 @@ def compute_dz(video_id,skip_frames=100):
     gamma = 0.0001878
     #deltaN2 
     a = 1.0/(gamma * ((0.5*L_tank*L_tank)+(L_tank*win_l*n_water)))
-    print "a:",a
+    print("a:",a)
     deltaN2_arr = -1.0*delz * a
     #print deltaN2_arr[400:420,800:830]    
     append2ncfile(deltaN2_filename,deltaN2_arr)
     vmax = 0.01
-    print "max: ",numpy.max(deltaN2_arr)
-    print "min: ",numpy.min(deltaN2_arr)
+    print("max: ",numpy.max(deltaN2_arr))
+    print("min: ",numpy.min(deltaN2_arr))
 
     """ old ploting code
     fig = pylab.figure()
@@ -258,7 +258,7 @@ def compute_dz(video_id,skip_frames=100):
     from numpy import ma
     index = 0
     while True:
-        print "render frame %d of %d" % (count, num_frames)
+        print("render frame %d of %d" % (count, num_frames))
         index += 1
 
         filename1 = path % (video_id, count - n)
@@ -277,8 +277,8 @@ def compute_dz(video_id,skip_frames=100):
         # compute deltaN2
         deltaN2_arr = -1.0* delz * a
         #debug messages
-        print "max: ",numpy.max(deltaN2_arr)
-        print "min: ",numpy.min(deltaN2_arr)
+        print("max: ",numpy.max(deltaN2_arr))
+        print("min: ",numpy.min(deltaN2_arr))
         # append to nc file
         #print deltaN2_arr[400:420,800:830]
         append2ncfile(deltaN2_filename,deltaN2_arr)
@@ -306,10 +306,10 @@ def compute_dz(video_id,skip_frames=100):
     # define time axis for the nc time variable
     nc = netCDF4.Dataset(deltaN2_filename,'a')
     Tm=nc.variables['time']
-    print Tm.shape
+    print(Tm.shape)
     tl = len(Tm)
     t_array = numpy.mgrid[0:tl*dt:tl*1.0j]
-    print "length of T axis: " ,tl, "\n array length: " ,t_array.shape
+    print("length of T axis: " ,tl, "\n array length: " ,t_array.shape)
     Tm[:] = t_array
     nc.close()
     return deltaN2_filename
@@ -332,20 +332,20 @@ def compute_dz(video_id,skip_frames=100):
 
 def ncfile_movie(deltaN2_filename):
     #loading the nc file
-    print "file loading --> " ,deltaN2_filename
+    print("file loading --> " ,deltaN2_filename)
     nc=netCDF4.Dataset(deltaN2_filename,'a')
     # some information about the nc file
-    print "dimensions of nc file -> ", nc.dimensions.keys()
-    print "variables of nc file -> ", nc.variables.keys()
+    print("dimensions of nc file -> ", list(nc.dimensions.keys()))
+    print("variables of nc file -> ", list(nc.variables.keys()))
     # loading the data into arrays
     deltaN2 = nc.variables['deltaN2_array']
     T = nc.variables['time']
     X = nc.variables['column']
     Z = nc.variables['row']
-    print "shape of deltaN2 -> ", deltaN2.shape
-    print "shape of T -> ", T.shape
-    print "shape of X -> ", X.shape
-    print "shape of Z -> ", Z.shape
+    print("shape of deltaN2 -> ", deltaN2.shape)
+    print("shape of T -> ", T.shape)
+    print("shape of X -> ", X.shape)
+    print("shape of Z -> ", Z.shape)
     
     """fig = pylab.figure()
     ax = fig.add_subplot(111)

@@ -15,5 +15,5 @@ x = nc.variables['column']
 z = nc.variables['row']
 #z = np.float16(z)
 
-print nc.dimensions.keys()
-print nc.variables.keys()
+print(list(nc.dimensions.keys()))
+print(list(nc.variables.keys()))

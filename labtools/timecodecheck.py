@@ -1,4 +1,4 @@
-import labdb
+from . import labdb
 import pylab
 import numpy
 import scipy
@@ -17,11 +17,11 @@ for video_id, in rows:
         time = t[:,1] 
         
         fit = scipy.polyfit(time, frame, 1)
-        print fit
+        print(fit)
         fps.append(fit[0])
 
 
-        print video_id
+        print(video_id)
 
 # make a histogram
 pylab.hist(fps)

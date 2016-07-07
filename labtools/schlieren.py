@@ -2,7 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrx based operations
 """
-import spectrum_test
+from . import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -11,7 +11,7 @@ import pylab
 import numpy
 import time
 import os
-import labdb
+from . import labdb
 
 def getTol(image, mintol = 10):
     """
@@ -109,7 +109,7 @@ def compute_dz(video_id, skip_frames=10):
     skip_frames is the number of frames to jump before computing dz
     """
 
-    print "skip_frames is", skip_frames
+    print("skip_frames is", skip_frames)
     db = labdb.LabDB()
 
     # check if this dz array has already been computed?
@@ -121,7 +121,7 @@ def compute_dz(video_id, skip_frames=10):
     if len(rows) > 0:
         # dz array already computed
         dz_id = rows[0][0]
-        print "Loading cached dz %d..." % dz_id
+        print("Loading cached dz %d..." % dz_id)
         # load the array from the disk
         dz_path = "/Volumes/HD3/dz/%d" % dz_id
         dz_filename = os.path.join(dz_path, "dz.npy")
@@ -173,7 +173,7 @@ def compute_dz(video_id, skip_frames=10):
 
     index = 0
     while True:
-        print "render frame %d of %d" % (count, num_frames)
+        print("render frame %d of %d" % (count, num_frames))
         index += 1
 
         filename1 = path % (video_id, count - n)
@@ -213,13 +213,13 @@ def compute_dz(video_id, skip_frames=10):
         time.sleep(0.1)
 
     dz_array = numpy.array(dz_array)
-    print "final dz_array.shape" ,dz_array.shape
-    print dz_array
+    print("final dz_array.shape" ,dz_array.shape)
+    print(dz_array)
 
     # cache dz_array to disk
     sql = """INSERT INTO dz (video_id, skip_frames)
              VALUES (%d, %d)""" % (video_id, skip_frames)
-    print sql
+    print(sql)
     db.execute(sql)
     sql = """SELECT LAST_INSERT_ID()"""
     rows = db.execute(sql)

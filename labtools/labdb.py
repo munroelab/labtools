@@ -7,22 +7,22 @@ Usage:
     results = db.execute("SELECT * FROM experiments")
 """
 
-import MySQLdb
+#import MySQLdb
+#import sqlite3
+import pymysql
 import os
 
 class LabDB:
-    hostname = "ozmidov.physics.mun.ca"
+    hostname = "taylor.physics.mun.ca"
 
     def __init__(self):
 
-        # for whatever reasons, I can't connect to the db using the hostname if 
-        # I am coming from the local machine.
         hostname = os.uname()[1]
         if hostname == self.hostname:
             self.hostname = "localhost"
 
         # Open database connection
-        self.conn = MySQLdb.connect(self.hostname, "lab", "fluids0", "lab")
+        self.conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='0ceanS', db='mysql')
 
     def execute(self, sql):
         cursor = self.conn.cursor()
@@ -51,7 +51,7 @@ class LabDB:
 
 if __name__ == "__main__":
     db = LabDB()
-    print db.execute("SELECT * FROM experiments")
+    print(db.execute("SELECT * FROM experiments"))
     db.close()
 
 

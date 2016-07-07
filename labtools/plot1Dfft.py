@@ -1,8 +1,8 @@
 import copy 
-import movieplayer
+from . import movieplayer
 import numpy
 import argparse
-import labdb
+from . import labdb
 import netCDF4 as nc
 import matplotlib.pyplot as plt
 
@@ -24,7 +24,7 @@ def get_dt(var,id):
                WHERE a_xi_id = %d))""" % id
         rows = db.execute(sql)
         diff_frames = rows[0][0]
-    print diff_frames
+    print(diff_frames)
     return diff_frames
 
 
@@ -33,12 +33,12 @@ def compute_fft(var,id,rowstart,colstart,rowend=0,colend=0):
     
     # Load the nc file
     data = nc.Dataset(path, 'r')
-    print "variables: ",data.variables.keys()
+    print("variables: ",list(data.variables.keys()))
     # Load the variables
-    arr = data.variables.keys()
-    print "ARR:: ", arr
+    arr = list(data.variables.keys())
+    print("ARR:: ", arr)
     t = data.variables[arr[2]][:]
-    print t[1:10]
+    print(t[1:10])
     if (rowend ==0 ):
         z = data.variables[arr[0]][rowstart]
     else:
@@ -51,49 +51,49 @@ def compute_fft(var,id,rowstart,colstart,rowend=0,colend=0):
 
     if (rowend==0 and colend==0):
         data_array = data.variables[arr[-1]][:,rowstart,colstart]
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
     elif (rowend !=0 and colend!=0):
         data_array = data.variables[arr[-1]][:,rowstart:rowend,colstart:colend]
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
         data_array = numpy.mean(data_array,axis = (1,2))
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
     elif (rowend !=0 and colend ==0):
         data_array = data.variables[arr[-1]][:,rowstart:rowend,colstart]
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
         data_array = numpy.mean(data_array,axis =1)
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
     elif (rowend ==0 and colend !=0):
         data_array = data.variables[arr[-1]][:,rowstart,colstart:colend]
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
         data_array = numpy.mean(data_array,axis =2)
-        print "data mean shape :: " ,data_array.shape
+        print("data mean shape :: " ,data_array.shape)
     
         
-    print"data array shape: ",data_array.shape, "x:",x.shape, "z:",z.shape,"t:",t.shape
-    print data_array[800:850]
+    print("data array shape: ",data_array.shape, "x:",x.shape, "z:",z.shape,"t:",t.shape)
+    print(data_array[800:850])
     
     #determine the length of T
     nt = len(t)
-    print "length of T: ", nt
+    print("length of T: ", nt)
 
     # get dt
     path2time = "/Volumes/HD3/video_data/%d/time.txt" % video_id
     var1 = numpy.loadtxt(path2time)
     dt = numpy.mean(numpy.diff(var1[:,1]))
-    print " dt ::" ,dt
+    print(" dt ::" ,dt)
 
     #perform fft along the time axis
     F = numpy.fft.fft(data_array)
-    print "fft shape::", F.shape
+    print("fft shape::", F.shape)
     #normalize
     F = numpy.fft.fftshift(F)/(nt*nt)
-    print "after shifting fft shape::", F.shape
+    print("after shifting fft shape::", F.shape)
 
     #Frequency axis
     freq = numpy.fft.fftfreq(nt,dt)
-    print "freq.shape" ,freq.shape
+    print("freq.shape" ,freq.shape)
     freq = numpy.fft.fftshift(freq) * 2* numpy.pi 
-    print "after shifting freq.shape ::" ,freq.shape
+    print("after shifting freq.shape ::" ,freq.shape)
 
     # filtering out the higher frequencies
     filtered_F = copy.copy(F)

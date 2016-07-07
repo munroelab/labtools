@@ -11,7 +11,7 @@ import pylab
 import numpy
 import time
 import os
-import labdb
+from . import labdb
 from scipy import ndimage
 
 def getTol(image, mintol = 10):
@@ -86,8 +86,8 @@ def compute_dz(video_id,min_tol,sigma,filter_size,image1,image2,win_h):
     # Set path to the two images
     im1 = "/Volumes/HD3/video_data/%d/frame%05d.png" % (video_id,image1)
     im2 = "/Volumes/HD3/video_data/%d/frame%05d.png" % (video_id,image2)
-    print "im1 =",im1
-    print "im2= " ,im2
+    print("im1 =",im1)
+    print("im2= " ,im2)
 
     dz = win_h / 964
     
@@ -100,8 +100,8 @@ def compute_dz(video_id,min_tol,sigma,filter_size,image1,image2,win_h):
 
     image1 = numpy.array(Image.open(im1))
     image2 = numpy.array(Image.open(im2))
-    print "image1.shape", image1.shape
-    print "image2.shape", image2.shape
+    print("image1.shape", image1.shape)
+    print("image2.shape", image2.shape)
     C = getTol(image1, mintol = min_tol)
     delz = compute_dz_image(image1, image2, dz) 
     delz = numpy.nan_to_num(delz) * C

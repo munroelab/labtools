@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import pylab
 
-from schlieren import test
+from .schlieren import test
 
 test()
 pylab.show()
@@ -23,7 +23,7 @@ ylabel('voltage (mV)')
 title('Another test')
 show(block=False)
  # show the figure manager but don't block script execution so animation works..
-print "Animating... Ctrl-C to stop"
+print("Animating... Ctrl-C to stop")
 while True:
     img = standard_normal((50,100))
     image.set_data(img)

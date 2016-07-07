@@ -23,17 +23,17 @@ def snapshot(var, id,t_num,
     path = "/data/%s/%d/%s" % ( ncdir, id, ncfile )
 
     if not os.path.exists(path):
-        print path, "not found"
+        print(path, "not found")
         return
 
     # Load the nc file
     nc = netCDF4.Dataset(path, 'r')
     data = nc.variables[ncvar]
-    print data.shape, nc.variables.keys()
+    print(data.shape, list(nc.variables.keys()))
     t = nc.variables['time']
     z = nc.variables['row']
     x = nc.variables['column']
-    print t.shape,z.shape,x.shape
+    print(t.shape,z.shape,x.shape)
 
     plt.figure()
     plt.imshow(data[t_num,:,:],extent=[x[0],x[-1],z[0],z[-1]],
@@ -61,7 +61,7 @@ def snapshot_complex(var, id,t_num,
     path = "/data/%s/%d/%s" % ( ncdir, id, ncfile )
 
     if not os.path.exists(path):
-        print path, "not found"
+        print(path, "not found")
         return
 
     # Load the nc file

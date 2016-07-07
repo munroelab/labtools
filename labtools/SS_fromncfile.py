@@ -2,7 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrix based operations
 """
-import spectrum_test
+from . import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 from matplotlib import pyplot as plt
@@ -12,7 +12,7 @@ import pylab
 import numpy
 import time
 import os
-import labdb
+from . import labdb
 import netCDF4
 from scipy import ndimage
 
@@ -92,13 +92,13 @@ def compute_dz(video_id,col,min_tol,sigma,filter,max_min,override_MS=0,overridef
     count=0
     # load the video nc file and get the image column array to compute the dz 
     video_filename = '/Volumes/HD4/videoncfiles/%d/video.nc' % video_id
-    print "video filename : ", video_filename
+    print("video filename : ", video_filename)
 
     nc=netCDF4.Dataset(video_filename,'r')
     image = nc.variables['img_array'][:,:,col]
     nt,nz = image.shape
     image = image.reshape((nt,nz,1))
-    print image.shape
+    print(image.shape)
     z = nc.variables['row']
     x = nc.variables['column'][col]
     t = nc.variables['time']
@@ -113,7 +113,7 @@ def compute_dz(video_id,col,min_tol,sigma,filter,max_min,override_MS=0,overridef
     while (count <stopF):
         delz = compute_dz_image(image[count], image[count+diff_frames], dz) 
         #delz = image[count]
-        print "count", count        
+        print("count", count)        
         C = getTol(image[count],mintol = min_tol)
         if (override_MS==0):
             delz = numpy.nan_to_num(delz) * C
@@ -142,18 +142,18 @@ def compute_dz(video_id,col,min_tol,sigma,filter,max_min,override_MS=0,overridef
         
     
     dz_array = numpy.array(dz_array)
-    print "dz shape: ", dz_array.shape
+    print("dz shape: ", dz_array.shape)
     count=0
     timeFdz=[]
-    print "z shape", z.shape[0]
+    print("z shape", z.shape[0])
     while (count < z.shape[0]):
-        print "count :" , count
+        print("count :" , count)
         xx = ndimage.uniform_filter(dz_array[:,count,:],size=(6,1))
         count+=1
         timeFdz.append(xx)
 
     timeFdz = numpy.array(timeFdz)
-    print "timeFdz.shape",timeFdz.shape
+    print("timeFdz.shape",timeFdz.shape)
 
     plt.figure(figsize=(20,11))
     ax = plt.subplot(3,1,1)

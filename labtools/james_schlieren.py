@@ -10,14 +10,14 @@ Defines schlieren_entry:
     command line tool for performing schlieren
 
 """
-from __future__ import division
+
 import os
 import tables
 import numpy
 import pylab # matplotlib interface
 from optparse import OptionParser
 import tools
-import progressbar
+from . import progressbar
 from igwtools import __version__
 
 def checkMinTol(i, j, img, mintol):
@@ -98,7 +98,7 @@ def schlieren_field(I, mode='qualitative', options=None):
     """
     
     if (I.nt <= 1) or (I.nz <= 2):
-        print "Minimum 2 t and 3 z data points to be able to perform schlieren"
+        print("Minimum 2 t and 3 z data points to be able to perform schlieren")
         return
     if options == None:
         options = schlieren_options()
@@ -157,26 +157,26 @@ def schlieren_field(I, mode='qualitative', options=None):
             # the field is a vts, so images are columns
             reference_image = I[0,:]*1.
             for n in range(I.nt):
-                print n, 'of', I.nt-1
+                print(n, 'of', I.nt-1)
                 I[n,:] = schlieren(reference_image, I[n,:], options)
         else:
             reference_image = I[:,:,0]*1.
             for n in range(I.nt):
-                print n, 'of', I.nt-1
+                print(n, 'of', I.nt-1)
                 I[:,:,n] = schlieren(reference_image, I[:,:,n], options)
     elif mode in ['dzt', 'dn2t']:
         # compare current frame with the previous frame
          if I.nx == 1:
             # the field is a vts, so images are columns
             for n in range(1,I.nt):
-                print n, 'of', I.nt-1
+                print(n, 'of', I.nt-1)
                 I[n,:] = schlieren(I[n-1,:]*1., I[n,:], options)
          else:
             for n in range(1,I.nt):
-                print n, 'of', I.nt-1
+                print(n, 'of', I.nt-1)
                 I[:,:,n] = schlieren(I[:,:,n-1]*1., I[:,:,n], options)
     else:
-        print 'invalid schlieren mode'
+        print('invalid schlieren mode')
 
 def schlieren(reference_image = None, image = None, options = None):
     """
@@ -198,33 +198,33 @@ def schlieren(reference_image = None, image = None, options = None):
     options.dndrho = 0.2458
    
     if options.verbose:
-        print 'parameters used:'
-        print '  mode =', options.mode
-        print '  imagetype =', options.imagetype
-        print '  mintol =', options.mintol
-        print '  sigma =', options.sigma
-        print '  zmin = %.2f' % options.zmin
-        print '  zmax = %.2f' % options.zmax
-        print '  dz = %.4f' % image.dz
+        print('parameters used:')
+        print('  mode =', options.mode)
+        print('  imagetype =', options.imagetype)
+        print('  mintol =', options.mintol)
+        print('  sigma =', options.sigma)
+        print('  zmin = %.2f' % options.zmin)
+        print('  zmax = %.2f' % options.zmax)
+        print('  dz = %.4f' % image.dz)
         if options.imagetype == 'tz':
-            print '  tmin = %.2f' % options.tmin, 
-            print '  tmax = %.2f' % options.tmax, 
-            print '  dt = %.4f' % image.dt
+            print('  tmin = %.2f' % options.tmin, end=' ') 
+            print('  tmax = %.2f' % options.tmax, end=' ') 
+            print('  dt = %.4f' % image.dt)
         else:
-            print '  xmin = %.2f' % options.xmin
-            print '  xmax = %.2f' % options.xmax
-            print '  dx = %.4f' % image.dx
+            print('  xmin = %.2f' % options.xmin)
+            print('  xmax = %.2f' % options.xmax)
+            print('  dx = %.4f' % image.dx)
         if (options.mode == 'dn2t') or (options.mode == 'dn2'):
-            print '  nw = %.4f (index of refraction of water)' % options.nw
-            print '  na = %.4f (index of refraction of air)' % options.na
-            print '  np = %.4f (index of refraction of tank walls)' % options.np
-            print '  dn/drho = %.4f (rate of change of index of refraction with density)' % options.dndrho
-            print '  Lt = %.2f cm (width of tank)' % options.Lt
-            print '  Lp = %.2f cm (thickness of tank walls)' % options.Lp
-            print '  Ls = %.2f cm (distance from tank to image on screen)' % options.Ls
-            print '  Lc = %.2f cm (distance from tank to camera)' % options.Lc
-            print '  g = %.1f cm/s^2 (acceleration due to gravity)' % options.g
-            print '  rho0 = %.4f g/cm^3' % options.rho0
+            print('  nw = %.4f (index of refraction of water)' % options.nw)
+            print('  na = %.4f (index of refraction of air)' % options.na)
+            print('  np = %.4f (index of refraction of tank walls)' % options.np)
+            print('  dn/drho = %.4f (rate of change of index of refraction with density)' % options.dndrho)
+            print('  Lt = %.2f cm (width of tank)' % options.Lt)
+            print('  Lp = %.2f cm (thickness of tank walls)' % options.Lp)
+            print('  Ls = %.2f cm (distance from tank to image on screen)' % options.Ls)
+            print('  Lc = %.2f cm (distance from tank to camera)' % options.Lc)
+            print('  g = %.1f cm/s^2 (acceleration due to gravity)' % options.g)
+            print('  rho0 = %.4f g/cm^3' % options.rho0)
 
     # allocate space for output
     output1 = tools.Field( numpy.zeros_like(image) , 
@@ -237,14 +237,14 @@ def schlieren(reference_image = None, image = None, options = None):
                 tmin=options.tmin, tmax=options.tmax)
 
     if options.verbose:
-        print 'performing synthetic schlieren...'
+        print('performing synthetic schlieren...')
     # loop through every pixel
     if options.verbose:
-        print '  computing dz field...'
+        print('  computing dz field...')
 
     if options.fast:
-        print "fast: Idea is to use matrix opertions to compute dz"
-        print "  ... not yet implemented"
+        print("fast: Idea is to use matrix opertions to compute dz")
+        print("  ... not yet implemented")
         pass
     else:
         if options.imagetype == 'xz':
@@ -278,11 +278,11 @@ def schlieren(reference_image = None, image = None, options = None):
     from scipy.ndimage import gaussian_filter, correlate
 
     if options.nofill:
-        print '  Skipping fill-in of unknown values with Gaussian average.'
+        print('  Skipping fill-in of unknown values with Gaussian average.')
         output2 = output1
     else:
         if options.verbose:
-            print '  filling in unknown values with Gaussian average...'
+            print('  filling in unknown values with Gaussian average...')
         output2 = gaussian_filter(output1, 
                                   [options.sigma/options.dxt, 
                                    options.sigma/image.dz])
@@ -309,10 +309,10 @@ def schlieren(reference_image = None, image = None, options = None):
             raise "invalid imagetype: %s" % options.imagetype
 
     if options.nosmooth:
-        print '  Skipping smoothing by uniform averaging filter.'
+        print('  Skipping smoothing by uniform averaging filter.')
     else:
         if options.verbose:
-            print '  applying uniform filter...'
+            print('  applying uniform filter...')
         # create a circle of equal weights of radius options.sigma
         irange = int(options.sigma/options.dxt + 0.5)
         jrange = int(options.sigma/image.dz + 0.5)
@@ -431,21 +431,21 @@ def schlieren_entry():
         if valid_expt:
             expt = tools.Experiment(options.database, options.experiment)
         else:
-            print options.experiment, "not found in", options.database
+            print(options.experiment, "not found in", options.database)
             return
         field = expt.load_view(options.load)
 
         if field is None:
-            print "View", options.load, "not found!"
+            print("View", options.load, "not found!")
 
         field = schlieren_field(field, options=options)
 
         if options.save != None:
             if options.verbose:
-                print "saving view..."
+                print("saving view...")
             expt.save_view(field, options.save, force=options.force)
         else:
-            print "use --save option to store result!"
+            print("use --save option to store result!")
 
         expt.close()
 
@@ -459,7 +459,7 @@ def schlieren_entry():
     import xplot
     # read in data from xyp files
     if options.verbose:
-        print 'reading in XYP files...'
+        print('reading in XYP files...')
     if options.imagetype == "xz":
         reference_image = xplot.readXYplot(args[0], orientation='xz')
         image = xplot.readXYplot(args[1], orientation='xz')
@@ -467,7 +467,7 @@ def schlieren_entry():
     else: # tz
         image = xplot.readXYplot(args[0], orientation='tz')
         options.dxt = image.dt
-        print image.shape
+        print(image.shape)
 
     options.xmin = image.xmin
     options.xmax = image.xmax
@@ -500,8 +500,8 @@ def schlieren_entry():
         # show results
         vmax = 2.5*numpy.std(output)
         if options.verbose:
-            print 'plotting result'
-            print '    vmin = %.3f' % -vmax, 'vmax = %.3f' % vmax
+            print('plotting result')
+            print('    vmin = %.3f' % -vmax, 'vmax = %.3f' % vmax)
         pylab.figure()
         output.plot(interpolation = 'bicubic', vmin=-vmax, vmax=vmax)
         pylab.colorbar()

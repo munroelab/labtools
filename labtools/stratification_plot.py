@@ -6,7 +6,7 @@ import glob
 import os
 import dateutil
 import argparse
-from labdb import LabDB
+from .labdb import LabDB
 
 g = 980
 rho0 = 0.9982
@@ -61,9 +61,9 @@ def plot_stratification_file(filename,zoffset=5):
     else:
         strat_id, calib_id = None, None
     if calib_id is None:
-        print "calibration data unavailable"
+        print("calibration data unavailable")
 
-        print " plotting rho = Vc"
+        print(" plotting rho = Vc")
         rho = 1.0 * Vc
         return
 
@@ -96,7 +96,7 @@ def plot_stratification_file(filename,zoffset=5):
     fit_line = np.polyval(fit, z[m])
 
     pylab.plot(fit_line, z[m], "k--")
-    print "N = %.3f" % np.sqrt(-g/rho0*fit[0])
+    print("N = %.3f" % np.sqrt(-g/rho0*fit[0]))
 
 def plot_all():
     """
@@ -144,12 +144,12 @@ def load_calib_data(filename, calib_id):
     """
     db = LabDB()
 
-    print filename
+    print(filename)
     f = open(filename, 'r')
     # skip header line
     f.readline()
     for line in f:
-        print line
+        print(line)
         sample, t, rho, V = line.strip().split(',')
         t = float(t)
         rho = float(rho)
@@ -160,7 +160,7 @@ def load_calib_data(filename, calib_id):
                  VALUES
                  ('%s', %f, %f, %f, %d)
                  """ % (sample, t, rho, V, calib_id)
-        print sql
+        print(sql)
         db.execute(sql)
         db.commit()
 
@@ -179,7 +179,7 @@ def load_all_calib_data():
         calib_id = int(d.split('/')[-1])
         filename = os.path.join(d, 'calib.csv')
         if os.path.exists(filename):
-            print "Importing %d/calib.csv" % calib_id
+            print("Importing %d/calib.csv" % calib_id)
             load_calib_data(filename, calib_id)
 
 def main():

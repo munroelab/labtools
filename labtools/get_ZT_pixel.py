@@ -1,7 +1,7 @@
 import argparse
 import netCDF4 as nc
-import labdb
-import movieplayer as mp
+from . import labdb
+from . import movieplayer as mp
 from matplotlib import pyplot as plt
 import numpy
 
@@ -9,8 +9,8 @@ import numpy
 def plotimg(var,id):
     
     path,array_name,video_id= mp.checkvar(var,id)
-    print "path:", path
-    print "array_name", array_name, "and video_id ", video_id
+    print("path:", path)
+    print("array_name", array_name, "and video_id ", video_id)
     """    db = labdb.labDB()
     sql = SELECT win_l and win_h FROM video WHERE video_id = %d % video_id
     rows = db.execute(sql)
@@ -20,16 +20,16 @@ def plotimg(var,id):
     """
     # Load the nc file
     data = nc.Dataset(path, 'r')
-    print "variables: ",data.variables.keys()
+    print("variables: ",list(data.variables.keys()))
     # Load the variables
-    arr = data.variables.keys()
-    print "ARR",arr
+    arr = list(data.variables.keys())
+    print("ARR",arr)
     data_arr = data.variables[arr[-1]]
     t = data.variables[arr[2]]
     z = data.variables[arr[0]]
     x = data.variables[arr[1]]
-    print "array shape: ", data_arr.shape, " x: ",x.shape, " z: ",z.shape," t: ",t.shape
-    print z[100], z[200]
+    print("array shape: ", data_arr.shape, " x: ",x.shape, " z: ",z.shape," t: ",t.shape)
+    print(z[100], z[200])
     plt.figure(figsize  =(11,8))
     plt.subplot(2,1,1)
     plt.imshow(data_arr[0], extent=[x[0],x[-1],z[-1],z[0]], \

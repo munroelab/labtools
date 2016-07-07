@@ -32,8 +32,8 @@ def xzt_fft(ncfile, ncvar,
     z = nc.variables['row'][::zstep]
 
     A = nc.variables[ncvar]
-    print "A shape is ", A.shape
-    print "A type is " ,A.dtype
+    print("A shape is ", A.shape)
+    print("A type is " ,A.dtype)
     complex64_t = np.dtype([('real', '<f4'), ('imag', '<f4')])
 
 
@@ -42,7 +42,7 @@ def xzt_fft(ncfile, ncvar,
     nz = (a_nz-1) //zstep +1
     nx  = (a_nx-1) //xstep +1
 
-    print nt,nx,nz
+    print(nt,nx,nz)
     dz_array = np.empty( (nt, nz, nx), dtype=np.complex64)
     for nn, n in enumerate(range(timeS, timeE, tstep)):
             frame2 = A[n, :, :]
@@ -52,20 +52,20 @@ def xzt_fft(ncfile, ncvar,
 
 
 #    plt.imshow(dz_array[1,150:800,:],extent=[x[0],x[-1],z[0],z[-1]])
-    print "DZ array shape: " ,dz_array.shape
-    print "T shape: " ,t.shape
-    print "X shape: " ,x.shape
-    print "Z shape: " ,z.shape
+    print("DZ array shape: " ,dz_array.shape)
+    print("T shape: " ,t.shape)
+    print("X shape: " ,x.shape)
+    print("Z shape: " ,z.shape)
 
     # calculate the step in time , z and x
     dx = np.mean(np.diff(x))    #x[1] - x[0]
     dz = np.mean(np.diff(z))    #z[1] - z[0]
     dt = np.mean(np.diff(t))    #t[1] - t[0]
-    print "dx,dz,dt :: " ,dx,dz,dt
+    print("dx,dz,dt :: " ,dx,dz,dt)
 
     # perform FFT alone all three dimensions
     F = np.fft.fftn(dz_array) 
-    print "fft of dz _array:: type and size", F.dtype,F.size
+    print("fft of dz _array:: type and size", F.dtype,F.size)
     # Normalize and shift so that zero frequency is at the center
     F = np.fft.fftshift(F)
 
@@ -79,14 +79,14 @@ def xzt_fft(ncfile, ncvar,
     omega = np.fft.fftfreq(nt, dt)
     omega = 2*np.pi*np.fft.fftshift(omega)
 
-    print "kx shape: ", kx.shape
-    print "kz shape: ", kz.shape
-    print "omega shape: ", omega.shape
+    print("kx shape: ", kx.shape)
+    print("kz shape: ", kz.shape)
+    print("omega shape: ", omega.shape)
 
     max_kx, max_kz,max_omega= estimate_dominant_frequency_fft(F)
-    print "max kx shape: ", max_kx.shape
-    print "max kz shape: ", max_kz.shape
-    print "max omega shape: ", max_omega.shape
+    print("max kx shape: ", max_kx.shape)
+    print("max kz shape: ", max_kz.shape)
+    print("max omega shape: ", max_omega.shape)
     nc.close()
     return kx,kz,omega, max_kx, max_kz,max_omega
 
@@ -122,9 +122,9 @@ def estimate_dominant_frequency_fft(F):
 def plot_fft(timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep,mkx,mkz,momega,dz_id):
     # get the path to the nc file
     # Open &  Load the nc file
-    print "max kx shape", mkx.shape
-    print "max kz shape", mkz.shape
-    print "max omega shape", momega.shape
+    print("max kx shape", mkx.shape)
+    print("max kz shape", mkz.shape)
+    print("max omega shape", momega.shape)
 
     dz_path = "/data/dz/%d" % dz_id
     dz_filename = dz_path + "/dz.nc"
@@ -134,7 +134,7 @@ def plot_fft(timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep,mkx,mkz,momega,dz
     x = nc.variables['column'][colS:colE:xstep]
     z = nc.variables['row'][rowS:rowE:zstep]
 
-    print dz.shape
+    print(dz.shape)
     plt.figure()
     plt.imshow(dz)
     plt.colorbar()
@@ -200,7 +200,7 @@ def plot_fft(timeS,timeE,tstep,rowS,rowE,zstep,colS,colE,xstep,mkx,mkz,momega,dz
 def plot_3Dfft_dominant_frequency(k_xax,k_yax,raw,left,right,xlab,ylab,title,plotname):
     # get the path to the nc file
     # Open &  Load the nc file
-    print "max kx shape", raw.shape,left.shape,right.shape
+    print("max kx shape", raw.shape,left.shape,right.shape)
 
     plt.figure(figsize=(15,10))
     plt.subplot(1,3,1)
@@ -249,11 +249,11 @@ def test():
     x = np.mgrid[xmin:xmax:nx*1j]
     z = np.mgrid[zmin:zmax:nz*1j]
     t = np.mgrid[tmin:tmax:dt]
-    print "x",x.shape, "z ", z.shape,"t ",t.shape
+    print("x",x.shape, "z ", z.shape,"t ",t.shape)
     X, Z, T = np.mgrid[xmin:xmax:nx*1j,
                        zmin:zmax:nz*1j,
                        tmin:tmax:dt]
-    print "X",X.shape, "Z ", Z.shape,"T ",T.shape
+    print("X",X.shape, "Z ", Z.shape,"T ",T.shape)
     # ensure nx, nz, nt, dx, dz, dt are all defined
     nx, nz, nt = len(x), len(z), len(t)
     dx = x[1] - x[0]
@@ -265,7 +265,7 @@ def test():
     kz0 = 2.0
     omega0 = 2.0
     f = np.cos(kx0*X + kz0*Z - omega0*T)
-    print "F:",f.shape
+    print("F:",f.shape)
     # find the peak frequencies
     kx_, kz_, omega_ = estimate_dominant_frequency(f, x, z, t)
 

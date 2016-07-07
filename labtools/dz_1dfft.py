@@ -14,7 +14,7 @@ t = np.float16(t)
 x = np.float16(x)
 z = np.float16(z)
 
-print dz.shape
+print(dz.shape)
 
 fig = plt.figure()
 
@@ -25,7 +25,7 @@ dzfft = np.fft.fft(dz[113:342,120,700])
 dzfft = np.fft.fftshift(dzfft)
 tseries= t[113:342]
 freq = np.fft.fftfreq(tseries.shape[0],d=0.29)
-print "dt  : " ,np.mean(np.diff(t))
+print("dt  : " ,np.mean(np.diff(t)))
 freq = np.fft.fftshift(freq)
 
 a1 = fig.add_subplot(121)
@@ -41,7 +41,7 @@ kx calculation
 dz_kx = np.fft.fft(dz[300,700,250:1200])
 dz_kx = np.fft.fftshift(dz_kx)
 x= x[250:1200]
-print "dx : ", np.mean(np.diff(x))   
+print("dx : ", np.mean(np.diff(x)))   
 dz_xwavenum = np.fft.fftfreq(x.shape[0] , d = 0.0356)
 dz_xwavenum = np.fft.fftshift(dz_xwavenum)
 
@@ -59,7 +59,7 @@ kz calculation
 dz_kz = np.fft.fft(dz[150,60:900,1200])
 dz_kz = np.fft.fftshift(dz_kz)
 z=z[60:900]
-print "dz : ", np.mean(np.diff(z))
+print("dz : ", np.mean(np.diff(z)))
 dz_zwavenum = np.fft.fftfreq(z.shape[0] , d = 0.0363)
 dz_zwavenum = np.fft.fftshift(dz_zwavenum)
 
@@ -75,11 +75,11 @@ plt.plot(dz_zwavenum, abs(dz_kz),'b:')
 plt.xlabel('kz/(2*pi)')
 
 i= np.argmax(abs(dzfft))
-print "freq : " , freq[i]
+print("freq : " , freq[i])
 i= np.argmax(abs(dz_kx))
-print "kx : ", dz_xwavenum[i]
+print("kx : ", dz_xwavenum[i])
 i= np.argmax(abs(dz_kz))
-print "kz : ", dz_zwavenum[i]
+print("kz : ", dz_zwavenum[i])
 plt.show()
 
 

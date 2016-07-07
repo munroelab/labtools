@@ -1,7 +1,7 @@
 
-import SyntheticSchlieren
-import Spectrum_LR
-import WaveCharacteristics
+from . import SyntheticSchlieren
+from . import Spectrum_LR
+from . import WaveCharacteristics
 import os
 import netCDF4 as nc
 from matplotlib import pyplot as plt
@@ -9,9 +9,9 @@ from  matplotlib import animation
 
 
 dz_id = SyntheticSchlieren.compute_dz(745,7,7,30,1,0,1400,2)
-print "****** dz_id ******",dz_id
+print("****** dz_id ******",dz_id)
 a_xi_id = WaveCharacteristics.compute_a_xi(dz_id)
-print  "****** a_xi_id ******",a_xi_id
+print("****** a_xi_id ******",a_xi_id)
 Spectrum_LR.task_hilbert_func(a_xi_id,0.02,300)
 
 
