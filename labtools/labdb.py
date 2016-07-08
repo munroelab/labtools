@@ -8,7 +8,8 @@ Usage:
 """
 
 #import MySQLdb
-import sqlite3
+#import sqlite3
+import pymysql
 import os
 
 class LabDB:
@@ -21,7 +22,7 @@ class LabDB:
             self.hostname = "localhost"
 
         # Open database connection
-        self.conn = sqlite3.connect(self.hostname, "lab", "fluids0", "lab")
+        self.conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='0ceanS', db='mysql')
 
     def execute(self, sql):
         cursor = self.conn.cursor()

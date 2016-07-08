@@ -5,18 +5,18 @@
 # related by the deltaN2_id fields.
 #
 
-from .chunk_shape_3D import chunk_shape_3D
-from . import playncfile
+import chunk_shape_3D
+import playncfile
 import matplotlib
 import argparse 
 import numpy
-from . import labdb
+import labdb
 import os
 import netCDF4
 import pylab
 import matplotlib.pyplot as plt
-from . import Energy_flux
-from . import progressbar
+import Energy_flux
+import progressbar
 
 
 def createncfile(dz_id,t,x,z,
