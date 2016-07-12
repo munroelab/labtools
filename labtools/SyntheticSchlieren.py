@@ -2,7 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrix based operations
 """
-from . import spectrum_test
+import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -12,19 +12,19 @@ import numpy
 import time
 import os
 import sys
-from . import labdb
+import labdb
 import gc
 import netCDF4
 from scipy import ndimage
 from scipy.ndimage import gaussian_filter
 from numpy import ma
-from . import progressbar
+import progressbar
 import multiprocessing
 import socket
 import warnings
 import tempfile
 import logging
-from .chunk_shape_3D import chunk_shape_3D
+import chunk_shape_3D
 
 import skimage.morphology, skimage.filter 
 

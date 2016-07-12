@@ -6,7 +6,7 @@ Routines for computing Fourier transforms of f(x,z,t) fields
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from . import schlieren
+import schlieren
 
 def fxzt_fft(f, x, z, t):
     """

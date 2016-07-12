@@ -2,7 +2,7 @@
 test program for implementing line based synthetic schlieren 
 using matrx based operations
 """
-from . import spectrum_test
+import spectrum_test
 import matplotlib
 #matplotlib.use('module://mplh5canvas.backend_h5canvas')
 import argparse
@@ -11,7 +11,7 @@ import pylab
 import numpy
 import time
 import os
-from . import labdb
+import labdb
 
 def getTol(image, mintol = 10):
     """
