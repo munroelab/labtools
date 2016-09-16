@@ -1,18 +1,16 @@
 language: python
-python:
-  - 3.5
 notifications:
   email: true
 
 # Setup anaconda
 before_install:
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
+  - export PATH=/home/travis/miniconda3/bin:$PATH
   - echo $PATH
   - pwd
-  - ls /home/travis/miniconda
+  - ls /home/travis/miniconda3
   - conda update --yes conda
   # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
 #  - sudo rm -rf /dev/shm
