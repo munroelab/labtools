@@ -1,22 +1,11 @@
-# Labtools
+# Munroelab: labtools
 
-Run
+This project is a collection of software used to support the collection and analysis of lab data from Dr. Munroe's stratified fluid dynamics laboratory at Memorial University of Newfoundland.
 
-``` 
- python workflow.py
-```
-            
-to process all experiments
+It is implemented primarily as a Python package called labtools.  
 
-## Command line tools
+To install
 
-Shared tools for collecting and analyzing lab data are install in programs/
-To be installed in /usr/local/bin
+    python setup.py install
 
-python package labtools is used for analysis
-
-
-## TODO
-
-Cleanly separate out project agnostic code from project specific code
 

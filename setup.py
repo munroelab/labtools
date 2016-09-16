@@ -1,6 +1,6 @@
 from setuptools import setup
 
 setup(name='labtools',
-      version='0.1',
+      version='0.11',
       packages=['labtools'],
       )
